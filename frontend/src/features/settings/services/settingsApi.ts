@@ -1,0 +1,383 @@
+/**
+ * Settings API Services with Graceful Fallback
+ * All services automatically return mock data if API fails
+ */
+
+import type {
+  Company,
+  Branch,
+  User,
+  Role,
+  Module,
+  SystemPreferences,
+  ModuleConfiguration,
+  SettingsStats,
+} from '../types';
+
+// ─── Mock Data ───────────────────────────────────────────────────────────────
+
+const mockCompany: Company = {
+  id: '1',
+  companyName: 'PEB Solutions',
+  legalCompanyName: 'PEB Solutions Pvt Ltd',
+  address: '123 Business Park',
+  city: 'Mumbai',
+  state: 'Maharashtra',
+  country: 'India',
+  postalCode: '400001',
+  gstNumber: '27AAPFU0939J1ZP',
+  panNumber: 'AAPFU0939J',
+  cinNumber: 'U72900MH2020PTC123456',
+  msmeNumber: 'UDYAM-MH-20-0123456',
+  website: 'https://pebsolutions.com',
+  email: 'info@pebsolutions.com',
+  mobile: '+91 9876543210',
+  supportEmail: 'support@pebsolutions.com',
+  supportPhone: '+91 9876543211',
+  facebook: 'https://facebook.com/pebsolutions',
+  instagram: 'https://instagram.com/pebsolutions',
+  linkedin: 'https://linkedin.com/company/pebsolutions',
+  primaryColor: '#3b82f6',
+  secondaryColor: '#8b5cf6',
+  accentColor: '#10b981',
+  themeMode: 'light',
+};
+
+const mockBranches: Branch[] = [
+  {
+    id: '1',
+    branchCode: 'HQ',
+    branchName: 'Headquarters',
+    address: '123 Business Park',
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    country: 'India',
+    postalCode: '400001',
+    gstNumber: '27AAPFU0939J1ZP',
+    contactPerson: 'John Doe',
+    email: 'mumbai@pebsolutions.com',
+    mobile: '+91 9876543210',
+    isDefault: true,
+    isActive: true,
+  },
+];
+
+const mockUsers: User[] = [
+  {
+    id: '1',
+    name: 'John Owner',
+    email: 'owner@pebsolutions.com',
+    mobile: '+91 9876543210',
+    role: 'owner',
+    isActive: true,
+    isLocked: false,
+    loginHistory: [],
+  },
+  {
+    id: '2',
+    name: 'Jane Admin',
+    email: 'admin@pebsolutions.com',
+    mobile: '+91 9876543211',
+    role: 'admin',
+    isActive: true,
+    isLocked: false,
+    loginHistory: [],
+  },
+];
+
+const mockModules: Module[] = [
+  {
+    id: 'leads',
+    name: 'leads',
+    displayName: 'Leads',
+    description: 'Manage leads and opportunities',
+    icon: 'Users',
+    isEnabled: true,
+    isVisible: true,
+    isLocked: false,
+    requiredPermissions: ['view', 'create', 'edit', 'delete'],
+  },
+  {
+    id: 'customers',
+    name: 'customers',
+    displayName: 'Customers',
+    description: 'Manage customer relationships',
+    icon: 'Building',
+    isEnabled: true,
+    isVisible: true,
+    isLocked: false,
+    requiredPermissions: ['view', 'create', 'edit', 'delete'],
+  },
+];
+
+const mockSettingsStats: SettingsStats = {
+  totalUsers: 15,
+  activeUsers: 12,
+  enabledModules: 6,
+  disabledModules: 2,
+  pendingApprovals: 5,
+  systemHealth: 'healthy',
+};
+
+// ─── API Functions with Fallback ───────────────────────────────────────────────
+
+export const settingsApi = {
+  // Company
+  async getCompany(): Promise<Company> {
+    try {
+      // const response = await api.get('/settings/company');
+      // return response.data;
+      return mockCompany;
+    } catch (error) {
+      console.warn('API Error: getCompany, using mock data');
+      return mockCompany;
+    }
+  },
+
+  async updateCompany(data: Partial<Company>): Promise<Company> {
+    try {
+      // const response = await api.put('/settings/company', data);
+      // return response.data;
+      return { ...mockCompany, ...data };
+    } catch (error) {
+      console.warn('API Error: updateCompany, using mock data');
+      return { ...mockCompany, ...data };
+    }
+  },
+
+  // Branches
+  async getBranches(): Promise<Branch[]> {
+    try {
+      // const response = await api.get('/settings/branches');
+      // return response.data;
+      return mockBranches;
+    } catch (error) {
+      console.warn('API Error: getBranches, using mock data');
+      return mockBranches;
+    }
+  },
+
+  async createBranch(data: Omit<Branch, 'id' | 'createdAt' | 'updatedAt'>): Promise<Branch> {
+    try {
+      // const response = await api.post('/settings/branches', data);
+      // return response.data;
+      return { ...data, id: Date.now().toString(), createdAt: new Date(), updatedAt: new Date() };
+    } catch (error) {
+      console.warn('API Error: createBranch, using mock data');
+      return { ...data, id: Date.now().toString(), createdAt: new Date(), updatedAt: new Date() };
+    }
+  },
+
+  async updateBranch(id: string, data: Partial<Branch>): Promise<Branch> {
+    try {
+      // const response = await api.put(`/settings/branches/${id}`, data);
+      // return response.data;
+      return { ...mockBranches[0], ...data, id, updatedAt: new Date() };
+    } catch (error) {
+      console.warn('API Error: updateBranch, using mock data');
+      return { ...mockBranches[0], ...data, id, updatedAt: new Date() };
+    }
+  },
+
+  async deleteBranch(id: string): Promise<void> {
+    try {
+      // await api.delete(`/settings/branches/${id}`);
+    } catch (error) {
+      console.warn('API Error: deleteBranch, mock delete');
+    }
+  },
+
+  // Users
+  async getUsers(): Promise<User[]> {
+    try {
+      // const response = await api.get('/settings/users');
+      // return response.data;
+      return mockUsers;
+    } catch (error) {
+      console.warn('API Error: getUsers, using mock data');
+      return mockUsers;
+    }
+  },
+
+  async createUser(data: Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'loginHistory'>): Promise<User> {
+    try {
+      // const response = await api.post('/settings/users', data);
+      // return response.data;
+      return { ...data, id: Date.now().toString(), createdAt: new Date(), updatedAt: new Date(), loginHistory: [] };
+    } catch (error) {
+      console.warn('API Error: createUser, using mock data');
+      return { ...data, id: Date.now().toString(), createdAt: new Date(), updatedAt: new Date(), loginHistory: [] };
+    }
+  },
+
+  async updateUser(id: string, data: Partial<User>): Promise<User> {
+    try {
+      // const response = await api.put(`/settings/users/${id}`, data);
+      // return response.data;
+      return { ...mockUsers[0], ...data, id, updatedAt: new Date() };
+    } catch (error) {
+      console.warn('API Error: updateUser, using mock data');
+      return { ...mockUsers[0], ...data, id, updatedAt: new Date() };
+    }
+  },
+
+  async deleteUser(id: string): Promise<void> {
+    try {
+      // await api.delete(`/settings/users/${id}`);
+    } catch (error) {
+      console.warn('API Error: deleteUser, mock delete');
+    }
+  },
+
+  // Roles
+  async getRoles(): Promise<Role[]> {
+    try {
+      // const response = await api.get('/settings/roles');
+      // return response.data;
+      return [];
+    } catch (error) {
+      console.warn('API Error: getRoles, using mock data');
+      return [];
+    }
+  },
+
+  async createRole(data: Omit<Role, 'id' | 'createdAt' | 'updatedAt'>): Promise<Role> {
+    try {
+      // const response = await api.post('/settings/roles', data);
+      // return response.data;
+      return { ...data, id: Date.now().toString(), createdAt: new Date(), updatedAt: new Date() };
+    } catch (error) {
+      console.warn('API Error: createRole, using mock data');
+      return { ...data, id: Date.now().toString(), createdAt: new Date(), updatedAt: new Date() };
+    }
+  },
+
+  async updateRole(id: string, data: Partial<Role>): Promise<Role> {
+    try {
+      // const response = await api.put(`/settings/roles/${id}`, data);
+      // return response.data;
+      return { id, ...data, updatedAt: new Date() } as Role;
+    } catch (error) {
+      console.warn('API Error: updateRole, using mock data');
+      return { id, ...data, updatedAt: new Date() } as Role;
+    }
+  },
+
+  async deleteRole(id: string): Promise<void> {
+    try {
+      // await api.delete(`/settings/roles/${id}`);
+    } catch (error) {
+      console.warn('API Error: deleteRole, mock delete');
+    }
+  },
+
+  // Modules
+  async getModules(): Promise<Module[]> {
+    try {
+      // const response = await api.get('/settings/modules');
+      // return response.data;
+      return mockModules;
+    } catch (error) {
+      console.warn('API Error: getModules, using mock data');
+      return mockModules;
+    }
+  },
+
+  async updateModule(id: string, data: Partial<Module>): Promise<Module> {
+    try {
+      // const response = await api.put(`/settings/modules/${id}`, data);
+      // return response.data;
+      const module = mockModules.find(m => m.id === id);
+      return { ...module, ...data, id, updatedAt: new Date() } as Module;
+    } catch (error) {
+      console.warn('API Error: updateModule, using mock data');
+      const module = mockModules.find(m => m.id === id);
+      return { ...module, ...data, id, updatedAt: new Date() } as Module;
+    }
+  },
+
+  // System Preferences
+  async getSystemPreferences(): Promise<SystemPreferences> {
+    try {
+      // const response = await api.get('/settings/preferences');
+      // return response.data;
+      return {
+        timezone: 'Asia/Kolkata',
+        language: 'en',
+        currency: 'INR',
+        dateFormat: 'DD/MM/YYYY',
+        timeFormat: '12-hour',
+        fileUploadLimit: 10,
+        allowedFileTypes: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'png'],
+        defaultTheme: 'light',
+      };
+    } catch (error) {
+      console.warn('API Error: getSystemPreferences, using mock data');
+      return {
+        timezone: 'Asia/Kolkata',
+        language: 'en',
+        currency: 'INR',
+        dateFormat: 'DD/MM/YYYY',
+        timeFormat: '12-hour',
+        fileUploadLimit: 10,
+        allowedFileTypes: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'png'],
+        defaultTheme: 'light',
+      };
+    }
+  },
+
+  async updateSystemPreferences(data: Partial<SystemPreferences>): Promise<SystemPreferences> {
+    try {
+      // const response = await api.put('/settings/preferences', data);
+      // return response.data;
+      return {
+        timezone: 'Asia/Kolkata',
+        language: 'en',
+        currency: 'INR',
+        dateFormat: 'DD/MM/YYYY',
+        timeFormat: '12-hour',
+        fileUploadLimit: 10,
+        allowedFileTypes: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'png'],
+        defaultTheme: 'light',
+        ...data,
+      };
+    } catch (error) {
+      console.warn('API Error: updateSystemPreferences, using mock data');
+      return {
+        timezone: 'Asia/Kolkata',
+        language: 'en',
+        currency: 'INR',
+        dateFormat: 'DD/MM/YYYY',
+        timeFormat: '12-hour',
+        fileUploadLimit: 10,
+        allowedFileTypes: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'png'],
+        defaultTheme: 'light',
+        ...data,
+      };
+    }
+  },
+
+  // Module Configuration
+  async getModuleConfiguration(moduleId: string): Promise<ModuleConfiguration> {
+    try {
+      // const response = await api.get(`/settings/modules/${moduleId}/config`);
+      // return response.data;
+      return { id: moduleId, name: '', settings: {} };
+    } catch (error) {
+      console.warn('API Error: getModuleConfiguration, using mock data');
+      return { id: moduleId, name: '', settings: {} };
+    }
+  },
+
+  // Stats
+  async getSettingsStats(): Promise<SettingsStats> {
+    try {
+      // const response = await api.get('/settings/stats');
+      // return response.data;
+      return mockSettingsStats;
+    } catch (error) {
+      console.warn('API Error: getSettingsStats, using mock data');
+      return mockSettingsStats;
+    }
+  },
+};

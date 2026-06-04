@@ -1,0 +1,350 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { MainLayout } from '@/layouts/MainLayout';
+import { DataTable, Column } from '@/components/data-table/DataTable';
+import { KPICard } from '@/components/dashboard/KPICard';
+import { InventoryItemForm } from '@/features/inventory/components/InventoryItemForm';
+import { InventoryRowActions } from '@/features/inventory/components/InventoryRowActions';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { InventoryItem, StockStatus } from '@/features/inventory/types';
+import { getStockStatusVariant } from '@/features/inventory/constants';
+import {
+  useInventoryItems,
+  useInventoryStats,
+  useCreateInventoryItem,
+  useUpdateInventoryItem,
+  useDeleteInventoryItem,
+} from '@/features/inventory/hooks/useInventory';
+import { ROUTES } from '@/core/routes';
+import {
+  Package,
+  DollarSign,
+  AlertTriangle,
+  XCircle,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Lock,
+  Truck,
+  ShoppingCart,
+  AlertOctagon,
+  Plus,
+  Download,
+} from 'lucide-react';
+
+export default function InventoryPage() {
+  const router = useRouter();
+
+  // React Query hooks
+  const [params, setParams] = useState({ page: 1, pageSize: 20 });
+  const { data: itemsResponse, isLoading, error } = useInventoryItems(params);
+  const { data: stats } = useInventoryStats();
+  const createMutation = useCreateInventoryItem();
+  const updateMutation = useUpdateInventoryItem();
+  const deleteMutation = useDeleteInventoryItem();
+
+  // UI state only
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
+
+  // Extract data
+  const items = itemsResponse?.data ?? [];
+  const statsData = stats;
+
+  // 10 KPI Cards
+  const kpiData = [
+    { title: 'Total Items', value: String(statsData?.totalItems ?? 0), change: 5.2, icon: <Package className="h-6 w-6 text-blue-600" />, color: 'text-blue-600' },
+    { title: 'Total Value', value: `₹${((statsData?.totalValue ?? 0) / 100000).toFixed(1)}L`, change: 8.7, icon: <DollarSign className="h-6 w-6 text-green-600" />, color: 'text-green-600' },
+    { title: 'Low Stock', value: String(statsData?.lowStockItems ?? 0), change: -3.1, icon: <AlertTriangle className="h-6 w-6 text-amber-600" />, color: 'text-amber-600' },
+    { title: 'Out of Stock', value: String(statsData?.outOfStockItems ?? 0), change: -12.0, icon: <XCircle className="h-6 w-6 text-red-600" />, color: 'text-red-600' },
+    { title: 'Incoming Stock', value: String(statsData?.incomingStock ?? 0), change: 15.3, icon: <ArrowDownToLine className="h-6 w-6 text-emerald-600" />, color: 'text-emerald-600' },
+    { title: 'Outgoing Stock', value: String(statsData?.outgoingStock ?? 0), change: 7.8, icon: <ArrowUpFromLine className="h-6 w-6 text-orange-600" />, color: 'text-orange-600' },
+    { title: 'Reserved Stock', value: String(statsData?.reservedStock ?? 0), change: 4.5, icon: <Lock className="h-6 w-6 text-purple-600" />, color: 'text-purple-600' },
+    { title: 'Active Suppliers', value: String(statsData?.activeSuppliers ?? 0), change: 2.0, icon: <Truck className="h-6 w-6 text-teal-600" />, color: 'text-teal-600' },
+    { title: 'Pending PRs', value: String(statsData?.pendingPurchaseRequests ?? 0), change: -5.5, icon: <ShoppingCart className="h-6 w-6 text-indigo-600" />, color: 'text-indigo-600' },
+    { title: 'Material Shortages', value: String(statsData?.materialShortages ?? 0), change: -8.2, icon: <AlertOctagon className="h-6 w-6 text-rose-600" />, color: 'text-rose-600' },
+  ];
+
+  // 16-column DataTable
+  const columns: Column<InventoryItem>[] = [
+    {
+      key: 'itemCode',
+      label: 'Item Code',
+      sortable: true,
+      render: (value) => <span className="font-mono text-xs text-muted-foreground">{value}</span>,
+    },
+    {
+      key: 'itemName',
+      label: 'Item Name',
+      sortable: true,
+      filterable: true,
+      render: (_, row) => (
+        <div>
+          <p className="font-medium text-sm">{row.itemName}</p>
+          <p className="text-xs text-muted-foreground">{row.itemCode}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'category',
+      label: 'Category',
+      sortable: true,
+      filterable: true,
+      render: (value) => <span className="text-xs">{value}</span>,
+    },
+    {
+      key: 'materialType',
+      label: 'Material Type',
+      sortable: true,
+      filterable: true,
+      render: (value) => <span className="text-xs">{value}</span>,
+    },
+    {
+      key: 'unit',
+      label: 'Unit',
+      render: (value) => <span className="text-xs">{value}</span>,
+    },
+    {
+      key: 'currentStock',
+      label: 'Current Stock',
+      sortable: true,
+      render: (value) => (
+        <span className="text-xs font-medium">{Number(value).toLocaleString()}</span>
+      ),
+    },
+    {
+      key: 'reservedStock',
+      label: 'Reserved',
+      sortable: true,
+      render: (value) => (
+        <span className="text-xs text-purple-600">{Number(value).toLocaleString()}</span>
+      ),
+    },
+    {
+      key: 'availableStock',
+      label: 'Available',
+      sortable: true,
+      render: (value) => (
+        <span className="text-xs font-medium text-green-700">{Number(value).toLocaleString()}</span>
+      ),
+    },
+    {
+      key: 'minimumStock',
+      label: 'Min Stock',
+      render: (value) => <span className="text-xs text-muted-foreground">{Number(value).toLocaleString()}</span>,
+    },
+    {
+      key: 'reorderLevel',
+      label: 'Reorder',
+      render: (value) => <span className="text-xs text-muted-foreground">{Number(value).toLocaleString()}</span>,
+    },
+    {
+      key: 'warehouseName',
+      label: 'Warehouse',
+      sortable: true,
+      filterable: true,
+      render: (value) => <span className="text-xs">{value}</span>,
+    },
+    {
+      key: 'purchaseRate',
+      label: 'Purchase Rate',
+      sortable: true,
+      render: (value) => (
+        <span className="text-xs">₹{Number(value).toFixed(2)}</span>
+      ),
+    },
+    {
+      key: 'totalValue',
+      label: 'Current Value',
+      sortable: true,
+      render: (value) => (
+        <span className="text-xs font-medium">₹{Number(value).toLocaleString()}</span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      filterable: true,
+      render: (value) => (
+        <Badge variant={getStockStatusVariant(value as StockStatus)}>
+          {value}
+        </Badge>
+      ),
+    },
+    {
+      key: 'lastUpdated',
+      label: 'Last Updated',
+      sortable: true,
+      render: (value) => {
+        if (!value) return <span className="text-xs text-muted-foreground">-</span>;
+        const date = new Date(value);
+        return (
+          <span className="text-xs text-muted-foreground">
+            {date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+          </span>
+        );
+      },
+    },
+  ];
+
+  // Mutation handlers
+  const handleCreate = (data: Partial<InventoryItem>) => {
+    createMutation.mutate(data as any, {
+      onSuccess: () => setIsCreateDialogOpen(false),
+    });
+  };
+
+  const handleEdit = (data: Partial<InventoryItem>) => {
+    if (!selectedItem) return;
+    updateMutation.mutate(
+      { id: selectedItem.id, data: data as any },
+      {
+        onSuccess: () => {
+          setIsEditDialogOpen(false);
+          setSelectedItem(null);
+        },
+      }
+    );
+  };
+
+  const handleDelete = (item: InventoryItem) => {
+    if (confirm(`Delete inventory item "${item.itemName}"?`)) {
+      deleteMutation.mutate(item.id);
+    }
+  };
+
+  const handleRowClick = (row: InventoryItem) => {
+    router.push(`${ROUTES.inventory}/${row.id}`);
+  };
+
+  const handleViewDetails = (item: InventoryItem) => {
+    router.push(`${ROUTES.inventory}/${item.id}`);
+  };
+
+  const handleEditFromRow = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleStatusChange = (item: InventoryItem, status: StockStatus) => {
+    updateMutation.mutate({ id: item.id, data: { status } });
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <MainLayout title="Inventory" subtitle="Manage materials and stock">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center space-y-2">
+            <div className="h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-sm text-muted-foreground">Loading inventory...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <MainLayout title="Inventory" subtitle="Manage materials and stock">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center space-y-2">
+            <p className="text-sm text-destructive">Failed to load inventory</p>
+            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  return (
+    <MainLayout title="Inventory" subtitle="Manage materials and stock">
+      <div className="space-y-6">
+        {/* 10 KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {kpiData.map((kpi) => (
+            <KPICard key={kpi.title} data={kpi} />
+          ))}
+        </div>
+
+        {/* Action Bar */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">All Inventory Items</h2>
+            <p className="text-sm text-muted-foreground">{items.length} total items</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+            <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Item
+            </Button>
+          </div>
+        </div>
+
+        {/* Data Table */}
+        <DataTable
+          columns={columns}
+          data={items}
+          onRowClick={handleRowClick}
+          enableSelection={true}
+          selectedRows={selectedRows}
+          onSelectionChange={setSelectedRows}
+          rowIdKey="id"
+          rowActions={(row) => (
+            <InventoryRowActions
+              item={row as InventoryItem}
+              onEdit={handleEditFromRow}
+              onDelete={handleDelete}
+              onViewDetails={handleViewDetails}
+              onStatusChange={handleStatusChange}
+            />
+          )}
+        />
+
+        {/* Create Item Dialog */}
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Inventory Item</DialogTitle>
+            </DialogHeader>
+            <InventoryItemForm
+              onSubmit={handleCreate}
+              onCancel={() => setIsCreateDialogOpen(false)}
+              isLoading={createMutation.isPending}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Item Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Inventory Item</DialogTitle>
+            </DialogHeader>
+            {selectedItem && (
+              <InventoryItemForm
+                initialData={selectedItem}
+                onSubmit={handleEdit}
+                onCancel={() => setIsEditDialogOpen(false)}
+                isLoading={updateMutation.isPending}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    </MainLayout>
+  );
+}
