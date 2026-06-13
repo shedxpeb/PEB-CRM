@@ -23,6 +23,7 @@ export function useIncome(params?: PaginationParams & FinanceFilters) {
     queryFn: () => financeApi.getAllIncome(params),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -31,6 +32,7 @@ export function useIncomeById(id: string) {
     queryKey: ['finance', 'income', id],
     queryFn: () => financeApi.getIncomeById(id),
     enabled: !!id,
+    refetchOnMount: false,
   });
 }
 
@@ -69,12 +71,14 @@ export function useDeleteIncome() {
 
 // ─── Expenses ───────────────────────────────────────────────────────────────
 
-export function useExpenses(params?: PaginationParams & FinanceFilters) {
+export function useExpenses(params?: PaginationParams & FinanceFilters, enabled: boolean = true) {
   return useQuery({
     queryKey: ['finance', 'expenses', params],
     queryFn: () => financeApi.getAllExpenses(params),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    enabled,
   });
 }
 
@@ -83,6 +87,7 @@ export function useExpenseById(id: string) {
     queryKey: ['finance', 'expenses', id],
     queryFn: () => financeApi.getExpenseById(id),
     enabled: !!id,
+    refetchOnMount: false,
   });
 }
 
@@ -141,12 +146,14 @@ export function useRejectExpense() {
 
 // ─── Invoices ────────────────────────────────────────────────────────────────
 
-export function useInvoices(params?: PaginationParams & FinanceFilters) {
+export function useInvoices(params?: PaginationParams & FinanceFilters, enabled: boolean = true) {
   return useQuery({
     queryKey: ['finance', 'invoices', params],
     queryFn: () => financeApi.getAllInvoices(params),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    enabled,
   });
 }
 
@@ -155,6 +162,7 @@ export function useInvoiceById(id: string) {
     queryKey: ['finance', 'invoices', id],
     queryFn: () => financeApi.getInvoiceById(id),
     enabled: !!id,
+    refetchOnMount: false,
   });
 }
 
@@ -217,12 +225,14 @@ export function useMarkInvoicePaid() {
 
 // ─── Payments ────────────────────────────────────────────────────────────────
 
-export function usePayments(params?: PaginationParams & FinanceFilters) {
+export function usePayments(params?: PaginationParams & FinanceFilters, enabled: boolean = true) {
   return useQuery({
     queryKey: ['finance', 'payments', params],
     queryFn: () => financeApi.getAllPayments(params),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    enabled,
   });
 }
 
@@ -231,6 +241,7 @@ export function usePaymentById(id: string) {
     queryKey: ['finance', 'payments', id],
     queryFn: () => financeApi.getPaymentById(id),
     enabled: !!id,
+    refetchOnMount: false,
   });
 }
 
@@ -275,6 +286,7 @@ export function useVendors() {
     queryKey: ['finance', 'vendors'],
     queryFn: () => financeApi.getAllVendors(),
     staleTime: 10 * 60 * 1000,
+    refetchOnMount: false,
   });
 }
 
@@ -283,6 +295,7 @@ export function useVendorById(id: string) {
     queryKey: ['finance', 'vendors', id],
     queryFn: () => financeApi.getVendorById(id),
     enabled: !!id,
+    refetchOnMount: false,
   });
 }
 
@@ -324,6 +337,7 @@ export function useBankAccounts() {
     queryKey: ['finance', 'bank-accounts'],
     queryFn: () => financeApi.getAllBankAccounts(),
     staleTime: 10 * 60 * 1000,
+    refetchOnMount: false,
   });
 }
 
@@ -332,6 +346,7 @@ export function useBankAccountById(id: string) {
     queryKey: ['finance', 'bank-accounts', id],
     queryFn: () => financeApi.getBankAccountById(id),
     enabled: !!id,
+    refetchOnMount: false,
   });
 }
 
@@ -374,6 +389,7 @@ export function useTransactions(params?: PaginationParams & FinanceFilters) {
     queryFn: () => financeApi.getAllTransactions(params),
     staleTime: 3 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -385,6 +401,7 @@ export function useReceivables(params?: PaginationParams & FinanceFilters) {
     queryFn: () => financeApi.getAllReceivables(params),
     staleTime: 3 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -396,6 +413,7 @@ export function usePayables(params?: PaginationParams & FinanceFilters) {
     queryFn: () => financeApi.getAllPayables(params),
     staleTime: 3 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -407,25 +425,31 @@ export function useProjectFinance(projectId: string) {
     queryFn: () => financeApi.getProjectFinance(projectId),
     enabled: !!projectId,
     staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
   });
 }
 
 // ─── Stats ─────────────────────────────────────────────────────────────────────
 
-export function useFinanceStats() {
+export function useFinanceStats(enabled: boolean = true) {
   return useQuery({
     queryKey: ['finance', 'stats'],
     queryFn: () => financeApi.getStats(),
     staleTime: 2 * 60 * 1000,
+    enabled,
+    refetchOnMount: false,
+    retry: 0, // No retry for dashboard - fail fast
   });
 }
 
 // ─── Activities ───────────────────────────────────────────────────────────────
 
-export function useFinanceActivities(params?: PaginationParams) {
+export function useFinanceActivities(params?: PaginationParams, enabled: boolean = true) {
   return useQuery({
     queryKey: ['finance', 'activities', params],
     queryFn: () => financeApi.getActivities(params),
     staleTime: 3 * 60 * 1000,
+    enabled,
+    refetchOnMount: false,
   });
 }

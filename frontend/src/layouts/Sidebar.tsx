@@ -1,13 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Users,
   Building,
+  Package as ItemMasterIcon,
   FolderKanban,
+  CheckSquare,
   Package,
   DollarSign,
   FileText,
@@ -15,7 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { useSidebarStore } from '@/store/useSidebarStore';
+import { useSidebarIsOpen, useSidebarIsCollapsed, useSidebarToggle } from '@/store/useSidebarStore';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
@@ -43,9 +45,21 @@ const navigationItems = [
     roles: ['owner', 'admin', 'employee'],
   },
   {
+    title: 'Item Master',
+    href: '/dashboard/item-master',
+    icon: ItemMasterIcon,
+    roles: ['owner', 'admin', 'employee'],
+  },
+  {
     title: 'Projects',
     href: '/dashboard/projects',
     icon: FolderKanban,
+    roles: ['owner', 'admin', 'employee'],
+  },
+  {
+    title: 'Task Management',
+    href: '/dashboard/task-management',
+    icon: CheckSquare,
     roles: ['owner', 'admin', 'employee'],
   },
   {
@@ -74,9 +88,12 @@ const navigationItems = [
   },
 ];
 
-export function Sidebar({ currentPath, userRole = 'owner' }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({ currentPath, userRole = 'owner' }: SidebarProps) {
   const pathname = currentPath || usePathname();
-  const { isOpen, isCollapsed, toggleSidebar } = useSidebarStore();
+  const router = useRouter();
+  const isOpen = useSidebarIsOpen();
+  const isCollapsed = useSidebarIsCollapsed();
+  const toggleSidebar = useSidebarToggle();
 
   const filteredItems = navigationItems.filter(item =>
     item.roles.includes(userRole)
@@ -113,6 +130,7 @@ export function Sidebar({ currentPath, userRole = 'owner' }: SidebarProps) {
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    onMouseEnter={() => router.prefetch(item.href)}
                     className={cn(
                       'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
                       isActive
@@ -121,7 +139,7 @@ export function Sidebar({ currentPath, userRole = 'owner' }: SidebarProps) {
                     )}
                   >
                     <Icon size={20} />
-                    <span className="font-medium">{item.title}</span>
+                    {!isCollapsed && <span className="font-medium">{item.title}</span>}
                   </Link>
                 </li>
               );
@@ -138,4 +156,4 @@ export function Sidebar({ currentPath, userRole = 'owner' }: SidebarProps) {
       </div>
     </aside>
   );
-}
+});

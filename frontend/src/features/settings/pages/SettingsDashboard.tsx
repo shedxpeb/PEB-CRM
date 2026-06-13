@@ -57,31 +57,31 @@ export function SettingsDashboard() {
 
   return (
     <SettingsLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 w-full overflow-hidden">
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {kpiData.map((kpi, index) => (
             <KPICard
               key={index}
               data={kpi}
-              onClick={() => console.log('KPI clicked:', kpi.title)}
+              onClick={() => {}}
             />
           ))}
         </div>
 
 
         {/* Quick Actions */}
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
-            <CardTitle className="text-base">Quick Actions</CardTitle>
+            <CardTitle className="text-base sm:text-lg">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
               {quickActions.map((action, index) => (
                 <Button
                   key={index}
                   variant="outline"
-                  className="justify-start"
+                  className="justify-start text-xs sm:text-sm"
                   onClick={() => window.location.href = action.href}
                 >
                   {action.icon}

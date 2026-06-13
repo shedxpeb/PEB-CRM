@@ -43,7 +43,6 @@ export {
 // Components
 export { DocumentActivityTimeline } from './components/DocumentActivityTimeline';
 export { DocumentRowActions } from './components/DocumentRowActions';
-export { DocumentForm } from './components/DocumentForm';
 
 // Pages
 export { DocumentsDashboard } from './pages/DocumentsDashboard';

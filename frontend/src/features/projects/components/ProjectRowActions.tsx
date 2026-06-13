@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { MoreHorizontal, Eye, Edit, Trash2, Play, FileText, Package, Users, Calendar, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,7 +25,7 @@ interface ProjectRowActionsProps {
   onMarkComplete?: (project: Project) => void;
 }
 
-export function ProjectRowActions({
+export const ProjectRowActions = React.memo(function ProjectRowActions({
   project,
   onView,
   onEdit,
@@ -92,4 +93,4 @@ export function ProjectRowActions({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
+});

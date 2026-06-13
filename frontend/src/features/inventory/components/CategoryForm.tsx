@@ -1,18 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Category, InventoryCategory } from '@/features/inventory/types';
-import { INVENTORY_CATEGORIES } from '@/features/inventory/constants';
+import { Category } from '@/features/inventory/types';
 import { X } from 'lucide-react';
 
 interface CategoryFormProps {
@@ -22,7 +14,7 @@ interface CategoryFormProps {
   isLoading?: boolean;
 }
 
-export function CategoryForm({ initialData, onSubmit, onCancel, isLoading }: CategoryFormProps) {
+const CategoryForm = memo(function CategoryForm({ initialData, onSubmit, onCancel, isLoading }: CategoryFormProps) {
   const [formData, setFormData] = useState<Partial<Category>>({
     name: '',
     parentId: '',
@@ -49,40 +41,20 @@ export function CategoryForm({ initialData, onSubmit, onCancel, isLoading }: Cat
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-medium">Category Name *</label>
-              <Select
-                value={formData.name}
-                onValueChange={(v) => handleChange('name', v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select or type custom category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {INVENTORY_CATEGORIES.map((cat) => (
-                    <SelectItem key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                value={formData.name || ''}
+                onChange={(e) => handleChange('name', e.target.value)}
+                placeholder="e.g., Steel Products"
+                required
+              />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Parent Category</label>
-              <Select
-                value={formData.parentId || undefined}
-                onValueChange={(v) => handleChange('parentId', v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select parent category (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">None (Root Category)</SelectItem>
-                  {INVENTORY_CATEGORIES.map((cat) => (
-                    <SelectItem key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-medium">Parent Category ID</label>
+              <Input
+                value={formData.parentId || ''}
+                onChange={(e) => handleChange('parentId', e.target.value)}
+                placeholder="Parent category ID (optional)"
+              />
             </div>
             <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-medium">Description</label>
@@ -109,4 +81,6 @@ export function CategoryForm({ initialData, onSubmit, onCancel, isLoading }: Cat
       </div>
     </form>
   );
-}
+});
+
+export { CategoryForm };

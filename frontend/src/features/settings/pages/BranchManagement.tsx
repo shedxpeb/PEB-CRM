@@ -18,6 +18,8 @@ export function BranchManagement() {
   const createBranch = useCreateBranch();
   const updateBranch = useUpdateBranch();
   const deleteBranch = useDeleteBranch();
+
+  const branchesList = (branches as Branch[]) || [];
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
@@ -109,7 +111,7 @@ export function BranchManagement() {
         </div>
 
         <DataTable
-          data={branches || []}
+          data={branchesList}
           columns={columns}
           loading={isLoading}
           rowActions={rowActions}

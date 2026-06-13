@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { InventoryActivity } from '@/features/inventory/types';
@@ -22,7 +23,7 @@ interface InventoryActivityTimelineProps {
   activities: InventoryActivity[];
 }
 
-export function InventoryActivityTimeline({ activities }: InventoryActivityTimelineProps) {
+const InventoryActivityTimeline = memo(function InventoryActivityTimeline({ activities }: InventoryActivityTimelineProps) {
   const getActivityIcon = (type: InventoryActivity['type']) => {
     switch (type) {
       case 'item_created':
@@ -184,4 +185,6 @@ export function InventoryActivityTimeline({ activities }: InventoryActivityTimel
       </CardContent>
     </Card>
   );
-}
+});
+
+export { InventoryActivityTimeline };

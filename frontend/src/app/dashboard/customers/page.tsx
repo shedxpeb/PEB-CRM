@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/layouts/MainLayout';
 import { DataTable, Column } from '@/components/data-table/DataTable';
 import { KPICard } from '@/components/dashboard/KPICard';
-import { CustomerForm } from '@/features/customers/components/CustomerForm';
-import { CustomerRowActions } from '@/features/customers/components/CustomerRowActions';
+const CustomerForm = lazy(() => import('@/features/customers/components/CustomerForm').then(m => ({ default: m.CustomerForm })));
+const CustomerRowActions = lazy(() => import('@/features/customers/components/CustomerRowActions').then(m => ({ default: m.CustomerRowActions })));
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,7 +19,9 @@ import {
   useUpdateCustomer,
   useDeleteCustomer,
 } from '@/features/customers/hooks/useCustomers';
+import { customersApi } from '@/features/customers';
 import { ROUTES } from '@/core/routes';
+import { useDebounce } from '@/shared/hooks/useDebounce';
 import {
   Users,
   UserCheck,
@@ -31,18 +33,28 @@ import {
   Clock,
   Plus,
   Download,
+  Search,
 } from 'lucide-react';
 
 export default function CustomersPage() {
   const router = useRouter();
 
+  // Search and filter state with debounce
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
   // React Query hooks - single source of truth for server data
-  const [params, setParams] = useState({ page: 1, pageSize: 20 });
+  const [params, setParams] = useState({ page: 1, pageSize: 20, search: '' });
   const { data: customersResponse, isLoading, error } = useCustomers(params);
   const { data: stats } = useCustomersStats();
   const createMutation = useCreateCustomer();
   const updateMutation = useUpdateCustomer();
   const deleteMutation = useDeleteCustomer();
+
+  // Update search in params when debounced search changes
+  useEffect(() => {
+    setParams(prev => ({ ...prev, search: debouncedSearch }));
+  }, [debouncedSearch]);
 
   // UI state only - no server data in useState
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -54,8 +66,8 @@ export default function CustomersPage() {
   const customers = customersResponse?.data ?? [];
   const statsData = stats;
 
-  // KPI cards from live stats API
-  const kpiData = [
+  // Memoized KPI cards from live stats API
+  const kpiData = useMemo(() => [
     { title: 'Total Customers', value: String(statsData?.totalCustomers ?? 0), change: 12.5, icon: <Users className="h-6 w-6 text-blue-600" />, color: 'text-blue-600' },
     { title: 'Active Customers', value: String(statsData?.activeCustomers ?? 0), change: 8.2, icon: <UserCheck className="h-6 w-6 text-green-600" />, color: 'text-green-600' },
     { title: 'New This Month', value: String(statsData?.newThisMonth ?? 0), change: 15.3, icon: <UserPlus className="h-6 w-6 text-purple-600" />, color: 'text-purple-600' },
@@ -64,10 +76,10 @@ export default function CustomersPage() {
     { title: 'Total Revenue', value: `₹${((statsData?.totalRevenue ?? 0) / 10000000).toFixed(1)}Cr`, change: 18.9, icon: <DollarSign className="h-6 w-6 text-green-700" />, color: 'text-green-700' },
     { title: 'Pending Quotations', value: String(statsData?.pendingQuotations ?? 0), change: -4.5, icon: <FileText className="h-6 w-6 text-amber-600" />, color: 'text-amber-600' },
     { title: 'Pending Followups', value: String(statsData?.pendingFollowups ?? 0), change: -2.1, icon: <Clock className="h-6 w-6 text-red-500" />, color: 'text-red-500' },
-  ];
+  ], [statsData]);
 
-  // Table columns
-  const columns: Column<Customer>[] = [
+  // Memoized table columns
+  const columns: Column<Customer>[] = useMemo(() => [
     {
       key: 'customerId',
       label: 'ID',
@@ -78,7 +90,6 @@ export default function CustomersPage() {
       key: 'customerName',
       label: 'Customer Name',
       sortable: true,
-      filterable: true,
       render: (_, row) => (
         <div>
           <p className="font-medium text-sm">{row.customerName}</p>
@@ -146,16 +157,16 @@ export default function CustomersPage() {
         </Badge>
       ),
     },
-  ];
+  ], []);
 
-  // Handlers using React Query mutations
-  const handleCreateCustomer = (data: Partial<Customer>) => {
+  // Memoized handlers using React Query mutations
+  const handleCreateCustomer = useCallback((data: Partial<Customer>) => {
     createMutation.mutate(data as any, {
       onSuccess: () => setIsCreateDialogOpen(false),
     });
-  };
+  }, [createMutation]);
 
-  const handleEditCustomer = (data: Partial<Customer>) => {
+  const handleEditCustomer = useCallback((data: Partial<Customer>) => {
     if (!selectedCustomer) return;
     updateMutation.mutate(
       { id: selectedCustomer.id, data: data as any },
@@ -166,30 +177,47 @@ export default function CustomersPage() {
         },
       }
     );
-  };
+  }, [selectedCustomer, updateMutation]);
 
-  const handleDeleteCustomer = (customer: Customer) => {
+  const handleDeleteCustomer = useCallback((customer: Customer) => {
     if (confirm(`Delete customer "${customer.customerName}"?`)) {
       deleteMutation.mutate(customer.id);
     }
-  };
+  }, [deleteMutation]);
 
-  const handleRowClick = (row: Customer) => {
+  const handleRowClick = useCallback((row: Customer) => {
     router.push(ROUTES.customersDetail(row.id));
-  };
+  }, [router]);
 
-  const handleViewDetails = (customer: Customer) => {
+  const handleViewDetails = useCallback((customer: Customer) => {
     router.push(ROUTES.customersDetail(customer.id));
-  };
+  }, [router]);
 
-  const handleEditFromRow = (customer: Customer) => {
+  const handleEditFromRow = useCallback((customer: Customer) => {
     setSelectedCustomer(customer);
     setIsEditDialogOpen(true);
-  };
+  }, []);
 
-  const handleStatusChange = (customer: Customer, status: CustomerStatus) => {
+  const handleStatusChange = useCallback((customer: Customer, status: CustomerStatus) => {
     updateMutation.mutate({ id: customer.id, data: { status } });
-  };
+  }, [updateMutation]);
+
+  const handleExport = useCallback(async () => {
+    try {
+      const blob = await customersApi.export();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `customers-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error exporting customers:', error);
+      alert('Failed to export customers. Please try again.');
+    }
+  }, []);
 
   // Loading state
   if (isLoading) {
@@ -223,26 +251,36 @@ export default function CustomersPage() {
 
   return (
     <MainLayout title="Customers" subtitle="Manage your customer database">
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 w-full overflow-hidden">
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {kpiData.map((kpi) => (
             <KPICard key={kpi.title} data={kpi} />
           ))}
         </div>
 
         {/* Action Bar */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">All Customers</h2>
-            <p className="text-sm text-muted-foreground">{customers.length} total customers</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 min-w-0">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-lg font-semibold">All Customers</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground">{customers.length} total customers</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
+          <div className="flex gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-none">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search customers..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-4 py-2 w-full sm:w-64 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <Button variant="outline" size="sm" onClick={handleExport} className="flex-1 sm:flex-none">
               <Download className="h-4 w-4 mr-2" />
-              Export
+              <span className="hidden sm:inline">Export</span>
             </Button>
-            <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
+            <Button size="sm" onClick={() => setIsCreateDialogOpen(true)} className="flex-1 sm:flex-none">
               <Plus className="h-4 w-4 mr-2" />
               Add Customer
             </Button>
@@ -268,6 +306,7 @@ export default function CustomersPage() {
             />
           )}
         />
+        </div>
 
         {/* Create Customer Dialog */}
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -275,11 +314,13 @@ export default function CustomersPage() {
             <DialogHeader>
               <DialogTitle>Create New Customer</DialogTitle>
             </DialogHeader>
-            <CustomerForm
-              onSubmit={handleCreateCustomer}
-              onCancel={() => setIsCreateDialogOpen(false)}
-              isLoading={createMutation.isPending}
-            />
+            <Suspense fallback={<div className="flex items-center justify-center h-32">Loading form...</div>}>
+              <CustomerForm
+                onSubmit={handleCreateCustomer}
+                onCancel={() => setIsCreateDialogOpen(false)}
+                isLoading={createMutation.isPending}
+              />
+            </Suspense>
           </DialogContent>
         </Dialog>
 
@@ -290,16 +331,17 @@ export default function CustomersPage() {
               <DialogTitle>Edit Customer</DialogTitle>
             </DialogHeader>
             {selectedCustomer && (
-              <CustomerForm
-                initialData={selectedCustomer}
-                onSubmit={handleEditCustomer}
-                onCancel={() => setIsEditDialogOpen(false)}
-                isLoading={updateMutation.isPending}
-              />
+              <Suspense fallback={<div className="flex items-center justify-center h-32">Loading form...</div>}>
+                <CustomerForm
+                  initialData={selectedCustomer}
+                  onSubmit={handleEditCustomer}
+                  onCancel={() => setIsEditDialogOpen(false)}
+                  isLoading={updateMutation.isPending}
+                />
+              </Suspense>
             )}
           </DialogContent>
         </Dialog>
-      </div>
     </MainLayout>
   );
 }

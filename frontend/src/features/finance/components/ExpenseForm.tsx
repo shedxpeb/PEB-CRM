@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,7 +17,7 @@ interface ExpenseFormProps {
   isLoading?: boolean;
 }
 
-export function ExpenseForm({ onSubmit, onCancel, isLoading }: ExpenseFormProps) {
+export const ExpenseForm = memo(function ExpenseForm({ onSubmit, onCancel, isLoading }: ExpenseFormProps) {
   const { data: vendors } = useVendors();
   const { data: projects } = useProjects();
 
@@ -35,14 +36,14 @@ export function ExpenseForm({ onSubmit, onCancel, isLoading }: ExpenseFormProps)
     attachments: [],
   });
 
-  const handleChange = (field: keyof CreateExpenseFormData, value: any) => {
+  const handleChange = useCallback((field: keyof CreateExpenseFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
-  };
+  }, [formData, onSubmit]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -196,4 +197,4 @@ export function ExpenseForm({ onSubmit, onCancel, isLoading }: ExpenseFormProps)
       </div>
     </form>
   );
-}
+});

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,7 +14,7 @@ interface AddScoreDialogProps {
   onSubmit: (score: number) => void;
 }
 
-export function AddScoreDialog({ lead, open, onOpenChange, onSubmit }: AddScoreDialogProps) {
+export const AddScoreDialog = memo(function AddScoreDialog({ lead, open, onOpenChange, onSubmit }: AddScoreDialogProps) {
   const [score, setScore] = useState(50);
 
   const getScoreLabel = (score: number) => {
@@ -152,4 +152,4 @@ export function AddScoreDialog({ lead, open, onOpenChange, onSubmit }: AddScoreD
       </DialogContent>
     </Dialog>
   );
-}
+});

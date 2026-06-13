@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Lead } from '@/types/leads';
@@ -20,7 +21,7 @@ interface KanbanColumnProps {
   dragOverIndex?: number | null;
 }
 
-export function KanbanColumn({
+export const KanbanColumn = memo(function KanbanColumn({
   status,
   leads,
   count,
@@ -67,7 +68,6 @@ export function KanbanColumn({
       }`}
       onDragOver={onDragOver}
       onDrop={(e) => {
-        console.log('Column drop triggered:', status);
         onDrop(e, status);
       }}
     >
@@ -96,7 +96,6 @@ export function KanbanColumn({
         className="flex-1 space-y-0 overflow-y-auto max-h-[calc(100vh-240px)] pr-1 min-h-[100px]"
         onDragOver={(e) => onDragOver(e, status, leads.length)}
         onDrop={(e) => {
-          console.log('Cards container drop:', status, 'at end');
           e.stopPropagation();
           onDrop(e, status, leads.length);
         }}
@@ -113,7 +112,6 @@ export function KanbanColumn({
               onDrop={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('Drop zone before card:', index);
                 handleCardDrop(e, index);
               }}
               className={`h-5 rounded transition-all ${
@@ -145,7 +143,6 @@ export function KanbanColumn({
           onDrop={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Drop zone at end');
             handleCardDrop(e, leads.length);
           }}
           className={`h-5 rounded transition-all ${
@@ -163,4 +160,4 @@ export function KanbanColumn({
       </div>
     </div>
   );
-}
+});

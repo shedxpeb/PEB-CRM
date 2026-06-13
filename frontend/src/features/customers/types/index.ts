@@ -193,3 +193,26 @@ export interface UpdateCustomerDto {
   status?: CustomerStatus;
   notes?: string;
 }
+
+/**
+ * Convert Lead to Customer DTO
+ * Used when converting a lead to a customer
+ */
+export interface ConvertLeadToCustomerDto {
+  leadId: string;
+  customerName: string;
+  companyName: string;
+  mobile: string;
+  alternateMobile?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  industry?: Industry;
+  businessType?: BusinessType;
+  website?: string;
+  leadSource: CustomerSource;
+  assignedEmployeeId?: string;
+  notes?: string;
+}

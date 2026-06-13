@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ProjectMilestone } from '@/features/projects/types';
@@ -9,40 +10,42 @@ interface MilestoneTrackerProps {
   milestones: ProjectMilestone[];
 }
 
-export function MilestoneTracker({ milestones }: MilestoneTrackerProps) {
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
+// Move helper functions outside component to prevent recreation
+const formatDate = (date: Date) => {
+  return new Date(date).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+};
 
-  const getMilestoneIcon = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'In Progress':
-        return <Clock className="h-4 w-4 text-blue-600" />;
-      case 'Delayed':
-        return <AlertCircle className="h-4 w-4 text-red-600" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-400" />;
-    }
-  };
+const getMilestoneIcon = (status: string) => {
+  switch (status) {
+    case 'Completed':
+      return <CheckCircle className="h-4 w-4 text-green-600" />;
+    case 'In Progress':
+      return <Clock className="h-4 w-4 text-blue-600" />;
+    case 'Delayed':
+      return <AlertCircle className="h-4 w-4 text-red-600" />;
+    default:
+      return <Clock className="h-4 w-4 text-gray-400" />;
+  }
+};
 
-  const getMilestoneStatusColor = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return 'bg-green-100 text-green-700';
-      case 'In Progress':
-        return 'bg-blue-100 text-blue-700';
-      case 'Delayed':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
-  };
+const getMilestoneStatusColor = (status: string) => {
+  switch (status) {
+    case 'Completed':
+      return 'bg-green-100 text-green-700';
+    case 'In Progress':
+      return 'bg-blue-100 text-blue-700';
+    case 'Delayed':
+      return 'bg-red-100 text-red-700';
+    default:
+      return 'bg-gray-100 text-gray-700';
+  }
+};
+
+export const MilestoneTracker = React.memo(function MilestoneTracker({ milestones }: MilestoneTrackerProps) {
 
   const completedCount = milestones.filter((m) => m.status === 'Completed').length;
   const progress = (completedCount / milestones.length) * 100;
@@ -110,4 +113,4 @@ export function MilestoneTracker({ milestones }: MilestoneTrackerProps) {
       </CardContent>
     </Card>
   );
-}
+});

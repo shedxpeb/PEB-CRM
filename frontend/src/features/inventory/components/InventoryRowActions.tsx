@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -42,7 +42,7 @@ interface InventoryRowActionsProps {
   onStatusChange?: (item: InventoryItem, status: StockStatus) => void;
 }
 
-export function InventoryRowActions({
+const InventoryRowActions = memo(function InventoryRowActions({
   item,
   onEdit,
   onDelete,
@@ -153,4 +153,6 @@ export function InventoryRowActions({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
+});
+
+export { InventoryRowActions };

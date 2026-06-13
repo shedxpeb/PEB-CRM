@@ -1,9 +1,9 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, memo } from 'react';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
-import { useSidebarStore } from '@/store/useSidebarStore';
+import { useSidebarIsOpen, useSidebarIsCollapsed } from '@/store/useSidebarStore';
 import { cn } from '@/lib/utils';
 
 interface MainLayoutProps {
@@ -15,8 +15,9 @@ interface MainLayoutProps {
   onBackClick?: () => void;
 }
 
-export function MainLayout({ children, title, subtitle, currentPath, showBackButton, onBackClick }: MainLayoutProps) {
-  const { isOpen, isCollapsed } = useSidebarStore();
+export const MainLayout = memo(function MainLayout({ children, title, subtitle, currentPath, showBackButton, onBackClick }: MainLayoutProps) {
+  const isOpen = useSidebarIsOpen();
+  const isCollapsed = useSidebarIsCollapsed();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -24,17 +25,17 @@ export function MainLayout({ children, title, subtitle, currentPath, showBackBut
       
       <main
         className={cn(
-          'transition-all duration-300 min-h-screen',
-          isOpen ? (isCollapsed ? 'lg:ml-16' : 'lg:ml-64') : 'lg:ml-0',
-          'ml-0'
+          'transition-all duration-300 min-h-screen overflow-x-hidden',
+          isOpen ? (isCollapsed ? 'lg:ml-16 lg:w-[calc(100%-4rem)]' : 'lg:ml-64 lg:w-[calc(100%-16rem)]') : 'lg:ml-0 lg:w-full',
+          'ml-0 w-full'
         )}
       >
         <Topbar title={title} subtitle={subtitle} showBackButton={showBackButton} onBackClick={onBackClick} />
         
-        <div className="p-6">
+        <div className="p-3 sm:p-4 lg:p-6 w-full max-w-full overflow-hidden">
           {children}
         </div>
       </main>
     </div>
   );
-}
+});

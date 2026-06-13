@@ -1,23 +1,15 @@
 /**
  * PEB Inventory Master Types
- * Single Source of Truth for all PEB commercial items
+ * Single Source of Truth for PEB material categories, brands, grades, specifications
  * 
- * Key Principles:
- * - Inventory is the single source of truth for all commercial items
- * - Every commercial document must use Inventory Master
- * - No separate item catalogs
- * - No standalone quotation products
- * - No duplicate item databases
+ * Architecture:
+ * - Item Master (separate module: features/item-master/) → Product definition (Brand, Grade, Spec, HSN, Dimensions, Weight, Technical Files, Default Pricing)
+ * - Inventory (this module) → Stock operations only (Current Stock, Reserved, Issued, Available, Warehouse, Stock Movement)
  * 
- * Inventory Contains:
- * - Materials
- * - Products
- * - Accessories
- * - Services
- * - Brands
- * - Specifications
- * - Units
- * - Rates
+ * This file contains PEB-specific material categories, brands, grades, specifications
+ * that are used across the ERP system for Pre-Engineered Building business.
+ * 
+ * Item Master is a separate module - see features/item-master/types/index.ts
  */
 
 // ─── PEB Material Categories ─────────────────────────────────────────────────────
@@ -371,8 +363,13 @@ export interface PEBInventoryItem {
   // Stock Levels (computed)
   currentStock: number;
   reservedStock: number;
+  consumedStock: number;
   availableStock: number;
   totalValue: number;
+  
+  // Cross-module relationships
+  reservedByProjects?: string[]; // Array of project IDs that reserved this item
+  consumedByProjects?: string[]; // Array of project IDs that consumed this item
   
   // Status
   status: 'In Stock' | 'Low Stock' | 'Out of Stock' | 'Critical' | 'On Order' | 'Discontinued';
@@ -606,4 +603,125 @@ export interface QueryMaterialsDto {
   filter: MaterialSelectionFilter;
   page?: number;
   pageSize?: number;
+}
+
+// ─── Stock Management Types ─────────────────────────────────────────────────────────
+
+/**
+ * Stock Reservation
+ * Tracks stock reserved for projects
+ */
+export interface StockReservation {
+  id: string;
+  reservationNumber: string;
+
+  // Source
+  projectId: string;
+  projectName: string;
+  quotationId?: string;
+  quotationNumber?: string;
+
+  // Item
+  inventoryItemId: string;
+  itemCode: string;
+  itemName: string;
+
+  // Quantity
+  reservedQuantity: number;
+  consumedQuantity: number;
+  releasedQuantity: number;
+
+  // Status
+  status: 'Reserved' | 'Partially Consumed' | 'Fully Consumed' | 'Released' | 'Cancelled';
+
+  // Dates
+  reservedAt: Date;
+  consumedAt?: Date;
+  releasedAt?: Date;
+  cancelledAt?: Date;
+
+  // Notes
+  notes?: string;
+
+  // Timestamps
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+/**
+ * Stock Movement
+ * Audit trail for all stock movements
+ */
+export interface StockMovement {
+  id: string;
+  movementNumber: string;
+  
+  // Type
+  type: 'Reservation' | 'Consumption' | 'Release' | 'Adjustment' | 'Purchase' | 'Return';
+  
+  // Item
+  inventoryItemId: string;
+  itemCode: string;
+  itemName: string;
+  
+  // Quantity
+  quantity: number;
+  previousStock: number;
+  newStock: number;
+  
+  // Reference
+  referenceType: 'Project' | 'Purchase Order' | 'Manual' | 'Adjustment';
+  referenceId?: string;
+  referenceNumber?: string;
+  
+  // Location
+  warehouseId?: string;
+  warehouseName?: string;
+  
+  // Performed By
+  performedBy: string;
+  performedByRole?: string;
+  
+  // Notes
+  notes?: string;
+  
+  // Date
+  movementDate: Date;
+  
+  // Timestamps
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+/**
+ * Create Stock Reservation DTO
+ */
+export interface CreateStockReservationDto {
+  projectId: string;
+  projectName: string;
+  quotationId?: string;
+  quotationNumber?: string;
+  items: {
+    inventoryItemId: string;
+    itemCode: string;
+    itemName: string;
+    reservedQuantity: number;
+  }[];
+  notes?: string;
+}
+
+/**
+ * Create Stock Movement DTO
+ */
+export interface CreateStockMovementDto {
+  type: 'Reservation' | 'Consumption' | 'Release' | 'Adjustment' | 'Purchase' | 'Return';
+  inventoryItemId: string;
+  itemCode: string;
+  itemName: string;
+  quantity: number;
+  referenceType: 'Quotation' | 'Project' | 'Purchase Order' | 'Manual' | 'Adjustment';
+  referenceId?: string;
+  referenceNumber?: string;
+  warehouseId?: string;
+  notes?: string;
 }

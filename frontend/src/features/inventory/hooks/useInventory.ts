@@ -15,6 +15,7 @@ export function useInventoryItems(params?: PaginationParams & InventoryFilters) 
     queryFn: () => inventoryApi.getAll(params),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -23,6 +24,7 @@ export function useInventoryItem(id: string) {
     queryKey: ['inventory', id],
     queryFn: () => inventoryApi.getById(id),
     enabled: !!id,
+    refetchOnMount: false,
   });
 }
 
@@ -65,14 +67,16 @@ export function useInventoryStats() {
     queryKey: ['inventory', 'stats'],
     queryFn: () => inventoryApi.getStats(),
     staleTime: 2 * 60 * 1000,
+    refetchOnMount: false,
+    retry: 0, // No retry for dashboard - fail fast
   });
 }
 
-export function useInventoryActivities(id: string) {
+export function useInventoryActivities(id: string, enabled: boolean = true) {
   return useQuery({
     queryKey: ['inventory', id, 'activities'],
     queryFn: () => inventoryApi.getActivities(id),
-    enabled: !!id,
+    enabled: !!id && enabled,
     staleTime: 3 * 60 * 1000,
   });
 }
@@ -84,6 +88,7 @@ export function useWarehouses() {
     queryKey: ['warehouses'],
     queryFn: () => inventoryApi.getWarehouses(),
     staleTime: 10 * 60 * 1000,
+    refetchOnMount: false,
   });
 }
 
@@ -104,6 +109,7 @@ export function useSuppliers() {
     queryKey: ['suppliers'],
     queryFn: () => inventoryApi.getSuppliers(),
     staleTime: 10 * 60 * 1000,
+    refetchOnMount: false,
   });
 }
 
@@ -124,6 +130,7 @@ export function useCategories() {
     queryKey: ['categories'],
     queryFn: () => inventoryApi.getCategories(),
     staleTime: 10 * 60 * 1000,
+    refetchOnMount: false,
   });
 }
 
@@ -145,6 +152,7 @@ export function useStockMovements(params?: PaginationParams) {
     queryFn: () => inventoryApi.getMovements(params),
     staleTime: 3 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -159,11 +167,11 @@ export function useCreateStockMovement() {
   });
 }
 
-export function useStockMovementHistory(itemId: string) {
+export function useStockMovementHistory(itemId: string, enabled: boolean = true) {
   return useQuery({
     queryKey: ['inventory', itemId, 'movements'],
     queryFn: () => inventoryApi.getMovementHistory(itemId),
-    enabled: !!itemId,
+    enabled: !!itemId && enabled,
     staleTime: 3 * 60 * 1000,
   });
 }
@@ -176,5 +184,6 @@ export function useInventoryAlerts() {
     queryFn: () => inventoryApi.getAlerts(),
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }

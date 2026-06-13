@@ -15,6 +15,8 @@ export interface KPICard {
   change: number;
   icon: React.ReactNode;
   color?: string;
+  previousValue?: string | number;
+  comparisonLabel?: string;
 }
 
 export interface KPIDetail {

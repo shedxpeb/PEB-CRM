@@ -12,7 +12,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Document, DocumentStatus } from '../types';
+import { Estimate, Proposal, Quotation } from '../types/peb-commercial';
 import {
   MoreVertical,
   Eye,
@@ -30,23 +30,25 @@ import {
   Trash2,
   Clock,
   Copy,
+  Building2,
 } from 'lucide-react';
 
 interface DocumentRowActionsProps {
-  document: Document;
-  onView: (document: Document) => void;
-  onEdit: (document: Document) => void;
-  onDelete: (document: Document) => void;
-  onSend?: (document: Document) => void;
-  onConvert?: (document: Document, targetType: 'Estimate' | 'Proposal' | 'Quotation') => void;
-  onApprove?: (document: Document) => void;
-  onReject?: (document: Document) => void;
-  onVersion?: (document: Document) => void;
-  onEmail?: (document: Document) => void;
-  onWhatsApp?: (document: Document) => void;
-  onPrint?: (document: Document) => void;
-  onDownload?: (document: Document) => void;
-  onCopy?: (document: Document) => void;
+  document: Estimate | Proposal | Quotation;
+  onView: (document: Estimate | Proposal | Quotation) => void;
+  onEdit: (document: Estimate | Proposal | Quotation) => void;
+  onDelete: (document: Estimate | Proposal | Quotation) => void;
+  onSend?: (document: Estimate | Proposal | Quotation) => void;
+  onConvert?: (document: Estimate | Proposal | Quotation, targetType: 'Estimate' | 'Proposal' | 'Quotation') => void;
+  onConvertToProject?: (document: Estimate | Proposal | Quotation) => void;
+  onApprove?: (document: Estimate | Proposal | Quotation) => void;
+  onReject?: (document: Estimate | Proposal | Quotation) => void;
+  onVersion?: (document: Estimate | Proposal | Quotation) => void;
+  onEmail?: (document: Estimate | Proposal | Quotation) => void;
+  onWhatsApp?: (document: Estimate | Proposal | Quotation) => void;
+  onPrint?: (document: Estimate | Proposal | Quotation) => void;
+  onDownload?: (document: Estimate | Proposal | Quotation) => void;
+  onCopy?: (document: Estimate | Proposal | Quotation) => void;
 }
 
 export function DocumentRowActions({
@@ -56,6 +58,7 @@ export function DocumentRowActions({
   onDelete,
   onSend,
   onConvert,
+  onConvertToProject,
   onApprove,
   onReject,
   onVersion,
@@ -72,9 +75,19 @@ export function DocumentRowActions({
     setOpen(false);
   };
 
-  const canConvert = document.status === 'Accepted' || document.status === 'Sent';
-  const canApprove = document.status === 'Draft' && !document.approvalStatus;
-  const canReject = document.status === 'Draft' && !document.approvalStatus;
+  const getDocumentType = () => {
+    const doc = document as any;
+    if (doc.estimateNumber) return 'Estimate';
+    if (doc.proposalNumber) return 'Proposal';
+    if (doc.quotationNumber) return 'Quotation';
+    return 'Unknown';
+  };
+
+  const docType = getDocumentType();
+  const canConvert = (document as any).status === 'Accepted' || (document as any).status === 'Sent';
+  const canConvertToProject = docType === 'Quotation' && (document as any).status === 'Accepted' && !(document as any).convertedToProjectId;
+  const canApprove = (document as any).status === 'Draft' && !(document as any).approvalStatus;
+  const canReject = (document as any).status === 'Draft' && !(document as any).approvalStatus;
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -113,19 +126,19 @@ export function DocumentRowActions({
               Convert To
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
-              {document.documentType !== 'Estimate' && (
+              {docType !== 'Estimate' && (
                 <DropdownMenuItem onClick={() => handleConvert('Estimate')}>
                   <FileText className="h-4 w-4 mr-2" />
                   Estimate
                 </DropdownMenuItem>
               )}
-              {document.documentType !== 'Proposal' && (
+              {docType !== 'Proposal' && (
                 <DropdownMenuItem onClick={() => handleConvert('Proposal')}>
                   <FileText className="h-4 w-4 mr-2" />
                   Proposal
                 </DropdownMenuItem>
               )}
-              {document.documentType !== 'Quotation' && (
+              {docType !== 'Quotation' && (
                 <DropdownMenuItem onClick={() => handleConvert('Quotation')}>
                   <FileText className="h-4 w-4 mr-2" />
                   Quotation
@@ -133,6 +146,14 @@ export function DocumentRowActions({
               )}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+        )}
+
+        {/* Convert to Project */}
+        {canConvertToProject && onConvertToProject && (
+          <DropdownMenuItem onClick={() => onConvertToProject(document)}>
+            <Building2 className="h-4 w-4 mr-2" />
+            Convert to Project
+          </DropdownMenuItem>
         )}
 
         <DropdownMenuSeparator />

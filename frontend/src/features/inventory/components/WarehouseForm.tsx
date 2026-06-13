@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,7 @@ interface WarehouseFormProps {
   isLoading?: boolean;
 }
 
-export function WarehouseForm({ initialData, onSubmit, onCancel, isLoading }: WarehouseFormProps) {
+const WarehouseForm = memo(function WarehouseForm({ initialData, onSubmit, onCancel, isLoading }: WarehouseFormProps) {
   const [formData, setFormData] = useState<Partial<Warehouse>>({
     name: '',
     location: '',
@@ -102,4 +102,6 @@ export function WarehouseForm({ initialData, onSubmit, onCancel, isLoading }: Wa
       </div>
     </form>
   );
-}
+});
+
+export { WarehouseForm };

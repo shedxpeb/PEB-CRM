@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -19,7 +20,7 @@ interface FinanceRowActionsProps {
   onGenerateReport?: () => void;
 }
 
-export function FinanceRowActions({
+export const FinanceRowActions = memo(function FinanceRowActions({
   onView,
   onEdit,
   onDelete,
@@ -81,4 +82,4 @@ export function FinanceRowActions({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
+});

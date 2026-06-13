@@ -12,6 +12,7 @@ import type {
   SystemPreferences,
   ModuleConfiguration,
   SettingsStats,
+  SecuritySettings,
 } from '../types';
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
@@ -378,6 +379,260 @@ export const settingsApi = {
     } catch (error) {
       console.warn('API Error: getSettingsStats, using mock data');
       return mockSettingsStats;
+    }
+  },
+
+  // Document Settings
+  async getDocumentSettings(): Promise<any> {
+    try {
+      // const response = await api.get('/settings/document-settings');
+      // return response.data;
+      return {
+        estimateNumbering: {
+          prefix: 'EST',
+          suffix: '',
+          startNumber: 1,
+          financialYear: '2026-2027',
+          format: '{PREFIX}-{FY}-{NUMBER}',
+        },
+        proposalNumbering: {
+          prefix: 'PRO',
+          suffix: '',
+          startNumber: 1,
+          financialYear: '2026-2027',
+          format: '{PREFIX}-{FY}-{NUMBER}',
+        },
+        quotationNumbering: {
+          prefix: 'QUO',
+          suffix: '',
+          startNumber: 1,
+          financialYear: '2026-2027',
+          format: '{PREFIX}-{FY}-{NUMBER}',
+        },
+        defaultTerms: 'Payment terms: 50% advance, 50% before delivery.',
+        defaultConditions: 'Valid for 30 days from date of quotation.',
+        bankDetails: {
+          bankName: 'State Bank of India',
+          accountNumber: '1234567890',
+          accountType: 'Current Account',
+          ifscCode: 'SBIN0001234',
+          branchName: 'Mumbai Main Branch',
+        },
+        gstDetails: {
+          gstin: '27AAPFU0939J1ZP',
+          gstType: 'CGST',
+          cgstRate: 9,
+          sgstRate: 9,
+          igstRate: 18,
+          cessRate: 0,
+        },
+      };
+    } catch (error) {
+      console.warn('API Error: getDocumentSettings, using mock data');
+      return {
+        estimateNumbering: {
+          prefix: 'EST',
+          suffix: '',
+          startNumber: 1,
+          financialYear: '2026-2027',
+          format: '{PREFIX}-{FY}-{NUMBER}',
+        },
+        proposalNumbering: {
+          prefix: 'PRO',
+          suffix: '',
+          startNumber: 1,
+          financialYear: '2026-2027',
+          format: '{PREFIX}-{FY}-{NUMBER}',
+        },
+        quotationNumbering: {
+          prefix: 'QUO',
+          suffix: '',
+          startNumber: 1,
+          financialYear: '2026-2027',
+          format: '{PREFIX}-{FY}-{NUMBER}',
+        },
+        defaultTerms: 'Payment terms: 50% advance, 50% before delivery.',
+        defaultConditions: 'Valid for 30 days from date of quotation.',
+        bankDetails: {
+          bankName: 'State Bank of India',
+          accountNumber: '1234567890',
+          accountType: 'Current Account',
+          ifscCode: 'SBIN0001234',
+          branchName: 'Mumbai Main Branch',
+        },
+        gstDetails: {
+          gstin: '27AAPFU0939J1ZP',
+          gstType: 'CGST',
+          cgstRate: 9,
+          sgstRate: 9,
+          igstRate: 18,
+          cessRate: 0,
+        },
+      };
+    }
+  },
+
+  async updateDocumentSettings(data: any): Promise<any> {
+    try {
+      // const response = await api.put('/settings/document-settings', data);
+      // return response.data;
+      return data;
+    } catch (error) {
+      console.warn('API Error: updateDocumentSettings, using mock data');
+      return data;
+    }
+  },
+
+  // Finance Configuration
+  async getFinanceConfiguration(): Promise<any> {
+    try {
+      // const response = await api.get('/settings/finance-config');
+      // return response.data;
+      return {
+        currency: 'INR',
+        taxRate: 18,
+        paymentTerms: 'Net 30',
+        invoicePrefix: 'INV',
+        receiptPrefix: 'REC',
+        expensePrefix: 'EXP',
+      };
+    } catch (error) {
+      console.warn('API Error: getFinanceConfiguration, using mock data');
+      return {
+        currency: 'INR',
+        taxRate: 18,
+        paymentTerms: 'Net 30',
+        invoicePrefix: 'INV',
+        receiptPrefix: 'REC',
+        expensePrefix: 'EXP',
+      };
+    }
+  },
+
+  async updateFinanceConfiguration(data: any): Promise<any> {
+    try {
+      // const response = await api.put('/settings/finance-config', data);
+      // return response.data;
+      return data;
+    } catch (error) {
+      console.warn('API Error: updateFinanceConfiguration, using mock data');
+      return data;
+    }
+  },
+
+  // Project Configuration
+  async getProjectConfiguration(): Promise<any> {
+    try {
+      // const response = await api.get('/settings/project-config');
+      // return response.data;
+      return {
+        defaultProjectType: 'Industrial Shed',
+        defaultPriority: 'Medium',
+        autoAssignProjectManager: true,
+        autoGenerateMilestones: true,
+        milestoneTemplate: 'Standard',
+      };
+    } catch (error) {
+      console.warn('API Error: getProjectConfiguration, using mock data');
+      return {
+        defaultProjectType: 'Industrial Shed',
+        defaultPriority: 'Medium',
+        autoAssignProjectManager: true,
+        autoGenerateMilestones: true,
+        milestoneTemplate: 'Standard',
+      };
+    }
+  },
+
+  async updateProjectConfiguration(data: any): Promise<any> {
+    try {
+      // const response = await api.put('/settings/project-config', data);
+      // return response.data;
+      return data;
+    } catch (error) {
+      console.warn('API Error: updateProjectConfiguration, using mock data');
+      return data;
+    }
+  },
+
+  // Security Settings
+  async getSecuritySettings(): Promise<SecuritySettings> {
+    try {
+      // const response = await api.get('/settings/security-config');
+      // return response.data;
+      return {
+        passwordPolicy: {
+          minLength: 8,
+          requireUppercase: true,
+          requireLowercase: true,
+          requireNumbers: true,
+          requireSpecialChars: true,
+          expiryDays: 90,
+        },
+        sessionTimeout: 30,
+        maxLoginAttempts: 5,
+        lockoutDuration: 30,
+        ipRestrictions: [],
+        twoFactorEnabled: false,
+      };
+    } catch (error) {
+      console.warn('API Error: getSecuritySettings, using mock data');
+      return {
+        passwordPolicy: {
+          minLength: 8,
+          requireUppercase: true,
+          requireLowercase: true,
+          requireNumbers: true,
+          requireSpecialChars: true,
+          expiryDays: 90,
+        },
+        sessionTimeout: 30,
+        maxLoginAttempts: 5,
+        lockoutDuration: 30,
+        ipRestrictions: [],
+        twoFactorEnabled: false,
+      };
+    }
+  },
+
+  async updateSecuritySettings(data: Partial<SecuritySettings>): Promise<SecuritySettings> {
+    try {
+      // const response = await api.put('/settings/security-config', data);
+      // return response.data;
+      return {
+        passwordPolicy: {
+          minLength: 8,
+          requireUppercase: true,
+          requireLowercase: true,
+          requireNumbers: true,
+          requireSpecialChars: true,
+          expiryDays: 90,
+        },
+        sessionTimeout: 30,
+        maxLoginAttempts: 5,
+        lockoutDuration: 30,
+        ipRestrictions: [],
+        twoFactorEnabled: false,
+        ...data,
+      };
+    } catch (error) {
+      console.warn('API Error: updateSecuritySettings, using mock data');
+      return {
+        passwordPolicy: {
+          minLength: 8,
+          requireUppercase: true,
+          requireLowercase: true,
+          requireNumbers: true,
+          requireSpecialChars: true,
+          expiryDays: 90,
+        },
+        sessionTimeout: 30,
+        maxLoginAttempts: 5,
+        lockoutDuration: 30,
+        ipRestrictions: [],
+        twoFactorEnabled: false,
+        ...data,
+      };
     }
   },
 };

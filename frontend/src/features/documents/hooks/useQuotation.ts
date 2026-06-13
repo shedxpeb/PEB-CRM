@@ -415,7 +415,12 @@ export function useQuotationStats() {
       setLoading(true);
       // Use mock stats instead of API call
       await new Promise(resolve => setTimeout(resolve, 500));
-      setData(mockStats);
+      setData({
+        ...mockStats,
+        changePercent: 6.8, // Add changePercent for consistency
+        monthly: 1, // Add monthly for consistency
+        yearly: 2, // Add yearly for consistency
+      });
       error && setError(null);
     } catch (err) {
       setError('Failed to load stats');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,7 @@ interface SupplierFormProps {
   isLoading?: boolean;
 }
 
-export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: SupplierFormProps) {
+const SupplierForm = memo(function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: SupplierFormProps) {
   const [formData, setFormData] = useState<Partial<Supplier>>({
     name: '',
     gstNumber: '',
@@ -145,4 +145,6 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading }: Sup
       </div>
     </form>
   );
-}
+});
+
+export { SupplierForm };

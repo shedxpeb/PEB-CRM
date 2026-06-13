@@ -33,6 +33,8 @@ export const useDocuments = (params: PaginationParams & DocumentFilters = { page
     queryKey: ['documents', params],
     queryFn: () => documentsApi.getAllDocuments(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
     ...options,
   });
 };
@@ -43,6 +45,7 @@ export const useDocument = (id: string, options?: UseQueryOptions) => {
     queryFn: () => documentsApi.getDocumentById(id),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
     ...options,
   });
 };
@@ -52,6 +55,7 @@ export const useDocumentStats = (options?: UseQueryOptions) => {
     queryKey: ['documentStats'],
     queryFn: () => documentsApi.getDocumentStats(),
     staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
     ...options,
   });
 };
@@ -62,6 +66,7 @@ export const useDocumentActivities = (documentId: string, options?: UseQueryOpti
     queryFn: () => documentsApi.getDocumentActivities(documentId),
     enabled: !!documentId,
     staleTime: 2 * 60 * 1000,
+    refetchOnMount: false,
     ...options,
   });
 };
@@ -142,6 +147,7 @@ export const useTemplates = (params: PaginationParams & TemplateFilters = { page
     queryKey: ['templates', params],
     queryFn: () => templatesApi.getAllTemplates(params),
     staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnMount: false,
     ...options,
   });
 };
@@ -152,6 +158,7 @@ export const useTemplate = (id: string, options?: UseQueryOptions) => {
     queryFn: () => templatesApi.getTemplateById(id),
     enabled: !!id,
     staleTime: 10 * 60 * 1000,
+    refetchOnMount: false,
     ...options,
   });
 };
@@ -198,6 +205,7 @@ export const usePendingApprovals = (options?: UseQueryOptions) => {
     queryKey: ['pendingApprovals'],
     queryFn: () => approvalsApi.getPendingApprovals(),
     staleTime: 2 * 60 * 1000,
+    refetchOnMount: false,
     ...options,
   });
 };
@@ -234,6 +242,7 @@ export const useDocumentVersions = (documentId: string, options?: UseQueryOption
     queryFn: () => versionsApi.getDocumentVersions(documentId),
     enabled: !!documentId,
     staleTime: 5 * 60 * 1000,
+    refetchOnMount: false,
     ...options,
   });
 };

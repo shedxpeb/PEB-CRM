@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Lead } from '@/types/leads';
@@ -11,7 +12,7 @@ interface KanbanCardProps {
   onDragEnd: () => void;
 }
 
-export function KanbanCard({ lead, onDragStart, onDragEnd }: KanbanCardProps) {
+export const KanbanCard = memo(function KanbanCard({ lead, onDragStart, onDragEnd }: KanbanCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'New': return 'bg-blue-500';
@@ -102,13 +103,13 @@ export function KanbanCard({ lead, onDragStart, onDragEnd }: KanbanCardProps) {
               <span className="text-muted-foreground">Score:</span>
             </div>
             <span className="text-[10px] font-semibold text-orange-600">
-              {(lead as any).score || 0} pts
+              {(lead as Lead & { score?: number }).score || 0} pts
             </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-1">
             <div
               className="bg-gradient-to-r from-orange-500 to-orange-600 h-1 rounded-full transition-all"
-              style={{ width: `${(lead as any).score || 0}%` }}
+              style={{ width: `${(lead as Lead & { score?: number }).score || 0}%` }}
             />
           </div>
         </div>
@@ -136,4 +137,4 @@ export function KanbanCard({ lead, onDragStart, onDragEnd }: KanbanCardProps) {
       </CardContent>
     </Card>
   );
-}
+});

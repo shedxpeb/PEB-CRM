@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +13,7 @@ interface VendorFormProps {
   isLoading?: boolean;
 }
 
-export function VendorForm({ onSubmit, onCancel, isLoading }: VendorFormProps) {
+export const VendorForm = memo(function VendorForm({ onSubmit, onCancel, isLoading }: VendorFormProps) {
   const [formData, setFormData] = useState<CreateVendorFormData>({
     name: '',
     gstNumber: '',
@@ -29,14 +30,14 @@ export function VendorForm({ onSubmit, onCancel, isLoading }: VendorFormProps) {
     paymentTerms: 'Net 30',
   });
 
-  const handleChange = (field: keyof CreateVendorFormData, value: any) => {
+  const handleChange = useCallback((field: keyof CreateVendorFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
-  };
+  }, [formData, onSubmit]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -197,4 +198,4 @@ export function VendorForm({ onSubmit, onCancel, isLoading }: VendorFormProps) {
       </div>
     </form>
   );
-}
+});

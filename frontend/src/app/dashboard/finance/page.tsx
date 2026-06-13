@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { MainLayout } from '@/layouts/MainLayout';
 import { 
   DollarSign, 
@@ -26,21 +26,38 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable } from '@/components/data-table/DataTable';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
+import { useDebounce } from '@/shared/hooks/useDebounce';
 import { useFinanceStats, useInvoices, usePayments, useExpenses, useFinanceActivities } from '@/features/finance/hooks/useFinance';
 import { formatCurrency, getInvoiceStatusVariant, getPaymentStatusVariant, getExpenseStatusVariant } from '@/features/finance/constants';
 import { FinanceRowActions } from '@/features/finance/components/FinanceRowActions';
+import dynamic from 'next/dynamic';
+
+// Lazy load form components
+const InvoiceForm = dynamic(() => import('@/features/finance/components/InvoiceForm').then(mod => ({ default: mod.InvoiceForm })), { 
+  loading: () => <div className="p-4 text-center">Loading form...</div>,
+  ssr: false 
+});
+const PaymentForm = dynamic(() => import('@/features/finance/components/PaymentForm').then(mod => ({ default: mod.PaymentForm })), { 
+  loading: () => <div className="p-4 text-center">Loading form...</div>,
+  ssr: false 
+});
+const ExpenseForm = dynamic(() => import('@/features/finance/components/ExpenseForm').then(mod => ({ default: mod.ExpenseForm })), { 
+  loading: () => <div className="p-4 text-center">Loading form...</div>,
+  ssr: false 
+});
 
 export default function FinancePage() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'payments' | 'expenses' | 'receivables' | 'payables'>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   
-  const { data: stats, isLoading: statsLoading } = useFinanceStats();
-  const { data: invoices, isLoading: invoicesLoading } = useInvoices();
-  const { data: payments, isLoading: paymentsLoading } = usePayments();
-  const { data: expenses, isLoading: expensesLoading } = useExpenses();
-  const { data: activities, isLoading: activitiesLoading } = useFinanceActivities();
+  const { data: stats, isLoading: statsLoading } = useFinanceStats(activeTab === 'dashboard');
+  const { data: invoices, isLoading: invoicesLoading } = useInvoices(undefined, activeTab === 'invoices');
+  const { data: payments, isLoading: paymentsLoading } = usePayments(undefined, activeTab === 'payments');
+  const { data: expenses, isLoading: expensesLoading } = useExpenses(undefined, activeTab === 'expenses');
+  const { data: activities, isLoading: activitiesLoading } = useFinanceActivities(undefined, activeTab === 'dashboard');
 
-  const kpiData = stats ? [
+  const kpiData = useMemo(() => stats ? [
     {
       title: 'Total Revenue',
       value: formatCurrency(stats.totalRevenue),
@@ -97,9 +114,9 @@ export default function FinancePage() {
       icon: <Wallet className="h-6 w-6 text-blue-600" />,
       color: 'text-blue-600',
     },
-  ] : [];
+  ] : [], [stats]);
 
-  const invoiceColumns: any[] = [
+  const invoiceColumns = useMemo(() => [
     { key: 'invoiceNumber', label: 'Invoice No', render: (val: string) => <span className="font-semibold">{val}</span> },
     { key: 'customerName', label: 'Customer' },
     { key: 'totalAmount', label: 'Amount', render: (val: number) => formatCurrency(val) },
@@ -115,20 +132,9 @@ export default function FinancePage() {
       label: 'Due Date',
       render: (val: Date) => new Date(val).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
     },
-    {
-      key: 'id',
-      label: 'Actions',
-      render: (val: any, row: any) => (
-        <FinanceRowActions
-          onView={() => console.log('View invoice:', row)}
-          onEdit={() => console.log('Edit invoice:', row)}
-          onSend={() => console.log('Send invoice:', row)}
-        />
-      )
-    }
-  ];
+  ], []);
 
-  const paymentColumns: any[] = [
+  const paymentColumns = useMemo(() => [
     { key: 'paymentNumber', label: 'Payment No', render: (val: string) => <span className="font-semibold">{val}</span> },
     { key: 'customerName', label: 'Customer' },
     { key: 'totalAmount', label: 'Amount', render: (val: number) => <span className="text-green-600">{formatCurrency(val)}</span> },
@@ -143,19 +149,9 @@ export default function FinancePage() {
       label: 'Date',
       render: (val: Date) => new Date(val).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
     },
-    {
-      key: 'id',
-      label: 'Actions',
-      render: (val: any, row: any) => (
-        <FinanceRowActions
-          onView={() => console.log('View payment:', row)}
-          onEdit={() => console.log('Edit payment:', row)}
-        />
-      )
-    }
-  ];
+  ], []);
 
-  const expenseColumns: any[] = [
+  const expenseColumns = useMemo(() => [
     { key: 'expenseNumber', label: 'Expense ID', render: (val: string) => <span className="font-semibold">{val}</span> },
     { key: 'vendorName', label: 'Vendor' },
     { key: 'category', label: 'Category' },
@@ -171,21 +167,9 @@ export default function FinancePage() {
       label: 'Date',
       render: (val: Date) => new Date(val).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
     },
-    {
-      key: 'id',
-      label: 'Actions',
-      render: (val: any, row: any) => (
-        <FinanceRowActions
-          onView={() => console.log('View expense:', row)}
-          onEdit={() => console.log('Edit expense:', row)}
-          onApprove={() => console.log('Approve expense:', row)}
-          onReject={() => console.log('Reject expense:', row)}
-        />
-      )
-    }
-  ];
+  ], []);
 
-  const activityData: any[] = activities?.map((activity) => ({
+  const activityData = useMemo(() => activities?.map((activity) => ({
     id: activity.id,
     type: (activity.type === 'income_created' ? 'lead' as const : 
           activity.type === 'expense_created' ? 'project' as const : 
@@ -196,91 +180,95 @@ export default function FinancePage() {
     user: activity.performedBy,
     status: activity.type.includes('approved') ? 'completed' as const : 
             activity.type.includes('rejected') ? 'warning' as const : undefined,
-  })) || [];
+  })) || [], [activities]);
+
+  const handleTabChange = useCallback((tab: 'dashboard' | 'invoices' | 'payments' | 'expenses' | 'receivables' | 'payables') => {
+    setActiveTab(tab);
+  }, []);
 
   return (
     <MainLayout title="Finance" subtitle="Overview of financial operations">
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 w-full overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 min-w-0">
           <div>
-            <h1 className="text-2xl font-bold">Finance Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Overview of financial operations</p>
+            <h1 className="text-xl sm:text-2xl font-bold">Finance Dashboard</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">Overview of financial operations</p>
           </div>
-          <Button>
+          <Button className="flex-1 sm:flex-none">
             <Plus className="h-4 w-4 mr-2" />
-            Create Invoice
+            <span className="hidden sm:inline">Create Invoice</span>
           </Button>
         </div>
 
         {/* Tabs */}
         <div className="border-b">
-          <div className="flex items-center gap-1 p-2">
+          <div className="flex items-center gap-1 p-2 overflow-x-auto w-full sm:w-auto">
             <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              onClick={() => handleTabChange('dashboard')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                 activeTab === 'dashboard'
                   ? 'bg-primary text-primary-foreground'
                   : 'hover:bg-muted'
               }`}
             >
               <BarChart3 className="h-4 w-4" />
-              Dashboard
+              <span className="hidden sm:inline">Dashboard</span>
             </button>
             <button
-              onClick={() => setActiveTab('invoices')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              onClick={() => handleTabChange('invoices')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                 activeTab === 'invoices'
                   ? 'bg-primary text-primary-foreground'
                   : 'hover:bg-muted'
               }`}
             >
               <Receipt className="h-4 w-4" />
-              Invoices
+              <span className="hidden sm:inline">Invoices</span>
             </button>
             <button
-              onClick={() => setActiveTab('payments')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              onClick={() => handleTabChange('payments')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                 activeTab === 'payments'
                   ? 'bg-primary text-primary-foreground'
                   : 'hover:bg-muted'
               }`}
             >
               <CreditCard className="h-4 w-4" />
-              Payments
+              <span className="hidden sm:inline">Payments</span>
             </button>
             <button
-              onClick={() => setActiveTab('expenses')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              onClick={() => handleTabChange('expenses')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                 activeTab === 'expenses'
                   ? 'bg-primary text-primary-foreground'
                   : 'hover:bg-muted'
               }`}
             >
               <FileText className="h-4 w-4" />
-              Expenses
+              <span className="hidden sm:inline">Expenses</span>
             </button>
             <button
-              onClick={() => setActiveTab('receivables')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              onClick={() => handleTabChange('receivables')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                 activeTab === 'receivables'
                   ? 'bg-primary text-primary-foreground'
                   : 'hover:bg-muted'
               }`}
             >
               <ArrowUpRight className="h-4 w-4" />
-              Receivables
+              <span className="hidden sm:inline">Receivables</span>
             </button>
             <button
-              onClick={() => setActiveTab('payables')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              onClick={() => handleTabChange('payables')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                 activeTab === 'payables'
                   ? 'bg-primary text-primary-foreground'
                   : 'hover:bg-muted'
               }`}
             >
               <ArrowDownRight className="h-4 w-4" />
-              Payables
+              <span className="hidden sm:inline">Payables</span>
             </button>
           </div>
         </div>
@@ -288,12 +276,11 @@ export default function FinancePage() {
       {activeTab === 'dashboard' && (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {kpiData.map((kpi, index) => (
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+            {kpiData.map((kpi) => (
               <KPICard
-                key={index}
+                key={kpi.title}
                 data={kpi}
-                onClick={() => console.log('KPI clicked:', kpi.title)}
               />
             ))}
           </div>
@@ -311,12 +298,12 @@ export default function FinancePage() {
       )}
 
       {/* Tab Content */}
-      <Card>
+      <Card className="min-w-0">
         <CardContent className="p-0">
           {/* Search */}
-          <div className="p-4 space-y-4">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
+          <div className="p-2 sm:p-3 space-y-2 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <div className="relative flex-1 w-full sm:w-auto">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search..."
@@ -336,8 +323,15 @@ export default function FinancePage() {
                 columns={invoiceColumns}
                 data={invoices?.data || []}
                 loading={invoicesLoading}
-                onRowClick={(row) => console.log('Invoice clicked:', row)}
                 rowIdKey="id"
+                rowActions={(row) => (
+                  <FinanceRowActions
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                    onSend={() => {}}
+                    onApprove={() => {}}
+                  />
+                )}
               />
             )}
 
@@ -346,8 +340,13 @@ export default function FinancePage() {
                 columns={paymentColumns}
                 data={payments?.data || []}
                 loading={paymentsLoading}
-                onRowClick={(row) => console.log('Payment clicked:', row)}
                 rowIdKey="id"
+                rowActions={(row) => (
+                  <FinanceRowActions
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                  />
+                )}
               />
             )}
 
@@ -356,8 +355,13 @@ export default function FinancePage() {
                 columns={expenseColumns}
                 data={expenses?.data || []}
                 loading={expensesLoading}
-                onRowClick={(row) => console.log('Expense clicked:', row)}
                 rowIdKey="id"
+                rowActions={(row) => (
+                  <FinanceRowActions
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                  />
+                )}
               />
             )}
 

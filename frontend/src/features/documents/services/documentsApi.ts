@@ -295,8 +295,15 @@ export const documentsApi = {
       return response.data;
     } catch (error) {
       // Silent fallback to mock data when backend is unavailable
+      // Generate different ID prefixes based on document type
+      let idPrefix = '';
+      if (data.documentType === 'Estimate') idPrefix = 'EST';
+      else if (data.documentType === 'Proposal') idPrefix = 'PRP';
+      else if (data.documentType === 'Quotation') idPrefix = 'QT';
+      else idPrefix = 'DOC';
+      
       const newDocument: Document = {
-        id: String(MOCK_DOCUMENTS.length + 1),
+        id: `${idPrefix}-${String(MOCK_DOCUMENTS.length + 1).padStart(3, '0')}`,
         documentNumber: `${data.documentType.substring(0, 3).toUpperCase()}-${String(MOCK_DOCUMENTS.length + 1).padStart(3, '0')}`,
         version: 1,
         documentType: data.documentType,
@@ -378,9 +385,16 @@ export const documentsApi = {
       const source = MOCK_DOCUMENTS.find(d => d.id === data.sourceDocumentId);
       if (!source) throw new Error('Source document not found');
       
+      // Generate different ID prefixes based on document type
+      let idPrefix = '';
+      if (data.targetType === 'Estimate') idPrefix = 'EST';
+      else if (data.targetType === 'Proposal') idPrefix = 'PRP';
+      else if (data.targetType === 'Quotation') idPrefix = 'QT';
+      else idPrefix = 'DOC';
+      
       const converted: Document = {
         ...source,
-        id: String(MOCK_DOCUMENTS.length + 1),
+        id: `${idPrefix}-${String(MOCK_DOCUMENTS.length + 1).padStart(3, '0')}`,
         documentNumber: `${data.targetType.substring(0, 3).toUpperCase()}-${String(MOCK_DOCUMENTS.length + 1).padStart(3, '0')}`,
         documentType: data.targetType,
         version: 1,

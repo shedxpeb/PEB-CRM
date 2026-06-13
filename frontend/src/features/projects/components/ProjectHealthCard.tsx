@@ -1,5 +1,7 @@
 'use client';
 
+import { useMemo } from 'react';
+import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { HealthStatus } from '@/features/projects/types';
@@ -14,14 +16,14 @@ interface ProjectHealthCardProps {
   resourceHealth: HealthStatus;
 }
 
-export function ProjectHealthCard({
+export const ProjectHealthCard = React.memo(function ProjectHealthCard({
   healthStatus,
   timelineHealth,
   budgetHealth,
   materialHealth,
   resourceHealth,
 }: ProjectHealthCardProps) {
-  const healthMetrics = [
+  const healthMetrics = useMemo(() => [
     {
       label: 'Timeline',
       value: timelineHealth,
@@ -42,7 +44,7 @@ export function ProjectHealthCard({
       value: resourceHealth,
       icon: <Users className="h-4 w-4" />,
     },
-  ];
+  ], [timelineHealth, budgetHealth, materialHealth, resourceHealth]);
 
   return (
     <Card>
@@ -83,4 +85,4 @@ export function ProjectHealthCard({
       </CardContent>
     </Card>
   );
-}
+});
