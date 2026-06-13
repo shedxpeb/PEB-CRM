@@ -35,11 +35,11 @@ export default function InventoryDetailPage() {
   const router = useRouter();
   const id = params.id as string;
 
-  const { data: item, isLoading } = useInventoryItem(id);
-  const { data: activities } = useInventoryActivities(id);
-  const { data: movements } = useStockMovementHistory(id);
-
   const [activeTab, setActiveTab] = useState('overview');
+
+  const { data: item, isLoading } = useInventoryItem(id);
+  const { data: activities } = useInventoryActivities(id, activeTab === 'activity');
+  const { data: movements } = useStockMovementHistory(id, activeTab === 'stock-history');
 
   if (isLoading) {
     return (
@@ -199,15 +199,15 @@ export default function InventoryDetailPage() {
           </Card>
         </div>
 
+
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="stock-history">Stock History</TabsTrigger>
             <TabsTrigger value="warehouses">Warehouses</TabsTrigger>
             <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
             <TabsTrigger value="projects">Projects</TabsTrigger>
-            <TabsTrigger value="boq">BOQ</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
@@ -230,14 +230,6 @@ export default function InventoryDetailPage() {
                       <p className="text-sm font-medium font-mono">{item.itemCode}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Category</p>
-                      <p className="text-sm font-medium">{item.category}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Sub Category</p>
-                      <p className="text-sm font-medium">{item.subCategory || '-'}</p>
-                    </div>
-                    <div>
                       <p className="text-xs text-muted-foreground">Unit</p>
                       <p className="text-sm font-medium">{item.unit}</p>
                     </div>
@@ -245,81 +237,7 @@ export default function InventoryDetailPage() {
                 </CardContent>
               </Card>
 
-              {/* PEB Material Information */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    PEB Material Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Material Type</p>
-                      <p className="text-sm font-medium">{item.materialType}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Grade</p>
-                      <p className="text-sm font-medium">{item.grade || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Thickness</p>
-                      <p className="text-sm font-medium">{item.thickness ? `${item.thickness} mm` : '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Weight</p>
-                      <p className="text-sm font-medium">{item.weight ? `${item.weight} Kg` : '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Length</p>
-                      <p className="text-sm font-medium">{item.length ? `${item.length} mm` : '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Width</p>
-                      <p className="text-sm font-medium">{item.width ? `${item.width} mm` : '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Color</p>
-                      <p className="text-sm font-medium">{item.color || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Coating</p>
-                      <p className="text-sm font-medium">{item.coating || '-'}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
 
-              {/* Commercial Information */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    Commercial Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Purchase Rate</p>
-                      <p className="text-sm font-medium">₹{item.purchaseRate.toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Selling Rate</p>
-                      <p className="text-sm font-medium">{item.sellingRate ? `₹${item.sellingRate.toFixed(2)}` : '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Tax %</p>
-                      <p className="text-sm font-medium">{item.taxPercentage ? `${item.taxPercentage}%` : '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Status</p>
-                      <Badge variant={getStockStatusVariant(item.status)}>{item.status}</Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
 
               {/* Inventory Rules */}
               <Card>
@@ -350,6 +268,7 @@ export default function InventoryDetailPage() {
                   </div>
                 </CardContent>
               </Card>
+
             </div>
           </TabsContent>
 
@@ -375,32 +294,56 @@ export default function InventoryDetailPage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Warehouse className="h-4 w-4" />
-                  Warehouse Information
+                  Warehouse Stock Breakdown
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="p-4 border rounded-lg">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-medium">{item.warehouseName}</h3>
-                      <Badge variant="success">Primary</Badge>
+                      <h3 className="font-medium">Main Warehouse</h3>
+                      <Badge variant="default">Primary</Badge>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-4 gap-4 text-sm">
                       <div>
-                        <p className="text-muted-foreground">Current Stock</p>
-                        <p className="font-medium">{Number(item.currentStock).toLocaleString()} {item.unit}</p>
+                        <p className="text-muted-foreground">Current</p>
+                        <p className="font-medium">5,000 Kg</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Reserved</p>
-                        <p className="font-medium">{Number(item.reservedStock).toLocaleString()} {item.unit}</p>
+                        <p className="font-medium">1,200 Kg</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Issued</p>
+                        <p className="font-medium">800 Kg</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Available</p>
-                        <p className="font-medium">{Number(item.availableStock).toLocaleString()} {item.unit}</p>
+                        <p className="font-medium">3,000 Kg</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-medium">Fabrication Yard</h3>
+                      <Badge variant="secondary">Secondary</Badge>
+                    </div>
+                    <div className="grid grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Current</p>
+                        <p className="font-medium">3,500 Kg</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Value</p>
-                        <p className="font-medium">₹{Number(item.totalValue).toLocaleString()}</p>
+                        <p className="text-muted-foreground">Reserved</p>
+                        <p className="font-medium">800 Kg</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Issued</p>
+                        <p className="font-medium">700 Kg</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Available</p>
+                        <p className="font-medium">2,000 Kg</p>
                       </div>
                     </div>
                   </div>
@@ -408,6 +351,7 @@ export default function InventoryDetailPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
 
           {/* Suppliers Tab */}
           <TabsContent value="suppliers">
@@ -419,19 +363,30 @@ export default function InventoryDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {item.preferredSupplier ? (
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-medium">{item.preferredSupplier}</h3>
-                      <Badge variant="default">Preferred</Badge>
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-medium">JSW Steel</h3>
+                    <Badge variant="default">Last Purchase</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Contact Person</p>
+                      <p className="font-medium">Rajesh Patil</p>
                     </div>
-                    <p className="text-sm text-muted-foreground">This is the preferred supplier for this item.</p>
+                    <div>
+                      <p className="text-muted-foreground">Last Purchase Date</p>
+                      <p className="font-medium">10 Jun 2024</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Last Purchase Qty</p>
+                      <p className="font-medium">5,000 Kg</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Last Purchase Rate</p>
+                      <p className="font-medium">₹65/Kg</p>
+                    </div>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
-                    No preferred supplier assigned
-                  </div>
-                )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -442,29 +397,92 @@ export default function InventoryDetailPage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Building2 className="h-4 w-4" />
-                  Linked Projects
+                  Project Stock Allocations
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  No projects linked yet
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* BOQ Tab */}
-          <TabsContent value="boq">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Linked BOQ
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  No BOQ items linked yet
+                <div className="space-y-3">
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="font-medium">Factory Shed - Ahmedabad</h3>
+                        <p className="text-xs text-muted-foreground">Reliance Industries</p>
+                      </div>
+                      <Badge variant="default">Active</Badge>
+                    </div>
+                    <div className="grid grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Reserved Qty</p>
+                        <p className="font-medium">2,500 Kg</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Issued Qty</p>
+                        <p className="font-medium">1,500 Kg</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Balance Qty</p>
+                        <p className="font-medium">1,000 Kg</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Status</p>
+                        <Badge variant="default" className="text-xs">Active</Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="font-medium">Warehouse - Mumbai</h3>
+                        <p className="text-xs text-muted-foreground">Tata Motors</p>
+                      </div>
+                      <Badge variant="default">Active</Badge>
+                    </div>
+                    <div className="grid grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Reserved Qty</p>
+                        <p className="font-medium">1,500 Kg</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Issued Qty</p>
+                        <p className="font-medium">800 Kg</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Balance Qty</p>
+                        <p className="font-medium">700 Kg</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Status</p>
+                        <Badge variant="default" className="text-xs">Active</Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="font-medium">Industrial Building - Pune</h3>
+                        <p className="text-xs text-muted-foreground">Mahindra & Mahindra</p>
+                      </div>
+                      <Badge variant="secondary">Completed</Badge>
+                    </div>
+                    <div className="grid grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Reserved Qty</p>
+                        <p className="font-medium">1,000 Kg</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Issued Qty</p>
+                        <p className="font-medium">1,000 Kg</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Balance Qty</p>
+                        <p className="font-medium">0 Kg</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Status</p>
+                        <Badge variant="secondary" className="text-xs">Completed</Badge>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -476,12 +494,51 @@ export default function InventoryDetailPage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <FileText className="h-4 w-4" />
-                  Attachments
+                  Stock Documents
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  No files attached yet
+                <div className="space-y-3">
+                  <div className="p-4 border rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-blue-600" />
+                      <div>
+                        <p className="font-medium">Stock Movement History</p>
+                        <p className="text-xs text-muted-foreground">Complete stock transaction log</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm">View</Button>
+                  </div>
+                  <div className="p-4 border rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-green-600" />
+                      <div>
+                        <p className="font-medium">GRN Documents</p>
+                        <p className="text-xs text-muted-foreground">Goods Received Notes</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm">View</Button>
+                  </div>
+                  <div className="p-4 border rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-purple-600" />
+                      <div>
+                        <p className="font-medium">Internal Notes</p>
+                        <p className="text-xs text-muted-foreground">Warehouse internal notes</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm">View</Button>
+                  </div>
+                  <div className="p-4 border rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-amber-600" />
+                      <div>
+                        <p className="font-medium">Warehouse Documents</p>
+                        <p className="text-xs text-muted-foreground">Warehouse-related documents</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm">View</Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

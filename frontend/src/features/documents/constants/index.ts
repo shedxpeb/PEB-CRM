@@ -187,3 +187,29 @@ export const ACTIVITY_TYPE_COLORS: Record<string, string> = {
   comment_added: 'cyan',
   attachment_added: 'gray',
 };
+
+// ─── Scope Labels ───────────────────────────────────────────────────────────────
+
+export const SCOPE_LABELS: Record<string, string> = {
+  labour: 'Labour',
+  installation: 'Installation',
+  transportation: 'Transportation',
+  crane: 'Crane',
+  civilWork: 'Civil Work',
+  accommodation: 'Accommodation',
+  erection: 'Erection',
+  freight: 'Freight',
+};
+
+// ─── Document Status Badge Variants (Enhanced) ───────────────────────────────────
+
+export const DOCUMENT_STATUS_BADGE_CLASSES: Record<DocumentStatus, string> = {
+  Draft: 'bg-muted text-muted-foreground',
+  Sent: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+  Viewed: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300',
+  Accepted: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+  Rejected: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+  Expired: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
+  Converted: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+  Cancelled: 'bg-gray-100 text-gray-700 dark:bg-gray-950 dark:text-gray-300',
+};

@@ -27,8 +27,8 @@ export const createProjectSchema = z.object({
   city: z.string().min(2, 'City is required'),
   state: z.string().min(2, 'State is required'),
   pincode: z.string().optional(),
-  startDate: z.coerce.date(),
-  endDate: z.coerce.date(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
   priority: z.enum(['Low', 'Medium', 'High', 'Urgent'] as const),
   projectManagerId: z.string().min(1, 'Project manager is required'),
   structureType: z.enum(['PEB Building', 'Conventional Steel', 'Hybrid', 'Pre-Engineered', 'Cold Storage'] as const),
@@ -44,7 +44,12 @@ export const createProjectSchema = z.object({
   coveredArea: z.number().positive().optional(),
   totalWeight: z.number().positive().optional(),
 }).refine(
-  (data) => data.endDate > data.startDate,
+  (data) => {
+    if (data.startDate && data.endDate) {
+      return new Date(data.endDate) > new Date(data.startDate);
+    }
+    return true;
+  },
   { path: ['endDate'], message: 'End date must be after start date' }
 );
 
@@ -104,7 +109,7 @@ export const createTaskSchema = z.object({
   title: z.string().min(3, 'Task title must be at least 3 characters'),
   description: z.string().optional(),
   assignedTo: z.string().min(1, 'Assignee is required'),
-  dueDate: z.coerce.date(),
+  dueDate: z.string().optional(),
   priority: z.enum(['Low', 'Medium', 'High', 'Urgent'] as const),
   dependencies: z.array(z.string()).optional(),
 });
@@ -126,8 +131,8 @@ export const updateTaskSchema = z.object({
  */
 export const milestoneSchema = z.object({
   name: z.string().min(3, 'Milestone name must be at least 3 characters'),
-  plannedDate: z.coerce.date(),
-  actualDate: z.coerce.date().optional(),
+  plannedDate: z.string().optional(),
+  actualDate: z.string().optional(),
 });
 
 /**

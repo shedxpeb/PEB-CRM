@@ -32,7 +32,6 @@ export default function ReportsPage() {
 
   const handleExport = () => {
     // Export logic would go here
-    console.log(`Exporting ${reportType} as ${format}`);
   };
 
   return (

@@ -104,7 +104,12 @@ export function AdminTable<T extends Record<string, any>>({
   }, [data, search, activeFilters, sortKey, sortDir, columns]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+  
+  // Memoize paginated data to prevent unnecessary re-renders
+  const paginated = useMemo(() => 
+    filtered.slice((page - 1) * pageSize, page * pageSize),
+    [filtered, page, pageSize]
+  );
 
   const SortIcon = ({ colKey }: { colKey: string }) => {
     if (sortKey !== colKey) return <ArrowUpDown className="h-3 w-3 text-sa-text-dim" />;

@@ -209,7 +209,7 @@ export function UsersRoles() {
             </div>
 
             <DataTable
-              data={users || []}
+              data={(users as User[]) || []}
               columns={userColumns}
               loading={usersLoading}
               rowActions={userRowActions}
@@ -227,7 +227,7 @@ export function UsersRoles() {
             </div>
 
             <DataTable
-              data={roles || []}
+              data={(roles as Role[]) || []}
               columns={roleColumns}
               loading={rolesLoading}
               rowActions={roleRowActions}
@@ -280,7 +280,7 @@ export function UsersRoles() {
                     <Label htmlFor="role">Role *</Label>
                     <Select
                       value={userFormData.role || ''}
-                      onValueChange={(value) => setUserFormData({ ...userFormData, role: value })}
+                      onValueChange={(value) => setUserFormData({ ...userFormData, role: value as any })}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -373,13 +373,13 @@ export function UsersRoles() {
                         <input
                           type="checkbox"
                           id={perm}
-                          checked={roleFormData.permissions?.includes(perm) || false}
+                          checked={roleFormData.permissions?.includes(perm as any) || false}
                           onChange={(e) => {
                             const perms = roleFormData.permissions || [];
                             if (e.target.checked) {
-                              setRoleFormData({ ...roleFormData, permissions: [...perms, perm] });
+                              setRoleFormData({ ...roleFormData, permissions: [...perms, perm as any] });
                             } else {
-                              setRoleFormData({ ...roleFormData, permissions: perms.filter(p => p !== perm) });
+                              setRoleFormData({ ...roleFormData, permissions: perms.filter(p => p !== perm as any) });
                             }
                           }}
                           className="h-4 w-4"

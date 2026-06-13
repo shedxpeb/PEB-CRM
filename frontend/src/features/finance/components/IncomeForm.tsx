@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,7 +17,7 @@ interface IncomeFormProps {
   isLoading?: boolean;
 }
 
-export function IncomeForm({ onSubmit, onCancel, isLoading }: IncomeFormProps) {
+export const IncomeForm = memo(function IncomeForm({ onSubmit, onCancel, isLoading }: IncomeFormProps) {
   const { data: customers } = useCustomers();
   const { data: projects } = useProjects();
 
@@ -34,14 +35,14 @@ export function IncomeForm({ onSubmit, onCancel, isLoading }: IncomeFormProps) {
     category: 'Project Revenue',
   });
 
-  const handleChange = (field: keyof CreateIncomeFormData, value: any) => {
+  const handleChange = useCallback((field: keyof CreateIncomeFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
-  };
+  }, [formData, onSubmit]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -191,4 +192,4 @@ export function IncomeForm({ onSubmit, onCancel, isLoading }: IncomeFormProps) {
       </div>
     </form>
   );
-}
+});

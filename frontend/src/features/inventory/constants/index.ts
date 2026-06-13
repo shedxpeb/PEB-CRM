@@ -1,27 +1,9 @@
 /**
  * Inventory Module Constants
- * Centralized constants for material types, stock statuses, movement types, units, categories
+ * Centralized constants for stock statuses, movement types, units
  */
 
-import type { MaterialType, StockStatus, MovementType, UnitType, InventoryCategory } from '@/features/inventory/types';
-
-/**
- * Material Type options
- */
-export const MATERIAL_TYPES: { value: MaterialType; label: string }[] = [
-  { value: 'Raw Material', label: 'Raw Material' },
-  { value: 'Finished Goods', label: 'Finished Goods' },
-  { value: 'Semi Finished', label: 'Semi Finished' },
-  { value: 'Consumable', label: 'Consumable' },
-  { value: 'Accessory', label: 'Accessory' },
-  { value: 'Hardware', label: 'Hardware' },
-  { value: 'Fastener', label: 'Fastener' },
-  { value: 'Roofing Sheet', label: 'Roofing Sheet' },
-  { value: 'Wall Sheet', label: 'Wall Sheet' },
-  { value: 'Structural Steel', label: 'Structural Steel' },
-  { value: 'Electrical', label: 'Electrical' },
-  { value: 'Civil Material', label: 'Civil Material' },
-];
+import type { StockStatus, MovementType, UnitType } from '@/features/inventory/types';
 
 /**
  * Stock Status definitions with badge variants
@@ -72,28 +54,6 @@ export const UNITS: { value: UnitType; label: string }[] = [
   { value: 'Liter', label: 'Liter' },
   { value: 'Bag', label: 'Bag' },
   { value: 'Roll', label: 'Roll' },
-];
-
-/**
- * Inventory Category options
- */
-export const INVENTORY_CATEGORIES: { value: InventoryCategory; label: string }[] = [
-  { value: 'Primary Steel', label: 'Primary Steel' },
-  { value: 'Secondary Steel', label: 'Secondary Steel' },
-  { value: 'Roofing Sheet', label: 'Roofing Sheet' },
-  { value: 'Wall Sheet', label: 'Wall Sheet' },
-  { value: 'Insulation', label: 'Insulation' },
-  { value: 'Flashing', label: 'Flashing' },
-  { value: 'Fasteners', label: 'Fasteners' },
-  { value: 'Accessories', label: 'Accessories' },
-  { value: 'Paint', label: 'Paint' },
-  { value: 'Hardware', label: 'Hardware' },
-  { value: 'Electrical', label: 'Electrical' },
-  { value: 'Civil Material', label: 'Civil Material' },
-  { value: 'Fabrication Material', label: 'Fabrication Material' },
-  { value: 'Finished Goods', label: 'Finished Goods' },
-  { value: 'Consumables', label: 'Consumables' },
-  { value: 'Other', label: 'Other' },
 ];
 
 /**

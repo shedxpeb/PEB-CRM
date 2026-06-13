@@ -16,6 +16,7 @@ export function useLeads(params?: PaginationParams & LeadsFilters) {
     queryFn: () => leadsApi.getAll(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -27,6 +28,7 @@ export function useLead(id: string) {
     queryKey: ['lead', id],
     queryFn: () => leadsApi.getById(id),
     enabled: !!id, // Only fetch if ID is provided
+    refetchOnMount: false,
   });
 }
 
@@ -108,12 +110,15 @@ export function useBulkDeleteLeads() {
 
 /**
  * Get lead statistics
+ * Optimized for dashboard with faster retry
  */
 export function useLeadsStats() {
   return useQuery({
     queryKey: ['leads', 'stats'],
     queryFn: () => leadsApi.getStats(),
     staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchOnMount: false,
+    retry: 0, // No retry for dashboard - fail fast
   });
 }
 

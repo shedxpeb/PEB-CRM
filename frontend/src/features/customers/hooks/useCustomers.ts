@@ -4,7 +4,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customersApi } from '@/features/customers/services/customersApi';
-import { CustomerFilters, CreateCustomerDto, UpdateCustomerDto } from '@/features/customers/types';
+import { CustomerFilters, CreateCustomerDto, UpdateCustomerDto, ConvertLeadToCustomerDto } from '@/features/customers/types';
 import { PaginationParams } from '@/shared/types/pagination';
 
 /**
@@ -16,6 +16,7 @@ export function useCustomers(params?: PaginationParams & CustomerFilters) {
     queryFn: () => customersApi.getAll(params),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -27,6 +28,7 @@ export function useCustomer(id: string) {
     queryKey: ['customer', id],
     queryFn: () => customersApi.getById(id),
     enabled: !!id,
+    refetchOnMount: false,
   });
 }
 
@@ -108,12 +110,15 @@ export function useBulkDeleteCustomers() {
 
 /**
  * Get customer statistics
+ * Optimized for dashboard with faster retry
  */
 export function useCustomersStats() {
   return useQuery({
     queryKey: ['customers', 'stats'],
     queryFn: () => customersApi.getStats(),
     staleTime: 2 * 60 * 1000,
+    refetchOnMount: false,
+    retry: 0, // No retry for dashboard - fail fast
   });
 }
 
@@ -126,5 +131,23 @@ export function useCustomerActivities(id: string) {
     queryFn: () => customersApi.getActivities(id),
     enabled: !!id,
     staleTime: 3 * 60 * 1000,
+  });
+}
+
+/**
+ * Convert lead to customer
+ * Creates a new customer from lead data and updates the lead with customer reference
+ */
+export function useConvertLeadToCustomer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: ConvertLeadToCustomerDto) => customersApi.convertLeadToCustomer(data),
+    onSuccess: () => {
+      // Invalidate customers queries
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customers', 'stats'] });
+      // Note: Lead queries should also be invalidated, but that's handled in the leads module
+    },
   });
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -42,7 +42,7 @@ interface CustomerRowActionsProps {
   onStatusChange?: (customer: Customer, status: CustomerStatus) => void;
 }
 
-export function CustomerRowActions({
+export const CustomerRowActions = memo(function CustomerRowActions({
   customer,
   onEdit,
   onDelete,
@@ -162,4 +162,4 @@ export function CustomerRowActions({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
+});

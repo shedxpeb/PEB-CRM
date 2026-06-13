@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LeadActivity } from '@/types/leads';
@@ -18,7 +19,7 @@ interface LeadActivityTimelineProps {
   activities: LeadActivity[];
 }
 
-export function LeadActivityTimeline({ activities }: LeadActivityTimelineProps) {
+export const LeadActivityTimeline = memo(function LeadActivityTimeline({ activities }: LeadActivityTimelineProps) {
   const getActivityIcon = (type: LeadActivity['type']) => {
     switch (type) {
       case 'created':
@@ -126,4 +127,4 @@ export function LeadActivityTimeline({ activities }: LeadActivityTimelineProps) 
       </CardContent>
     </Card>
   );
-}
+});

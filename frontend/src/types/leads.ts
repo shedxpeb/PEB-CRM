@@ -105,15 +105,24 @@ export interface Lead {
   source: LeadSource;
   priority: LeadPriority;
   assignedEmployee?: string;
-  nextFollowUpDate?: Date;
-  
+  assignedEmployeeId?: string;
+
   // Status & Tracking
   status: LeadStatus;
   createdDate: Date;
   lastFollowUp?: Date;
+  nextFollowUpDate?: Date;
   createdBy?: string;
   updatedBy?: string;
   updatedAt?: Date;
+
+  // Cross-module relationships
+  customerId?: string; // Links to Customer when lead is converted
+  convertedDate?: Date; // Date when lead was converted to customer
+
+  // Additional fields
+  pincode?: string;
+  remarks?: string;
 }
 
 export interface LeadActivity {

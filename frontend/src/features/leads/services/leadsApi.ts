@@ -1,10 +1,33 @@
 /**
  * Leads API Service
  * All API calls for leads module - never use axios directly
+ *
+ * Mock fallback: When backend is unavailable, returns mock data.
+ * Remove mock fallbacks once backend is connected.
  */
 import { api } from '@/core/api';
 import { Lead, CreateLeadDto, UpdateLeadDto } from '@/features/leads/types';
 import { PaginatedData, PaginationParams } from '@/shared/types/pagination';
+
+// ─── Mock Data (development only - remove when backend is ready) ─────────────
+
+const MOCK_STATS = {
+  total: 156,
+  new: 42,
+  contacted: 38,
+  converted: 28,
+  revenue: 4500000,
+};
+
+/** Check if error is a connection failure (no backend) */
+function isConnectionError(error: unknown): boolean {
+  if (error && typeof error === 'object') {
+    const err = error as any;
+    if (err.code === 'ERR_NETWORK' || err.code === 'ECONNREFUSED' || err.code === 'ERR_CONNECTION_REFUSED') return true;
+    if (!err.response && err.message && err.message.toLowerCase().includes('network')) return true;
+  }
+  return false;
+}
 
 export interface LeadsFilters {
   search?: string;
@@ -78,12 +101,20 @@ export const leadsApi = {
   /**
    * Get lead statistics
    */
-  getStats: () =>
-    api.get<{
-      total: number;
-      new: number;
-      contacted: number;
-      converted: number;
-      revenue: number;
-    }>('/api/leads/stats'),
+  getStats: async () => {
+    try {
+      return await api.get<{
+        total: number;
+        new: number;
+        contacted: number;
+        converted: number;
+        revenue: number;
+      }>('/api/leads/stats');
+    } catch (error) {
+      if (isConnectionError(error)) {
+        return MOCK_STATS;
+      }
+      throw error;
+    }
+  },
 };

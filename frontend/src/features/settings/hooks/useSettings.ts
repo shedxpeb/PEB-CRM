@@ -14,6 +14,8 @@ import type {
   SystemPreferences,
   ModuleConfiguration,
   SettingsStats,
+  ProjectConfiguration,
+  SecuritySettings,
 } from '../types';
 
 // ─── Company Hooks ─────────────────────────────────────────────────────────────
@@ -40,8 +42,8 @@ export const useUpdateCompany = () => {
 
 // ─── Branch Hooks ──────────────────────────────────────────────────────────────
 
-export const useBranches = (options?: UseQueryOptions) => {
-  return useQuery({
+export const useBranches = (options?: UseQueryOptions<Branch[]>) => {
+  return useQuery<Branch[]>({
     queryKey: ['settings', 'branches'],
     queryFn: () => settingsApi.getBranches(),
     staleTime: 5 * 60 * 1000,
@@ -86,8 +88,8 @@ export const useDeleteBranch = () => {
 
 // ─── User Hooks ───────────────────────────────────────────────────────────────
 
-export const useUsers = (options?: UseQueryOptions) => {
-  return useQuery({
+export const useUsers = (options?: UseQueryOptions<User[]>) => {
+  return useQuery<User[]>({
     queryKey: ['settings', 'users'],
     queryFn: () => settingsApi.getUsers(),
     staleTime: 5 * 60 * 1000,
@@ -134,8 +136,8 @@ export const useDeleteUser = () => {
 
 // ─── Role Hooks ────────────────────────────────────────────────────────────────
 
-export const useRoles = (options?: UseQueryOptions) => {
-  return useQuery({
+export const useRoles = (options?: UseQueryOptions<Role[]>) => {
+  return useQuery<Role[]>({
     queryKey: ['settings', 'roles'],
     queryFn: () => settingsApi.getRoles(),
     staleTime: 10 * 60 * 1000,
@@ -180,8 +182,8 @@ export const useDeleteRole = () => {
 
 // ─── Module Hooks ──────────────────────────────────────────────────────────────
 
-export const useModules = (options?: UseQueryOptions) => {
-  return useQuery({
+export const useModules = (options?: UseQueryOptions<Module[]>) => {
+  return useQuery<Module[]>({
     queryKey: ['settings', 'modules'],
     queryFn: () => settingsApi.getModules(),
     staleTime: 5 * 60 * 1000,
@@ -244,5 +246,93 @@ export const useSettingsStats = (options?: UseQueryOptions) => {
     queryFn: () => settingsApi.getSettingsStats(),
     staleTime: 2 * 60 * 1000,
     ...options,
+  });
+};
+
+// ─── Document Settings Hooks ─────────────────────────────────────────────────────
+
+export const useDocumentSettings = (options?: UseQueryOptions) => {
+  return useQuery({
+    queryKey: ['settings', 'document-settings'],
+    queryFn: () => settingsApi.getDocumentSettings(),
+    staleTime: 10 * 60 * 1000,
+    ...options,
+  });
+};
+
+export const useUpdateDocumentSettings = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: any) => settingsApi.updateDocumentSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings', 'document-settings'] });
+    },
+  });
+};
+
+// ─── Finance Configuration Hooks ─────────────────────────────────────────────────
+
+export const useFinanceConfiguration = (options?: UseQueryOptions) => {
+  return useQuery({
+    queryKey: ['settings', 'finance-config'],
+    queryFn: () => settingsApi.getFinanceConfiguration(),
+    staleTime: 10 * 60 * 1000,
+    ...options,
+  });
+};
+
+export const useUpdateFinanceConfiguration = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: any) => settingsApi.updateFinanceConfiguration(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings', 'finance-config'] });
+    },
+  });
+};
+
+// ─── Project Configuration Hooks ────────────────────────────────────────────────
+
+export const useProjectConfiguration = (options?: UseQueryOptions<ProjectConfiguration>) => {
+  return useQuery<ProjectConfiguration>({
+    queryKey: ['settings', 'project-config'],
+    queryFn: () => settingsApi.getProjectConfiguration(),
+    staleTime: 10 * 60 * 1000,
+    ...options,
+  });
+};
+
+export const useUpdateProjectConfiguration = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: any) => settingsApi.updateProjectConfiguration(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings', 'project-config'] });
+    },
+  });
+};
+
+// ─── Security Settings Hooks ───────────────────────────────────────────────────
+
+export const useSecuritySettings = (options?: UseQueryOptions<SecuritySettings>) => {
+  return useQuery<SecuritySettings>({
+    queryKey: ['settings', 'security-config'],
+    queryFn: () => settingsApi.getSecuritySettings(),
+    staleTime: 10 * 60 * 1000,
+    ...options,
+  });
+};
+
+export const useUpdateSecuritySettings = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (data: any) => settingsApi.updateSecuritySettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings', 'security-config'] });
+    },
   });
 };

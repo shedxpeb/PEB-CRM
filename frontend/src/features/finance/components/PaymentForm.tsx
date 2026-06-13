@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,7 +17,7 @@ interface PaymentFormProps {
   isLoading?: boolean;
 }
 
-export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps) {
+export const PaymentForm = memo(function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps) {
   const { data: customers } = useCustomers();
   const { data: projects } = useProjects();
 
@@ -35,14 +36,14 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
     attachments: [],
   });
 
-  const handleChange = (field: keyof CreatePaymentFormData, value: any) => {
+  const handleChange = useCallback((field: keyof CreatePaymentFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
-  };
+  }, [formData, onSubmit]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -203,4 +204,4 @@ export function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps)
       </div>
     </form>
   );
-}
+});

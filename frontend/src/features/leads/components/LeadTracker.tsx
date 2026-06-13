@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,7 +24,7 @@ interface LeadTrackerProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function LeadTracker({ lead, open, onOpenChange }: LeadTrackerProps) {
+export const LeadTracker = memo(function LeadTracker({ lead, open, onOpenChange }: LeadTrackerProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'New': return 'info';
@@ -256,4 +257,4 @@ export function LeadTracker({ lead, open, onOpenChange }: LeadTrackerProps) {
       </DialogContent>
     </Dialog>
   );
-}
+});

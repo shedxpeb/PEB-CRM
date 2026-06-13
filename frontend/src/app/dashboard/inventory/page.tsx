@@ -1,12 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { MainLayout } from '@/layouts/MainLayout';
 import { DataTable, Column } from '@/components/data-table/DataTable';
 import { KPICard } from '@/components/dashboard/KPICard';
-import { InventoryItemForm } from '@/features/inventory/components/InventoryItemForm';
 import { InventoryRowActions } from '@/features/inventory/components/InventoryRowActions';
+
+// Lazy load InventoryItemForm to reduce initial bundle size
+const InventoryItemForm = dynamic(() => import('@/features/inventory/components/InventoryItemForm').then(mod => ({ default: mod.InventoryItemForm })), {
+  loading: () => <div className="p-8 text-center">Loading form...</div>,
+  ssr: false
+});
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -20,6 +26,7 @@ import {
   useDeleteInventoryItem,
 } from '@/features/inventory/hooks/useInventory';
 import { ROUTES } from '@/core/routes';
+import { useDebounce } from '@/shared/hooks/useDebounce';
 import {
   Package,
   DollarSign,
@@ -33,18 +40,28 @@ import {
   AlertOctagon,
   Plus,
   Download,
+  Search,
 } from 'lucide-react';
 
 export default function InventoryPage() {
   const router = useRouter();
 
+  // Search and filter state with debounce
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
   // React Query hooks
-  const [params, setParams] = useState({ page: 1, pageSize: 20 });
+  const [params, setParams] = useState({ page: 1, pageSize: 20, search: '' });
   const { data: itemsResponse, isLoading, error } = useInventoryItems(params);
   const { data: stats } = useInventoryStats();
   const createMutation = useCreateInventoryItem();
   const updateMutation = useUpdateInventoryItem();
   const deleteMutation = useDeleteInventoryItem();
+
+  // Update search in params when debounced search changes
+  useEffect(() => {
+    setParams(prev => ({ ...prev, search: debouncedSearch }));
+  }, [debouncedSearch]);
 
   // UI state only
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -56,8 +73,8 @@ export default function InventoryPage() {
   const items = itemsResponse?.data ?? [];
   const statsData = stats;
 
-  // 10 KPI Cards
-  const kpiData = [
+  // 10 KPI Cards - memoized to prevent recreation on every render
+  const kpiData = useMemo(() => [
     { title: 'Total Items', value: String(statsData?.totalItems ?? 0), change: 5.2, icon: <Package className="h-6 w-6 text-blue-600" />, color: 'text-blue-600' },
     { title: 'Total Value', value: `₹${((statsData?.totalValue ?? 0) / 100000).toFixed(1)}L`, change: 8.7, icon: <DollarSign className="h-6 w-6 text-green-600" />, color: 'text-green-600' },
     { title: 'Low Stock', value: String(statsData?.lowStockItems ?? 0), change: -3.1, icon: <AlertTriangle className="h-6 w-6 text-amber-600" />, color: 'text-amber-600' },
@@ -68,10 +85,10 @@ export default function InventoryPage() {
     { title: 'Active Suppliers', value: String(statsData?.activeSuppliers ?? 0), change: 2.0, icon: <Truck className="h-6 w-6 text-teal-600" />, color: 'text-teal-600' },
     { title: 'Pending PRs', value: String(statsData?.pendingPurchaseRequests ?? 0), change: -5.5, icon: <ShoppingCart className="h-6 w-6 text-indigo-600" />, color: 'text-indigo-600' },
     { title: 'Material Shortages', value: String(statsData?.materialShortages ?? 0), change: -8.2, icon: <AlertOctagon className="h-6 w-6 text-rose-600" />, color: 'text-rose-600' },
-  ];
+  ], [statsData]);
 
-  // 16-column DataTable
-  const columns: Column<InventoryItem>[] = [
+  // 16-column DataTable - memoized to prevent recreation on every render
+  const columns: Column<InventoryItem>[] = useMemo(() => [
     {
       key: 'itemCode',
       label: 'Item Code',
@@ -191,16 +208,16 @@ export default function InventoryPage() {
         );
       },
     },
-  ];
+  ], []);
 
-  // Mutation handlers
-  const handleCreate = (data: Partial<InventoryItem>) => {
+  // Mutation handlers - memoized to prevent recreation on every render
+  const handleCreate = useCallback((data: Partial<InventoryItem>) => {
     createMutation.mutate(data as any, {
       onSuccess: () => setIsCreateDialogOpen(false),
     });
-  };
+  }, [createMutation]);
 
-  const handleEdit = (data: Partial<InventoryItem>) => {
+  const handleEdit = useCallback((data: Partial<InventoryItem>) => {
     if (!selectedItem) return;
     updateMutation.mutate(
       { id: selectedItem.id, data: data as any },
@@ -211,30 +228,30 @@ export default function InventoryPage() {
         },
       }
     );
-  };
+  }, [selectedItem, updateMutation]);
 
-  const handleDelete = (item: InventoryItem) => {
+  const handleDelete = useCallback((item: InventoryItem) => {
     if (confirm(`Delete inventory item "${item.itemName}"?`)) {
       deleteMutation.mutate(item.id);
     }
-  };
+  }, [deleteMutation]);
 
-  const handleRowClick = (row: InventoryItem) => {
+  const handleRowClick = useCallback((row: InventoryItem) => {
     router.push(`${ROUTES.inventory}/${row.id}`);
-  };
+  }, [router]);
 
-  const handleViewDetails = (item: InventoryItem) => {
+  const handleViewDetails = useCallback((item: InventoryItem) => {
     router.push(`${ROUTES.inventory}/${item.id}`);
-  };
+  }, [router]);
 
-  const handleEditFromRow = (item: InventoryItem) => {
+  const handleEditFromRow = useCallback((item: InventoryItem) => {
     setSelectedItem(item);
     setIsEditDialogOpen(true);
-  };
+  }, []);
 
-  const handleStatusChange = (item: InventoryItem, status: StockStatus) => {
+  const handleStatusChange = useCallback((item: InventoryItem, status: StockStatus) => {
     updateMutation.mutate({ id: item.id, data: { status } });
-  };
+  }, [updateMutation]);
 
   // Loading state
   if (isLoading) {
@@ -268,26 +285,36 @@ export default function InventoryPage() {
 
   return (
     <MainLayout title="Inventory" subtitle="Manage materials and stock">
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 w-full overflow-hidden">
         {/* 10 KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4">
           {kpiData.map((kpi) => (
             <KPICard key={kpi.title} data={kpi} />
           ))}
         </div>
 
         {/* Action Bar */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">All Inventory Items</h2>
-            <p className="text-sm text-muted-foreground">{items.length} total items</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 min-w-0">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-lg font-semibold">All Inventory Items</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground">{items.length} total items</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
+          <div className="flex gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-none">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search inventory..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-4 py-2 w-full sm:w-64 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
               <Download className="h-4 w-4 mr-2" />
-              Export
+              <span className="hidden sm:inline">Export</span>
             </Button>
-            <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
+            <Button size="sm" onClick={() => setIsCreateDialogOpen(true)} className="flex-1 sm:flex-none">
               <Plus className="h-4 w-4 mr-2" />
               Add Item
             </Button>
@@ -295,7 +322,8 @@ export default function InventoryPage() {
         </div>
 
         {/* Data Table */}
-        <DataTable
+        <div className="min-w-0">
+          <DataTable
           columns={columns}
           data={items}
           onRowClick={handleRowClick}
@@ -313,6 +341,7 @@ export default function InventoryPage() {
             />
           )}
         />
+        </div>
 
         {/* Create Item Dialog */}
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>

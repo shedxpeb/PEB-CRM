@@ -18,7 +18,6 @@ export function SecuritySettings() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Save security settings:', formData);
   };
 
   const handleChange = (field: keyof SecuritySettings, value: any) => {

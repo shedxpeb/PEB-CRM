@@ -3,15 +3,17 @@
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { KPICard as KPICardType } from '@/types';
 
 interface KPICardProps {
   data: KPICardType;
   onClick?: () => void;
+  showComparison?: boolean;
 }
 
-export function KPICard({ data, onClick }: KPICardProps) {
+export function KPICard({ data, onClick, showComparison = false }: KPICardProps) {
   const isPositive = data.change >= 0;
   const color = data.color || (isPositive ? 'text-green-600' : 'text-red-600');
 
@@ -23,26 +25,46 @@ export function KPICard({ data, onClick }: KPICardProps) {
     >
       <Card
         className={cn(
-          'cursor-pointer hover:shadow-lg transition-shadow duration-200',
+          'cursor-pointer hover:shadow-md transition-shadow',
           onClick && 'hover:border-blue-300'
         )}
         onClick={onClick}
       >
-        <CardContent className="p-6">
+        <CardContent className="p-2 sm:p-3">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-600 mb-1">{data.title}</p>
-              <p className="text-3xl font-bold text-gray-900 mb-2">{data.value}</p>
-              <Badge 
-                variant={isPositive ? 'success' : 'destructive'}
-                className="text-xs"
-              >
-                {isPositive ? '+' : ''}{data.change}%
-              </Badge>
+              <p className="text-[10px] sm:text-xs font-medium text-muted-foreground">{data.title}</p>
+              <p className="text-lg sm:text-xl font-bold mt-0.5">{data.value}</p>
+              
+              {/* Change Percentage */}
+              {data.change !== 0 && (
+                <div className="flex items-center gap-1 mt-1">
+                  {isPositive ? (
+                    <ArrowUp className="h-3 w-3 text-green-600" />
+                  ) : (
+                    <ArrowDown className="h-3 w-3 text-red-600" />
+                  )}
+                  <span className={cn('text-[10px] sm:text-xs font-medium', isPositive ? 'text-green-600' : 'text-red-600')}>
+                    {Math.abs(data.change)}%
+                  </span>
+                  {showComparison && data.comparisonLabel && (
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">
+                      {data.comparisonLabel}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Previous Value for Comparison */}
+              {showComparison && data.previousValue !== undefined && (
+                <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
+                  Prev: {data.previousValue}
+                </p>
+              )}
             </div>
-            <div className={cn('p-3 rounded-lg bg-gray-100', data.color && `bg-opacity-10`)}>
-              {/* Icon placeholder - will be replaced with Lucide icons */}
-              <div className={cn('h-6 w-6', color)}>
+            
+            <div className={cn('h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center flex-shrink-0 ml-2', data.color?.replace('text-', 'bg-') + '/15')}>
+              <div className={cn('h-3.5 w-3.5 sm:h-4 sm:w-4', color)}>
                 {data.icon}
               </div>
             </div>

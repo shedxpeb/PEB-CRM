@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,7 +15,7 @@ interface StatusChangeDialogProps {
   onSubmit: (status: LeadStatus) => void;
 }
 
-export function StatusChangeDialog({ lead, open, onOpenChange, onSubmit }: StatusChangeDialogProps) {
+export const StatusChangeDialog = memo(function StatusChangeDialog({ lead, open, onOpenChange, onSubmit }: StatusChangeDialogProps) {
   const [selectedStatus, setSelectedStatus] = useState<LeadStatus>(lead.status);
   const [notes, setNotes] = useState('');
 
@@ -146,4 +146,4 @@ export function StatusChangeDialog({ lead, open, onOpenChange, onSubmit }: Statu
       </DialogContent>
     </Dialog>
   );
-}
+});

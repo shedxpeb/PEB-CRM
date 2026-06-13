@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,7 +14,7 @@ interface BankAccountFormProps {
   isLoading?: boolean;
 }
 
-export function BankAccountForm({ onSubmit, onCancel, isLoading }: BankAccountFormProps) {
+export const BankAccountForm = memo(function BankAccountForm({ onSubmit, onCancel, isLoading }: BankAccountFormProps) {
   const [formData, setFormData] = useState<CreateBankAccountFormData>({
     accountName: '',
     bankName: '',
@@ -23,14 +24,14 @@ export function BankAccountForm({ onSubmit, onCancel, isLoading }: BankAccountFo
     accountType: 'Current',
   });
 
-  const handleChange = (field: keyof CreateBankAccountFormData, value: any) => {
+  const handleChange = useCallback((field: keyof CreateBankAccountFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
-  };
+  }, [formData, onSubmit]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -111,4 +112,4 @@ export function BankAccountForm({ onSubmit, onCancel, isLoading }: BankAccountFo
       </div>
     </form>
   );
-}
+});

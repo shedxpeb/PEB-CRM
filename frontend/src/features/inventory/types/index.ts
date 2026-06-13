@@ -1,21 +1,13 @@
 /**
  * Inventory Module Types
- * Single Source of Truth for all inventory data across the ERP platform
+ * Stock Management Only - No Product Metadata
+ * 
+ * Architecture:
+ * - Item Master → Product definition (Brand, Grade, Spec, HSN, Dimensions, Weight, Technical Files, Default Pricing)
+ * - Inventory → Stock operations only (Current Stock, Reserved, Issued, Available, Warehouse, Stock Movement)
+ * 
+ * Inventory is NOT a product catalog. It only tracks stock levels and movements.
  */
-
-export type MaterialType =
-  | 'Raw Material'
-  | 'Finished Goods'
-  | 'Semi Finished'
-  | 'Consumable'
-  | 'Accessory'
-  | 'Hardware'
-  | 'Fastener'
-  | 'Roofing Sheet'
-  | 'Wall Sheet'
-  | 'Structural Steel'
-  | 'Electrical'
-  | 'Civil Material';
 
 export type StockStatus =
   | 'In Stock'
@@ -38,78 +30,62 @@ export type UnitType =
   | 'Kg' | 'Ton' | 'Meter' | 'SqMeter' | 'CuMeter'
   | 'Nos' | 'Box' | 'Bundle' | 'Set' | 'Liter' | 'Bag' | 'Roll';
 
-export type InventoryCategory =
-  | 'Primary Steel'
-  | 'Secondary Steel'
-  | 'Roofing Sheet'
-  | 'Wall Sheet'
-  | 'Insulation'
-  | 'Flashing'
-  | 'Fasteners'
-  | 'Accessories'
-  | 'Paint'
-  | 'Hardware'
-  | 'Electrical'
-  | 'Civil Material'
-  | 'Fabrication Material'
-  | 'Finished Goods'
-  | 'Consumables'
-  | 'Other';
-
 /**
- * InventoryItem -- the central material record
- * Referenced by: Projects, BOQ, Design, Procurement, Fabrication, Dispatch, Finance
+ * InventoryItem -- Stock Management Only
+ * Referenced by: Projects, Dispatch, Finance
+ * 
+ * This is NOT a product catalog. Product metadata (Brand, Grade, Spec, HSN, etc.)
+ * belongs in Item Master module.
+ * 
+ * Inventory only tracks:
+ * - Stock levels (current, reserved, issued, available)
+ * - Stock movements
+ * - Warehouse location
+ * - Stock rules (min, reorder, safety)
  */
 export interface InventoryItem {
   id: string;
   itemCode: string;
-
-  // General Information
-  itemName: string;
-  category: InventoryCategory;
-  subCategory?: string;
+  itemMasterId: string; // Reference to Item Master for product details
+  itemName: string; // Display name only, full details in Item Master
   unit: UnitType;
 
-  // PEB Material Information
-  materialType: MaterialType;
-  grade?: string;
-  thickness?: number;
-  weight?: number;
-  length?: number;
-  width?: number;
-  height?: number;
-  color?: string;
-  coating?: string;
-
-  // Commercial Information
-  purchaseRate: number;
-  sellingRate?: number;
-  taxPercentage?: number;
+  // Stock Levels
+  currentStock: number;
+  reservedStock: number;
+  issuedStock: number;
+  availableStock: number;
+  totalValue: number;
 
   // Inventory Rules
   minimumStock: number;
   reorderLevel: number;
   safetyStock: number;
+  
+  // Warehouse
   warehouseId: string;
   warehouseName: string;
-
-  // Supplier
-  preferredSupplierId?: string;
-  preferredSupplier?: string;
-
-  // Stock Levels (computed)
-  currentStock: number;
-  reservedStock: number;
-  availableStock: number;
-  totalValue: number;
 
   // Status
   status: StockStatus;
   lastUpdated: Date;
-
-  // Timestamps
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+/**
+ * ProjectStockAllocation -- Stock allocated to projects
+ * Shows actual quantities: Reserved, Issued, Remaining
+ */
+export interface ProjectStockAllocation {
+  projectId: string;
+  projectNumber: string;
+  projectName: string;
+  customerName: string;
+  reservedQuantity: number;
+  issuedQuantity: number;
+  balanceQuantity: number;
+  status: 'Active' | 'Completed' | 'Cancelled';
 }
 
 /**
@@ -151,10 +127,12 @@ export interface Supplier {
 
 /**
  * Material Category
+ * Note: Category belongs in Item Master, not Inventory
+ * Keeping here for backward compatibility during migration
  */
 export interface Category {
   id: string;
-  name: InventoryCategory | string;
+  name: string;
   parentId?: string;
   description?: string;
   itemCount: number;
@@ -224,12 +202,11 @@ export interface InventoryAlert {
 
 /**
  * Inventory Filters
+ * Note: Category and MaterialType filters belong in Item Master
+ * Inventory filters should only be stock-related
  */
 export interface InventoryFilters {
-  category?: InventoryCategory;
-  materialType?: MaterialType;
   warehouse?: string;
-  supplier?: string;
   stockStatus?: StockStatus;
   unit?: UnitType;
   dateFrom?: Date;
@@ -255,52 +232,25 @@ export interface InventoryStats {
 // ─── DTOs ──────────────────────────────────────────────────────────────────────
 
 export interface CreateInventoryItemDto {
+  itemMasterId: string;
+  itemCode: string;
   itemName: string;
-  category: InventoryCategory;
-  subCategory?: string;
   unit: UnitType;
-  materialType: MaterialType;
-  grade?: string;
-  thickness?: number;
-  weight?: number;
-  length?: number;
-  width?: number;
-  height?: number;
-  color?: string;
-  coating?: string;
-  purchaseRate: number;
-  sellingRate?: number;
-  taxPercentage?: number;
   minimumStock: number;
   reorderLevel: number;
   safetyStock: number;
   warehouseId: string;
-  preferredSupplierId?: string;
   status?: StockStatus;
 }
 
 export interface UpdateInventoryItemDto {
+  itemCode?: string;
   itemName?: string;
-  category?: InventoryCategory;
-  subCategory?: string;
   unit?: UnitType;
-  materialType?: MaterialType;
-  grade?: string;
-  thickness?: number;
-  weight?: number;
-  length?: number;
-  width?: number;
-  height?: number;
-  color?: string;
-  coating?: string;
-  purchaseRate?: number;
-  sellingRate?: number;
-  taxPercentage?: number;
   minimumStock?: number;
   reorderLevel?: number;
   safetyStock?: number;
   warehouseId?: string;
-  preferredSupplierId?: string;
   status?: StockStatus;
 }
 

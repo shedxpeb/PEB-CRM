@@ -5,6 +5,7 @@ import { Lead, LeadStatus } from '@/types/leads';
 import { KanbanColumn } from './KanbanColumn';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useDebounce } from '@/shared/hooks/useDebounce';
 import { Grid3X3, LayoutList, Search, Filter, Plus } from 'lucide-react';
 
 interface KanbanBoardProps {
@@ -28,33 +29,34 @@ const PIPELINE_STAGES: LeadStatus[] = [
 
 export function KanbanBoard({ leads, onLeadUpdate, onLeadsReorder, onAddLead }: KanbanBoardProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Filter leads based on search
   const filteredLeads = useMemo(() => {
-    if (!searchQuery) return leads;
+    if (!debouncedSearch) return leads;
     return leads.filter(
       (lead) =>
-        lead.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.mobile.includes(searchQuery) ||
-        lead.leadId.toString().includes(searchQuery)
+        lead.customerName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        lead.companyName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        lead.mobile.includes(debouncedSearch) ||
+        lead.leadId.toString().includes(debouncedSearch)
     );
-  }, [leads, searchQuery]);
+  }, [leads, debouncedSearch]);
 
   // Group leads by status and maintain order
   const leadsByStatus = useMemo(() => {
     const grouped: Record<string, Lead[]> = {};
-    
+
     PIPELINE_STAGES.forEach((status) => {
       grouped[status] = filteredLeads
         .filter((lead) => lead.status === status)
         .sort((a, b) => {
           // Sort by orderIndex if exists, otherwise by createdDate
-          const orderA = (a as any).orderIndex ?? 0;
-          const orderB = (b as any).orderIndex ?? 0;
+          const orderA = (a as Lead & { orderIndex?: number }).orderIndex ?? 0;
+          const orderB = (b as Lead & { orderIndex?: number }).orderIndex ?? 0;
           return orderA - orderB;
         });
     });
@@ -65,12 +67,12 @@ export function KanbanBoard({ leads, onLeadUpdate, onLeadsReorder, onAddLead }: 
   // Calculate totals for each status
   const statusTotals = useMemo(() => {
     const totals: Record<string, { count: number; value: number }> = {};
-    
+
     PIPELINE_STAGES.forEach((status) => {
       const statusLeads = leadsByStatus[status] || [];
       totals[status] = {
         count: statusLeads.length,
-        value: statusLeads.reduce((sum, lead) => sum + ((lead as any).value || 0), 0),
+        value: statusLeads.reduce((sum, lead) => sum + ((lead as Lead & { value?: number }).value || 0), 0),
       };
     });
 
@@ -79,13 +81,11 @@ export function KanbanBoard({ leads, onLeadUpdate, onLeadsReorder, onAddLead }: 
 
   // Drag handlers
   const handleDragStart = (e: React.DragEvent, lead: Lead) => {
-    console.log('Drag started:', lead.customerName);
     setDraggedLead(lead);
     e.dataTransfer.effectAllowed = 'move';
   };
 
   const handleDragEnd = () => {
-    console.log('Drag ended');
     setDraggedLead(null);
     setDragOverStatus(null);
     setDragOverIndex(null);
@@ -110,17 +110,12 @@ export function KanbanBoard({ leads, onLeadUpdate, onLeadsReorder, onAddLead }: 
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('HandleDrop called:', draggedLead?.customerName, '->', newStatus, 'at index:', dropIndex);
-    
     if (!draggedLead) {
-      console.log('No dragged lead');
       return;
     }
 
     // If dropping in same column, reorder
     if (draggedLead.status === newStatus) {
-      console.log('Reordering within same column');
-      
       // Get all leads in this column
       const columnLeads = leads.filter(l => l.status === newStatus);
       const otherLeads = leads.filter(l => l.status !== newStatus);
@@ -137,12 +132,8 @@ export function KanbanBoard({ leads, onLeadUpdate, onLeadsReorder, onAddLead }: 
         finalIndex = dropIndex! - 1;
       }
       
-      console.log('Original dropIndex:', dropIndex, 'draggedIndex:', draggedIndex, 'finalIndex:', finalIndex);
-      
       // Ensure index is within bounds
       finalIndex = Math.max(0, Math.min(finalIndex, columnLeads.length));
-      
-      console.log('Inserting at index:', finalIndex, 'of', columnLeads.length, 'cards');
       
       columnLeads.splice(finalIndex, 0, {
         ...draggedLead,
@@ -154,14 +145,11 @@ export function KanbanBoard({ leads, onLeadUpdate, onLeadsReorder, onAddLead }: 
       
       // Use reorder function if available to preserve order
       if (onLeadsReorder) {
-        console.log('Using onLeadsReorder to preserve order');
         onLeadsReorder(updatedLeads);
       } else {
         // Fallback: update individually (won't preserve order)
         updatedLeads.forEach(lead => onLeadUpdate(lead));
       }
-      
-      console.log('Reorder complete');
     } else {
       // Moving to different column
       const updatedLead = {
@@ -170,7 +158,6 @@ export function KanbanBoard({ leads, onLeadUpdate, onLeadsReorder, onAddLead }: 
         updatedAt: new Date(),
       };
 
-      console.log('Moving to different column:', updatedLead);
       onLeadUpdate(updatedLead);
     }
     

@@ -170,3 +170,84 @@ export interface SettingsStats {
   pendingApprovals: number;
   systemHealth: 'healthy' | 'warning' | 'critical';
 }
+
+// ─── Document Settings Types ───────────────────────────────────────────────────
+
+export interface DocumentNumbering {
+  prefix: string;
+  suffix: string;
+  startNumber: number;
+  financialYear: string;
+  format: string;
+}
+
+export interface BankDetails {
+  bankName: string;
+  accountNumber: string;
+  accountType: string;
+  ifscCode: string;
+  branchName: string;
+}
+
+export interface GSTDetails {
+  gstin: string;
+  gstType: 'CGST' | 'SGST' | 'IGST' | 'CESS';
+  cgstRate: number;
+  sgstRate: number;
+  igstRate: number;
+  cessRate: number;
+}
+
+export interface DocumentSettings {
+  estimateNumbering: DocumentNumbering;
+  proposalNumbering: DocumentNumbering;
+  quotationNumbering: DocumentNumbering;
+  defaultTerms: string;
+  defaultConditions: string;
+  bankDetails: BankDetails;
+  gstDetails: GSTDetails;
+}
+
+// ─── Finance Configuration Types ───────────────────────────────────────────────
+
+export interface FinanceConfiguration {
+  currency: string;
+  taxRate: number;
+  paymentTerms: string;
+  invoicePrefix: string;
+  receiptPrefix: string;
+  expensePrefix: string;
+  financialYear: string;
+  gstRates?: number[];
+  paymentMethods?: string[];
+}
+
+// ─── Project Configuration Types ───────────────────────────────────────────────
+
+export interface ProjectConfiguration {
+  projectTypes: string[];
+  stages: string[];
+  statuses: string[];
+  completionRules: string[];
+  afterSalesRules: string[];
+}
+
+// ─── Security Settings Types ───────────────────────────────────────────────────
+
+export interface PasswordPolicy {
+  minLength: number;
+  requireUppercase: boolean;
+  requireLowercase: boolean;
+  requireNumbers: boolean;
+  requireSpecialChars: boolean;
+  expiryDays: number;
+}
+
+export interface SecuritySettings {
+  passwordPolicy: PasswordPolicy;
+  sessionTimeout: number;
+  maxLoginAttempts: number;
+  lockoutDuration: number;
+  ipRestrictions: string[];
+  twoFactorEnabled: boolean;
+}

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,7 +18,7 @@ interface InvoiceFormProps {
   isLoading?: boolean;
 }
 
-export function InvoiceForm({ onSubmit, onCancel, isLoading }: InvoiceFormProps) {
+export const InvoiceForm = memo(function InvoiceForm({ onSubmit, onCancel, isLoading }: InvoiceFormProps) {
   const { data: customers } = useCustomers();
   const { data: projects } = useProjects();
 
@@ -39,11 +40,11 @@ export function InvoiceForm({ onSubmit, onCancel, isLoading }: InvoiceFormProps)
     lineItems,
   });
 
-  const handleChange = (field: keyof CreateInvoiceDto, value: any) => {
+  const handleChange = useCallback((field: keyof CreateInvoiceDto, value: any) => {
     setFormData((prev: CreateInvoiceDto) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
-  const handleLineItemChange = (index: number, field: keyof InvoiceLineItem, value: any) => {
+  const handleLineItemChange = useCallback((index: number, field: keyof InvoiceLineItem, value: any) => {
     const updatedItems = [...lineItems];
     updatedItems[index] = { ...updatedItems[index], [field]: value };
     
@@ -56,9 +57,9 @@ export function InvoiceForm({ onSubmit, onCancel, isLoading }: InvoiceFormProps)
     
     setLineItems(updatedItems);
     calculateTotals(updatedItems);
-  };
+  }, [lineItems]);
 
-  const addLineItem = () => {
+  const addLineItem = useCallback(() => {
     const newItem: InvoiceLineItem = {
       id: String(lineItems.length + 1),
       description: '',
@@ -72,25 +73,25 @@ export function InvoiceForm({ onSubmit, onCancel, isLoading }: InvoiceFormProps)
     const updatedItems = [...lineItems, newItem];
     setLineItems(updatedItems);
     calculateTotals(updatedItems);
-  };
+  }, [lineItems]);
 
-  const removeLineItem = (index: number) => {
+  const removeLineItem = useCallback((index: number) => {
     const updatedItems = lineItems.filter((_, i) => i !== index);
     setLineItems(updatedItems);
     calculateTotals(updatedItems);
-  };
+  }, [lineItems]);
 
-  const calculateTotals = (items: InvoiceLineItem[]) => {
+  const calculateTotals = useCallback((items: InvoiceLineItem[]) => {
     const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
     const taxAmount = items.reduce((sum, item) => sum + (item.taxAmount || 0), 0);
     const totalAmount = subtotal + taxAmount;
     setFormData((prev: CreateInvoiceDto) => ({ ...prev, subtotal, taxAmount, totalAmount, lineItems: items }));
-  };
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
-  };
+  }, [formData, onSubmit]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -296,4 +297,4 @@ export function InvoiceForm({ onSubmit, onCancel, isLoading }: InvoiceFormProps)
       </div>
     </form>
   );
-}
+});

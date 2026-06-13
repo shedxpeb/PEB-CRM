@@ -15,6 +15,7 @@ export function useProjects(params?: PaginationParams & ProjectFilters) {
     queryFn: () => projectsApi.getAll(params),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -23,6 +24,7 @@ export function useProject(id: string) {
     queryKey: ['project', id],
     queryFn: () => projectsApi.getById(id),
     enabled: !!id,
+    refetchOnMount: false,
   });
 }
 
@@ -92,6 +94,8 @@ export function useProjectsStats() {
     queryKey: ['projects', 'stats'],
     queryFn: () => projectsApi.getStats(),
     staleTime: 2 * 60 * 1000,
+    refetchOnMount: false,
+    retry: 0, // No retry for dashboard - fail fast
   });
 }
 
@@ -101,6 +105,7 @@ export function useProjectActivities(id: string) {
     queryFn: () => projectsApi.getActivities(id),
     enabled: !!id,
     staleTime: 3 * 60 * 1000,
+    refetchOnMount: false,
   });
 }
 
@@ -112,6 +117,7 @@ export function useProjectTasks(id: string) {
     queryFn: () => projectsApi.getTasks(id),
     enabled: !!id,
     staleTime: 3 * 60 * 1000,
+    refetchOnMount: false,
   });
 }
 

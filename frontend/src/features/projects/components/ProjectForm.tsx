@@ -17,9 +17,10 @@ interface ProjectFormProps {
   onCancel: () => void;
   isLoading?: boolean;
   initialData?: Partial<CreateProjectInput>;
+  prefillCustomerId?: string;
 }
 
-export function ProjectForm({ onSubmit, onCancel, isLoading, initialData }: ProjectFormProps) {
+export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefillCustomerId }: ProjectFormProps) {
   const { data: customers } = useCustomers();
 
   const {
@@ -30,7 +31,8 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData }: Proj
     formState: { errors },
   } = useForm<CreateProjectInput>({
     resolver: zodResolver(createProjectSchema),
-    defaultValues: initialData || {
+    defaultValues: {
+      ...initialData,
       projectType: 'Industrial Shed',
       priority: 'Medium',
       structureType: 'PEB Building',
@@ -39,6 +41,7 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData }: Proj
       wallType: 'Single Skin',
       mezzanine: false,
       insulation: false,
+      ...(prefillCustomerId && { customerId: prefillCustomerId }),
     },
   });
 

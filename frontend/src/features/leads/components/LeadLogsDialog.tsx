@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -92,7 +92,7 @@ const mockActivities: LeadActivity[] = [
   },
 ];
 
-export function LeadLogsDialog({ lead, open, onOpenChange }: LeadLogsDialogProps) {
+export const LeadLogsDialog = memo(function LeadLogsDialog({ lead, open, onOpenChange }: LeadLogsDialogProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
 
@@ -284,4 +284,4 @@ export function LeadLogsDialog({ lead, open, onOpenChange }: LeadLogsDialogProps
       </DialogContent>
     </Dialog>
   );
-}
+});

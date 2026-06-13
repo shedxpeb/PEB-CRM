@@ -518,7 +518,7 @@ export interface GSTRecord {
   
   // Filing
   filedAt?: Date;
-  paidAt?: date;
+  paidAt?: Date;
   
   // Timestamps
   createdAt?: Date;
@@ -722,4 +722,50 @@ export interface CreateBudgetDto {
   materialBudget?: number;
   labourBudget?: number;
   overheadBudget?: number;
+}
+
+/**
+ * Revenue Pipeline
+ * Tracks potential revenue from quotations
+ */
+export interface RevenuePipeline {
+  id: string;
+  
+  // Source
+  quotationId: string;
+  quotationNumber: string;
+  customerId: string;
+  customerName: string;
+  projectId?: string;
+  projectName?: string;
+  
+  // Amount
+  grandTotal: number;
+  materialCost: number;
+  labourCost: number;
+  otherCosts: number;
+  
+  // Status
+  status: 'Draft' | 'Sent' | 'Viewed' | 'Accepted' | 'Rejected' | 'Expired' | 'Converted' | 'Cancelled';
+  
+  // Probability
+  probability: number; // 0-100
+  expectedCloseDate?: Date;
+  
+  // Conversion
+  convertedToProject?: boolean;
+  convertedAt?: Date;
+  
+  // Invoice
+  invoiceId?: string;
+  invoiceNumber?: string;
+  invoiceGeneratedAt?: Date;
+  
+  // Payment
+  paymentReceived?: number;
+  paymentPending?: number;
+  
+  // Timestamps
+  createdAt: Date;
+  updatedAt?: Date;
 }

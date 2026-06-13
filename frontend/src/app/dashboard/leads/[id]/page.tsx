@@ -457,11 +457,11 @@ export default function LeadDetailsPage({ params }: { params: { id: string } }) 
             </Button>
           </div>
           <LeadQuickActions
-            onEdit={() => console.log('Edit lead')}
-            onAddFollowUp={() => console.log('Add follow-up')}
-            onSendEstimate={() => console.log('Send estimate')}
-            onSendProposal={() => console.log('Send proposal')}
-            onConvertToProject={() => console.log('Convert to project')}
+            onEdit={() => {}}
+            onAddFollowUp={() => {}}
+            onSendEstimate={() => {}}
+            onSendProposal={() => {}}
+            onConvertToProject={() => {}}
           />
         </div>
 

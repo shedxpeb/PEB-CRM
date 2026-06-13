@@ -2,7 +2,7 @@
  * PEB Commercial Document Conversion Workflow
  * 
  * Handles automatic data flow between document stages:
- * Estimate → Proposal → Quotation → Project
+ * Lead → Estimate → Proposal → Quotation → Project
  * 
  * Key Principles:
  * - Data flows forward - never duplicate
@@ -15,6 +15,7 @@ import {
   Estimate,
   Proposal,
   Quotation,
+  CreateEstimateDto,
   CreateProposalDto,
   CreateQuotationDto,
   ConvertToProposalDto,
@@ -23,6 +24,59 @@ import {
   ConversionRequest,
   ConversionResult,
 } from '../types/peb-commercial';
+
+// ─── Lead → Estimate Conversion ───────────────────────────────────────────────
+
+/**
+ * Convert Lead to Estimate
+ * 
+ * Automatically inherits:
+ * - Customer information
+ * - Contact information
+ * - Project requirements
+ * - Initial scope information
+ * 
+ * User can configure:
+ * - Material selections
+ * - Scope configuration
+ * - Technical specifications
+ * - Inclusions/Exclusions
+ */
+export function convertLeadToEstimate(
+  lead: any,
+  options?: Partial<CreateEstimateDto>
+): CreateEstimateDto {
+  const estimateDto: CreateEstimateDto = {
+    customerId: lead.customerId,
+    leadId: lead.id,
+    projectId: lead.projectId,
+    includePricing: false,
+    
+    // Initialize with empty selections - user will configure
+    materialSelections: [],
+    scopeConfiguration: {
+      labour: { state: 'Included', requirement: 'Required', chargeability: 'Chargeable', visibility: 'Visible' },
+      installation: { state: 'Included', requirement: 'Required', chargeability: 'Chargeable', visibility: 'Visible' },
+      transportation: { state: 'Included', requirement: 'Required', chargeability: 'Chargeable', visibility: 'Visible' },
+      crane: { state: 'Included', requirement: 'Optional', chargeability: 'Chargeable', visibility: 'Visible' },
+      civilWork: { state: 'Included', requirement: 'Optional', chargeability: 'Chargeable', visibility: 'Visible' },
+      accommodation: { state: 'Included', requirement: 'Optional', chargeability: 'Chargeable', visibility: 'Visible' },
+      erection: { state: 'Included', requirement: 'Required', chargeability: 'Chargeable', visibility: 'Visible' },
+      freight: { state: 'Included', requirement: 'Required', chargeability: 'Chargeable', visibility: 'Visible' },
+      additionalServices: [],
+    },
+    technicalSpecifications: {},
+    inclusions: [],
+    exclusions: [],
+    notes: '',
+    internalNotes: '',
+    
+    // Override with options if provided
+    ...options,
+  };
+  
+  return estimateDto;
+}
 
 // ─── Estimate → Proposal Conversion ─────────────────────────────────────────────
 
@@ -264,7 +318,7 @@ export function convertQuotationToProject(
     
     // Material requirements
     materialRequirements: quotation.materialSelections.map(m => ({
-      inventoryItemId: m.inventoryItemId,
+      inventoryItemId: m.itemMasterId,
       itemCode: m.itemCode,
       itemName: m.itemName,
       category: m.category,
@@ -321,6 +375,7 @@ export function convertQuotationToProject(
 /**
  * Generic conversion handler
  * Routes to appropriate conversion function based on source and target types
+ * Note: Lead → Estimate conversion is handled separately in the Leads module
  */
 export function handleConversion(
   request: ConversionRequest,

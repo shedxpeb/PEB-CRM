@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -38,18 +38,20 @@ interface LeadRowActionsProps {
   onDelete: (lead: Lead) => void;
   onConvert: (lead: Lead) => void;
   onConvertToCustomer?: (lead: Lead) => void;
+  onCreateEstimate?: (lead: Lead) => void;
   onTrack?: (lead: Lead) => void;
   onViewLogs?: (lead: Lead) => void;
   onAddScore?: (lead: Lead, score: number) => void;
   onStatusChange?: (lead: Lead, status: LeadStatus) => void;
 }
 
-export function LeadRowActions({
+export const LeadRowActions = memo(function LeadRowActions({
   lead,
   onEdit,
   onDelete,
   onConvert,
   onConvertToCustomer,
+  onCreateEstimate,
   onTrack,
   onViewLogs,
   onAddScore,
@@ -122,6 +124,13 @@ export function LeadRowActions({
           <DropdownMenuSeparator />
 
           {/* Actions */}
+          {onCreateEstimate && (
+            <DropdownMenuItem onClick={() => onCreateEstimate(lead)}>
+              <FileText className="h-4 w-4 mr-2" />
+              Create Estimate
+            </DropdownMenuItem>
+          )}
+
           {onConvertToCustomer && (
             <DropdownMenuItem onClick={() => onConvertToCustomer(lead)}>
               <User className="h-4 w-4 mr-2" />
@@ -184,4 +193,4 @@ export function LeadRowActions({
       />
     </>
   );
-}
+});

@@ -17,7 +17,6 @@ export function FinanceConfiguration() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Save finance config:', formData);
   };
 
   const handleChange = (field: keyof FinanceConfiguration, value: any) => {

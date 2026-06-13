@@ -2,10 +2,11 @@
  * PEB Commercial Document Engine Types
  * Single Source of Truth for PEB Commercial Workflow
  * 
- * Workflow: Inventory Master → Estimate → Proposal → Quotation → Project → Finance
+ * Workflow: Lead → Customer → Estimate → Proposal → Quotation → Approval → Project → Material Reservation → Finance
  * 
  * Key Principles:
- * - Inventory is the single source of truth for all commercial items
+ * - Item Master is the single source of truth for all commercial products
+ * - Inventory only manages stock quantities, not product definitions
  * - Estimate is a Material Selection Builder (NOT a pricing document)
  * - Proposal inherits from Estimate (Technical + Commercial Presentation)
  * - Quotation inherits from Proposal (Final Commercial Offer with Pricing)
@@ -174,6 +175,12 @@ export interface Estimate {
   // Notes
   notes?: string;
   internalNotes?: string;
+  terms?: string;
+  
+  // Header Fields (from Lovable EstimateHeaderForm)
+  contactPersonName?: string;
+  salesExecutive?: string;
+  validTill?: string;
   
   // Conversion Tracking
   convertedToProposalId?: string;
@@ -181,6 +188,8 @@ export interface Estimate {
   
   // Cross-module relationships
   proposalIds?: string[]; // Multiple proposals can be generated from one estimate
+  linkedProjectId?: string; // Project created from this estimate (direct or via quotation)
+  linkedProjectName?: string;
   
   // Template
   templateId?: string;
@@ -194,19 +203,20 @@ export interface Estimate {
 
 /**
  * Material Selection
- * Each material selected from Inventory Master
+ * Each material selected from Item Master (Product Catalog)
+ * Changes to this do NOT modify the original Item Master
  */
 export interface MaterialSelection {
   id: string;
   
-  // Inventory Reference (MUST link to Inventory Master)
-  inventoryItemId: string;
+  // Item Master Reference (MUST link to Item Master)
+  itemMasterId: string;
   itemCode: string;
   itemName: string;
   category: string;
   subCategory?: string;
   
-  // Material Configuration
+  // Material Configuration (copied from Item Master, can be edited in Estimate)
   brand?: string;
   grade?: string;
   specification?: string;
@@ -214,6 +224,16 @@ export interface MaterialSelection {
   thickness?: number;
   color?: string;
   coating?: string;
+  
+  // Standard properties (copied from Item Master)
+  standardWeight?: number;
+  standardDimensions?: {
+    length?: number;
+    width?: number;
+    height?: number;
+    thickness?: number;
+    diameter?: number;
+  };
   
   // Commercial Configuration
   config: CommercialItemConfig;
@@ -223,11 +243,13 @@ export interface MaterialSelection {
   unit?: string;
   
   // Optional Pricing (if includePricing is true)
+  // Can override default rate from Item Master
   rate?: number;
   amount?: number;
   
   // Notes
   notes?: string;
+  customDescription?: string; // Custom description for this Estimate only
 }
 
 /**
@@ -398,6 +420,8 @@ export interface Proposal {
   
   // Cross-module relationships
   quotationIds?: string[]; // Multiple quotations can be generated from one proposal
+  linkedProjectId?: string; // Project created from this proposal (direct or via quotation)
+  linkedProjectName?: string;
   
   // Template
   templateId?: string;
@@ -582,7 +606,15 @@ export interface Quotation {
   // Conversion Tracking
   convertedToProjectId?: string;
   convertedAt?: Date;
-  
+
+  // Stock Reservation (Inventory Integration)
+  // Stock reservation happens at project creation, not quotation
+  // No stock reservation fields here - handled in Project module
+
+  // Finance Tracking
+  // Finance module is independent - no direct invoice generation from quotation
+  // Revenue pipeline tracking only - no invoice/payment fields here
+
   // Template
   templateId?: string;
   
@@ -700,6 +732,10 @@ export interface CreateEstimateDto {
   exclusions?: string[];
   notes?: string;
   internalNotes?: string;
+  terms?: string;
+  contactPersonName?: string;
+  salesExecutive?: string;
+  validTill?: string;
   templateId?: string;
 }
 
@@ -712,6 +748,10 @@ export interface UpdateEstimateDto {
   exclusions?: string[];
   notes?: string;
   internalNotes?: string;
+  terms?: string;
+  contactPersonName?: string;
+  salesExecutive?: string;
+  validTill?: string;
   templateId?: string;
 }
 

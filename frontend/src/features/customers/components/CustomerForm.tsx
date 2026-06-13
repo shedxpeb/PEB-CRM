@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -22,7 +22,7 @@ interface CustomerFormProps {
   isLoading?: boolean;
 }
 
-export function CustomerForm({ initialData, onSubmit, onCancel, isLoading }: CustomerFormProps) {
+export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, onCancel, isLoading }: CustomerFormProps) {
   const [formData, setFormData] = useState<Partial<Customer>>({
     customerName: '',
     companyName: '',
@@ -305,4 +305,4 @@ export function CustomerForm({ initialData, onSubmit, onCancel, isLoading }: Cus
       </div>
     </form>
   );
-}
+});

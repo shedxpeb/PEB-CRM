@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -23,7 +23,7 @@ interface StockMovementFormProps {
   isLoading?: boolean;
 }
 
-export function StockMovementForm({ initialData, onSubmit, onCancel, isLoading }: StockMovementFormProps) {
+const StockMovementForm = memo(function StockMovementForm({ initialData, onSubmit, onCancel, isLoading }: StockMovementFormProps) {
   const { data: itemsResponse } = useInventoryItems();
   const { data: warehouses } = useWarehouses();
   const items = itemsResponse?.data ?? [];
@@ -153,4 +153,6 @@ export function StockMovementForm({ initialData, onSubmit, onCancel, isLoading }
       </div>
     </form>
   );
-}
+});
+
+export { StockMovementForm };

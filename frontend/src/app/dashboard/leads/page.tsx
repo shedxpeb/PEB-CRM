@@ -1,19 +1,41 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { MainLayout } from '@/layouts/MainLayout';
 import { DataTable } from '@/components/data-table/DataTable';
+import { KPICard } from '@/components/dashboard/KPICard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useDebounce } from '@/shared/hooks/useDebounce';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { LeadForm } from '@/features/leads/components/LeadForm';
-import { LeadRowActions } from '@/features/leads/components/LeadRowActions';
-import { KanbanBoard } from '@/features/leads/components/KanbanBoard';
+
+// Lazy load heavy components to reduce initial bundle size
+const LeadForm = dynamic(() => import('@/features/leads/components/LeadForm').then(mod => ({ default: mod.LeadForm })), {
+  loading: () => <div className="p-8 text-center">Loading form...</div>,
+  ssr: false
+});
+const LeadRowActions = dynamic(() => import('@/features/leads/components/LeadRowActions').then(mod => ({ default: mod.LeadRowActions })), {
+  loading: () => <div className="p-2">Loading...</div>,
+  ssr: false
+});
+const KanbanBoard = dynamic(() => import('@/features/leads/components/KanbanBoard').then(mod => ({ default: mod.KanbanBoard })), {
+  loading: () => <div className="p-8 text-center">Loading kanban...</div>,
+  ssr: false
+});
+const LeadCalendarView = dynamic(() => import('@/features/leads/components/LeadCalendarView').then(mod => ({ default: mod.LeadCalendarView })), {
+  loading: () => <div className="p-8 text-center">Loading calendar...</div>,
+  ssr: false
+});
 import { Lead, LeadStatus, LeadPriority } from '@/types/leads';
-import { 
-  Plus, 
-  Search, 
+import { useConvertLeadToCustomer } from '@/features/customers/hooks/useCustomers';
+import { ROUTES } from '@/core/routes';
+import { mockLeads } from '@/features/leads/data/mockLeads';
+import {
+  Plus,
+  Search,
   Filter,
   Download,
   Calendar,
@@ -23,132 +45,10 @@ import {
   Send,
   FileText,
   LayoutList,
-  Grid3X3
+  Grid3X3,
+  Settings,
+  CalendarDays
 } from 'lucide-react';
-
-// Mock data
-const mockLeads: Lead[] = [
-  {
-    id: '1',
-    leadId: 1001,
-    customerName: 'Rahul Sharma',
-    companyName: 'ABC Construction',
-    mobile: '+91 98765 43210',
-    email: 'rahul@abc.com',
-    address: '123 Industrial Area',
-    city: 'Mumbai',
-    state: 'Maharashtra',
-    projectTitle: 'Warehouse Expansion',
-    projectType: 'Warehouse',
-    structureType: 'PEB',
-    width: 50,
-    length: 100,
-    height: 12,
-    source: 'Website',
-    priority: 'High',
-    assignedEmployee: 'Vikram Singh',
-    status: 'New',
-    createdDate: new Date('2024-05-28'),
-    lastFollowUp: new Date('2024-05-29'),
-    nextFollowUpDate: new Date('2024-06-05'),
-  },
-  {
-    id: '2',
-    leadId: 1002,
-    customerName: 'Priya Patel',
-    companyName: 'XYZ Industries',
-    mobile: '+91 87654 32109',
-    email: 'priya@xyz.com',
-    address: '456 Tech Park',
-    city: 'Bangalore',
-    state: 'Karnataka',
-    projectTitle: 'Factory Shed',
-    projectType: 'Factory',
-    structureType: 'Steel Structure',
-    width: 80,
-    length: 150,
-    height: 15,
-    source: 'Referral',
-    priority: 'Medium',
-    assignedEmployee: 'Sneha Reddy',
-    status: 'Contacted',
-    createdDate: new Date('2024-05-25'),
-    lastFollowUp: new Date('2024-05-27'),
-    nextFollowUpDate: new Date('2024-06-02'),
-  },
-  {
-    id: '3',
-    leadId: 1003,
-    customerName: 'Amit Kumar',
-    companyName: 'DEF Builders',
-    mobile: '+91 76543 21098',
-    email: 'amit@def.com',
-    address: '789 Construction Zone',
-    city: 'Delhi',
-    state: 'Delhi',
-    projectTitle: 'Industrial Shed',
-    projectType: 'Industrial Shed',
-    structureType: 'PEB',
-    width: 60,
-    length: 120,
-    height: 10,
-    source: 'Cold Call',
-    priority: 'Urgent',
-    assignedEmployee: 'Rajesh Kumar',
-    status: 'Design Pending',
-    createdDate: new Date('2024-05-20'),
-    lastFollowUp: new Date('2024-05-26'),
-    nextFollowUpDate: new Date('2024-06-01'),
-  },
-  {
-    id: '4',
-    leadId: 1004,
-    customerName: 'Sneha Reddy',
-    companyName: 'GHI Structures',
-    mobile: '+91 65432 10987',
-    email: 'sneha@ghi.com',
-    address: '321 Steel Market',
-    city: 'Chennai',
-    state: 'Tamil Nadu',
-    projectTitle: 'Commercial Complex',
-    projectType: 'Commercial',
-    structureType: 'Hybrid',
-    width: 40,
-    length: 80,
-    height: 18,
-    source: 'Email',
-    priority: 'High',
-    assignedEmployee: 'Neha Gupta',
-    status: 'BOQ Pending',
-    createdDate: new Date('2024-05-15'),
-    lastFollowUp: new Date('2024-05-24'),
-    nextFollowUpDate: new Date('2024-05-31'),
-  },
-  {
-    id: '5',
-    leadId: 1005,
-    customerName: 'Vikram Singh',
-    companyName: 'MNO Steel Works',
-    mobile: '+91 54321 09876',
-    email: 'vikram@mno.com',
-    address: '654 Metal Hub',
-    city: 'Pune',
-    state: 'Maharashtra',
-    projectTitle: 'Residential Building',
-    projectType: 'Residential',
-    structureType: 'PEB',
-    width: 25,
-    length: 50,
-    height: 9,
-    source: 'Social Media',
-    priority: 'Medium',
-    assignedEmployee: 'Anita Desai',
-    status: 'Estimate Sent',
-    createdDate: new Date('2024-05-10'),
-    lastFollowUp: new Date('2024-05-23'),
-    nextFollowUpDate: new Date('2024-05-30'),
-  },
-];
 
 const statusOptions: LeadStatus[] = [
   'New',
@@ -165,153 +65,444 @@ const statusOptions: LeadStatus[] = [
 
 const priorityOptions: LeadPriority[] = ['Low', 'Medium', 'High', 'Urgent'];
 
+// Move baseColumns outside component to prevent recreation on every render
+const baseColumns = [
+  { key: 'leadId' as const, label: 'Lead ID', sortable: true },
+  { key: 'customerName' as const, label: 'Customer Name', sortable: true },
+  { key: 'companyName' as const, label: 'Company', sortable: true },
+  { key: 'mobile' as const, label: 'Mobile' },
+  { key: 'city' as const, label: 'City / State', render: (_: any, row: Lead) => `${row.city}, ${row.state}` },
+  { key: 'projectType' as const, label: 'Project Type', filterable: true },
+  { key: 'structureType' as const, label: 'Structure Type', filterable: true },
+  { key: 'width' as const, label: 'Area (sqm)', render: (_: any, row: Lead) => `${(row.width || 0) * (row.length || 0)}` },
+  { key: 'status' as const, label: 'Status', sortable: true, render: (value: LeadStatus) => (
+    <Badge 
+      variant={
+        value === 'New' ? 'info' :
+        value === 'Contacted' ? 'warning' :
+        value === 'Converted' || value === 'Approved' ? 'success' :
+        value === 'Rejected' ? 'destructive' :
+        'secondary'
+      }
+      className="text-xs"
+    >
+      {value}
+    </Badge>
+  )},
+  { key: 'assignedEmployee' as const, label: 'Assigned To' },
+  { key: 'priority' as const, label: 'Priority', sortable: true, render: (value: LeadPriority) => (
+    <Badge 
+      variant={
+        value === 'Urgent' ? 'destructive' :
+        value === 'High' ? 'warning' :
+        value === 'Medium' ? 'info' :
+        'secondary'
+      }
+      className="text-xs"
+    >
+      {value}
+    </Badge>
+  )},
+  { key: 'createdDate' as const, label: 'Created', sortable: true, render: (value: Date) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    return date.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }},
+  { key: 'nextFollowUpDate' as const, label: 'Next Follow-up', render: (value: Date) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    return date.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }},
+];
+
 export default function LeadsPage() {
+  const router = useRouter();
+  const convertLeadToCustomerMutation = useConvertLeadToCustomer();
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [kpiFilterMode, setKpiFilterMode] = useState<string>('none');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
-  const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'kanban' | 'calendar'>('table');
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
+  const [customColumns, setCustomColumns] = useState<Array<{key: string, label: string}>>([]);
+  const [isCustomColumnDialogOpen, setIsCustomColumnDialogOpen] = useState(false);
+  
+  // Date filters
+  const [dateRangeFilter, setDateRangeFilter] = useState<{from: Date | null, to: Date | null}>({ from: null, to: null });
+  const [quickDateFilter, setQuickDateFilter] = useState<string>('all');
+  
+  // Lazy loading / pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Debounce search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  // Filter leads based on status, priority, and date filters
+  const filteredLeads = useMemo(() => leads.filter(lead => {
+    const matchesSearch = debouncedSearch === '' ||
+      lead.customerName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      lead.companyName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      lead.mobile.includes(debouncedSearch) ||
+      lead.leadId.toString().includes(debouncedSearch);
 
-  const columns = [
-    { key: 'leadId' as const, label: 'Lead ID', sortable: true },
-    { key: 'customerName' as const, label: 'Customer Name', sortable: true },
-    { key: 'companyName' as const, label: 'Company', sortable: true },
-    { key: 'mobile' as const, label: 'Mobile' },
-    { key: 'city' as const, label: 'City / State', render: (_: any, row: Lead) => `${row.city}, ${row.state}` },
-    { key: 'projectType' as const, label: 'Project Type', filterable: true },
-    { key: 'structureType' as const, label: 'Structure Type', filterable: true },
-    { key: 'width' as const, label: 'Area (sqm)', render: (_: any, row: Lead) => `${(row.width || 0) * (row.length || 0)}` },
-    { key: 'status' as const, label: 'Status', sortable: true, render: (value: LeadStatus) => (
-      <Badge 
-        variant={
-          value === 'New' ? 'info' :
-          value === 'Contacted' ? 'warning' :
-          value === 'Converted' || value === 'Approved' ? 'success' :
-          value === 'Rejected' ? 'destructive' :
-          'secondary'
-        }
-        className="text-xs"
-      >
-        {value}
-      </Badge>
-    )},
-    { key: 'assignedEmployee' as const, label: 'Assigned To' },
-    { key: 'priority' as const, label: 'Priority', sortable: true, render: (value: LeadPriority) => (
-      <Badge 
-        variant={
-          value === 'Urgent' ? 'destructive' :
-          value === 'High' ? 'warning' :
-          value === 'Medium' ? 'info' :
-          'secondary'
-        }
-        className="text-xs"
-      >
-        {value}
-      </Badge>
-    )},
-    { key: 'createdDate' as const, label: 'Created', sortable: true, render: (value: Date) => {
-      if (!value) return '-';
-      const date = new Date(value);
-      return date.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }},
-    { key: 'nextFollowUpDate' as const, label: 'Next Follow-up', render: (value: Date) => {
-      if (!value) return '-';
-      const date = new Date(value);
-      return date.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }},
-  ];
+    let matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
+    // Handle KPI filter mode for in-progress
+    if (kpiFilterMode === 'in-progress') {
+      matchesStatus = ['Contacted', 'Design Pending', 'BOQ Pending', 'Estimate Sent', 'Proposal Sent', 'Negotiation'].includes(lead.status);
+    }
+    const matchesPriority = priorityFilter === 'all' || lead.priority === priorityFilter;
 
-  const handleCreateLead = (data: Partial<Lead>) => {
-    const newLead: Lead = {
-      ...data,
-      id: String(leads.length + 1),
-      leadId: Math.max(...leads.map(l => l.leadId)) + 1,
-      createdDate: new Date(),
-      status: data.status || 'New',
-    } as Lead;
-    
-    setLeads([...leads, newLead]);
-    console.log('Create lead:', newLead);
+    // Date filtering based on quick date filter
+    let matchesDate = true;
+    if (quickDateFilter !== 'all') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const leadDate = new Date(lead.createdDate);
+      leadDate.setHours(0, 0, 0, 0);
+
+      switch (quickDateFilter) {
+        case 'today':
+          matchesDate = leadDate.getTime() === today.getTime();
+          break;
+        case 'tomorrow':
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          matchesDate = leadDate.getTime() === tomorrow.getTime();
+          break;
+        case 'this_week':
+          const weekEnd = new Date(today);
+          weekEnd.setDate(weekEnd.getDate() + 7);
+          matchesDate = leadDate >= today && leadDate <= weekEnd;
+          break;
+        case 'this_month':
+          const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+          matchesDate = leadDate.getMonth() === today.getMonth() && leadDate.getFullYear() === today.getFullYear();
+          break;
+        case 'this_year':
+          matchesDate = leadDate.getFullYear() === today.getFullYear();
+          break;
+      }
+    }
+
+    // Date range filtering
+    if (dateRangeFilter.from || dateRangeFilter.to) {
+      const leadDate = new Date(lead.createdDate);
+      if (dateRangeFilter.from) {
+        const fromDate = new Date(dateRangeFilter.from);
+        fromDate.setHours(0, 0, 0, 0);
+        if (leadDate < fromDate) matchesDate = false;
+      }
+      if (dateRangeFilter.to) {
+        const toDate = new Date(dateRangeFilter.to);
+        toDate.setHours(23, 59, 59, 999);
+        if (leadDate > toDate) matchesDate = false;
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesPriority && matchesDate;
+  }), [leads, debouncedSearch, statusFilter, priorityFilter, kpiFilterMode, quickDateFilter, dateRangeFilter]);
+
+  const customColumnDefs = useMemo(() => customColumns.map(col => ({
+    key: col.key as any,
+    label: col.label,
+    sortable: true,
+    render: (value: any) => value || '-'
+  })), [customColumns]);
+
+  const columns = useMemo(() => [...baseColumns, ...customColumnDefs], [baseColumns, customColumnDefs]);
+
+  // Memoize paginated data to prevent DataTable re-renders on every state change
+  const paginatedLeads = useMemo(() => 
+    filteredLeads.slice(0, currentPage * itemsPerPage),
+    [filteredLeads, currentPage, itemsPerPage]
+  );
+
+  const handleCreateLead = useCallback((data: Partial<Lead>) => {
+    setLeads(prevLeads => {
+      const maxLeadId = prevLeads.length > 0 ? Math.max(...prevLeads.map(l => l.leadId)) : 0;
+      const newLead: Lead = {
+        ...data,
+        id: String(prevLeads.length + 1),
+        leadId: maxLeadId + 1,
+        createdDate: new Date(),
+        status: data.status || 'New',
+      } as Lead;
+      return [...prevLeads, newLead];
+    });
     setIsCreateDialogOpen(false);
-  };
+  }, []);
 
-  const handleEditLead = (data: Partial<Lead> | Lead) => {
+  const handleEditLead = useCallback((data: Partial<Lead> | Lead) => {
     if ('id' in data) {
       setLeads((prevLeads) =>
         prevLeads.map((l) => (l.id === data.id ? { ...l, ...data, updatedAt: new Date() } : l))
       );
-      console.log('Edit lead:', data);
     }
     setIsEditDialogOpen(false);
-  };
+  }, []);
 
-  const handleLeadUpdate = (updatedLead: Lead) => {
-    console.log('handleLeadUpdate called:', updatedLead);
+  const handleLeadUpdate = useCallback((updatedLead: Lead) => {
     setLeads((prevLeads) => {
       const newLeads = prevLeads.map((lead) => 
         lead.id === updatedLead.id || lead.leadId === updatedLead.leadId ? updatedLead : lead
       );
-      console.log('Leads updated, count:', newLeads.length);
       return newLeads;
     });
-  };
+  }, []);
 
-  const handleLeadsReorder = (updatedLeads: Lead[]) => {
-    console.log('handleLeadsReorder called, count:', updatedLeads.length);
+  const handleLeadsReorder = useCallback((updatedLeads: Lead[]) => {
     setLeads(updatedLeads);
-  };
+  }, []);
 
-  const handleRowClick = (lead: Lead) => {
+  const handleRowClick = useCallback((lead: Lead) => {
     setSelectedLead(lead);
-    // Navigate to lead details page
-    console.log('Navigate to lead:', lead.id);
-  };
+    setIsViewDialogOpen(true);
+  }, []);
 
-  const handleEditLeadFromRow = (lead: Lead) => {
+  const handleKpiCardClick = useCallback((filter: string) => {
+    if (filter === 'all') {
+      setStatusFilter('all');
+      setPriorityFilter('all');
+      setKpiFilterMode('none');
+    } else if (filter === 'in-progress') {
+      setStatusFilter('all');
+      setKpiFilterMode('in-progress');
+    } else {
+      setStatusFilter(filter);
+      setKpiFilterMode('none');
+    }
+  }, []);
+
+  const handleExport = useCallback(() => {
+    setLeads(prevLeads => {
+      // Export leads to CSV
+      const headers = ['Lead ID', 'Customer Name', 'Company', 'Mobile', 'Email', 'City', 'State', 'Project Title', 'Project Type', 'Structure Type', 'Status', 'Priority', 'Assigned To', 'Source', 'Created Date'];
+      const csvContent = [
+        headers.join(','),
+        ...prevLeads.map(lead => [
+          lead.leadId,
+          lead.customerName,
+          lead.companyName,
+          lead.mobile,
+          lead.email,
+          lead.city,
+          lead.state,
+          lead.projectTitle,
+          lead.projectType,
+          lead.structureType,
+          lead.status,
+          lead.priority,
+          lead.assignedEmployee,
+          lead.source,
+          new Date(lead.createdDate).toLocaleDateString()
+        ].join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `leads_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      return prevLeads;
+    });
+  }, []);
+
+  const handleImport = useCallback(() => {
+    // Create file input element
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const text = event.target?.result as string;
+          const lines = text.split('\n');
+          const headers = lines[0].split(',');
+          
+          // Parse CSV data
+          const newLeads: Lead[] = [];
+          for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(',');
+            if (values.length === headers.length) {
+              const lead: Partial<Lead> = {};
+              headers.forEach((header, index) => {
+                const key = header.trim();
+                const value = values[index]?.trim();
+                
+                // Map CSV headers to lead fields
+                if (key === 'Lead ID') lead.leadId = parseInt(value);
+                else if (key === 'Customer Name') lead.customerName = value;
+                else if (key === 'Company') lead.companyName = value;
+                else if (key === 'Mobile') lead.mobile = value;
+                else if (key === 'Email') lead.email = value;
+                else if (key === 'City') lead.city = value;
+                else if (key === 'State') lead.state = value;
+                else if (key === 'Project Title') lead.projectTitle = value;
+                else if (key === 'Project Type') lead.projectType = value as any;
+                else if (key === 'Structure Type') lead.structureType = value as any;
+                else if (key === 'Status') lead.status = value as LeadStatus;
+                else if (key === 'Priority') lead.priority = value as LeadPriority;
+                else if (key === 'Assigned To') lead.assignedEmployee = value;
+                else if (key === 'Source') lead.source = value as any;
+                else if (key === 'Width') lead.width = parseFloat(value);
+                else if (key === 'Length') lead.length = parseFloat(value);
+                else if (key === 'Height') lead.height = parseFloat(value);
+                else if (key === 'Address') lead.address = value;
+                else (lead as any)[key] = value;
+              });
+              
+              if (lead.customerName && lead.leadId) {
+                // Generate unique ID using timestamp to avoid conflicts
+                const uniqueId = `import-${Date.now()}-${newLeads.length}`;
+                newLeads.push({
+                  ...lead,
+                  id: uniqueId,
+                  createdDate: new Date(),
+                } as Lead);
+              }
+            }
+          }
+          
+          // Add imported leads to state
+          setLeads(prevLeads => [...prevLeads, ...newLeads]);
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  }, []);
+
+  const handleAddCustomColumn = useCallback((key: string, label: string) => {
+    setCustomColumns(prevColumns => [...prevColumns, { key, label }]);
+    setIsCustomColumnDialogOpen(false);
+  }, []);
+
+  const handleRemoveCustomColumn = useCallback((key: string) => {
+    setCustomColumns(prevColumns => prevColumns.filter(col => col.key !== key));
+  }, []);
+
+  // Date filter handlers
+  const handleQuickDateFilterChange = useCallback((filter: string) => {
+    setQuickDateFilter(filter);
+    setDateRangeFilter({ from: null, to: null }); // Clear custom range when quick filter is selected
+    setCurrentPage(1); // Reset to first page
+  }, []);
+
+  const handleDateRangeChange = useCallback((field: 'from' | 'to', value: Date | null) => {
+    setDateRangeFilter(prev => ({ ...prev, [field]: value }));
+    setQuickDateFilter('all'); // Clear quick filter when custom range is set
+    setCurrentPage(1); // Reset to first page
+  }, []);
+
+  const clearDateFilters = useCallback(() => {
+    setQuickDateFilter('all');
+    setDateRangeFilter({ from: null, to: null });
+    setCurrentPage(1);
+  }, []);
+
+  // Reset pagination when view mode changes
+  const handleViewModeChange = useCallback((mode: 'table' | 'kanban' | 'calendar') => {
+    setViewMode(mode);
+    setCurrentPage(1);
+    setSelectedRows(new Set());
+  }, []);
+
+  // Lazy loading handlers
+  const handleLoadMore = useCallback(() => {
+    setIsLoading(true);
+    // Simulate API call delay
+    setTimeout(() => {
+      setCurrentPage(prev => prev + 1);
+      setIsLoading(false);
+    }, 500);
+  }, []);
+
+  const handleEditLeadFromRow = useCallback((lead: Lead) => {
     setSelectedLead(lead);
     setIsEditDialogOpen(true);
-  };
+  }, []);
 
-  const handleDeleteLead = (lead: Lead) => {
+  const handleDeleteLead = useCallback((lead: Lead) => {
     if (confirm(`Are you sure you want to delete lead #${lead.leadId}?`)) {
       setLeads((prevLeads) => prevLeads.filter((l) => l.id !== lead.id));
-      console.log('Delete lead:', lead.id);
     }
-  };
+  }, []);
 
-  const handleConvertLead = (lead: Lead) => {
-    console.log('Convert to project:', lead.id);
-  };
+  const handleConvertLead = useCallback((lead: Lead) => {
+    // Convert to project
+  }, []);
 
-  const handleConvertToCustomer = (lead: Lead) => {
-    console.log('Convert to customer:', lead.id);
-    // TODO: Implement customer conversion logic
-    // This should:
-    // 1. Create a new customer from lead data
-    // 2. Update lead with customerId
-    // 3. Update lead status to 'Converted'
-    // 4. Navigate to customer details page
-  };
+  const handleConvertToCustomer = useCallback(async (lead: Lead) => {
+    // Duplicate prevention: Check if lead already has customerId
+    if (lead.customerId) {
+      alert('This lead has already been converted to a customer.');
+      return;
+    }
 
-  const handleAddScore = (lead: Lead, score: number) => {
-    console.log('Add score to lead:', lead.id, 'Score:', score);
-  };
+    // Business workflow validation: Only allow conversion from approved statuses
+    const convertibleStatuses: LeadStatus[] = ['Approved', 'Negotiation'];
+    if (!convertibleStatuses.includes(lead.status)) {
+      alert(`Lead must be in 'Approved' or 'Negotiation' status to convert to customer. Current status: ${lead.status}`);
+      return;
+    }
 
-  const handleStatusChange = (lead: Lead, status: LeadStatus) => {
-    console.log('handleStatusChange called:', lead.id, 'New status:', status);
+    try {
+      // Convert lead to customer
+      const result = await convertLeadToCustomerMutation.mutateAsync({
+        leadId: lead.id,
+        customerName: lead.customerName,
+        companyName: lead.companyName,
+        mobile: lead.mobile,
+        email: lead.email,
+        address: lead.address,
+        city: lead.city,
+        state: lead.state,
+        pincode: lead.pincode,
+        leadSource: lead.source,
+        assignedEmployeeId: lead.assignedEmployeeId,
+        notes: lead.remarks,
+      });
+
+      // Update lead with customerId and status (only after successful conversion)
+      setLeads((prevLeads) =>
+        prevLeads.map((l) =>
+          l.id === lead.id
+            ? {
+                ...l,
+                customerId: result.customer.id,
+                status: 'Converted' as LeadStatus,
+                convertedDate: new Date(),
+                updatedAt: new Date(),
+              }
+            : l
+        )
+      );
+
+      // Navigate to customer detail page
+      router.push(ROUTES.customersDetail(result.customer.id));
+    } catch (error) {
+      console.error('Error converting lead to customer:', error);
+      alert('Failed to convert lead to customer. Please try again.');
+    }
+  }, [convertLeadToCustomerMutation, router]);
+
+  const handleAddScore = useCallback((lead: Lead, score: number) => {
+    // Add score to lead
+  }, []);
+
+  const handleStatusChange = useCallback((lead: Lead, status: LeadStatus) => {
     setLeads((prevLeads) => {
       const newLeads = prevLeads.map((l) => {
         if (l.id === lead.id || l.leadId === lead.leadId) {
@@ -319,238 +510,315 @@ export default function LeadsPage() {
         }
         return l;
       });
-      console.log('Status updated, leads count:', newLeads.length);
       return newLeads;
     });
-  };
+  }, []);
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = useCallback(() => {
     if (confirm(`Delete ${selectedRows.size} selected leads?`)) {
       setLeads((prevLeads) => prevLeads.filter((l) => !selectedRows.has(l.id)));
       setSelectedRows(new Set());
-      console.log('Bulk delete:', Array.from(selectedRows));
     }
-  };
+  }, [selectedRows]);
 
-  const handleBulkStatusChange = (status: LeadStatus) => {
+  const handleBulkStatusChange = useCallback((status: LeadStatus) => {
     setLeads((prevLeads) =>
       prevLeads.map((l) =>
         selectedRows.has(l.id) ? { ...l, status, updatedAt: new Date() } : l
       )
     );
     setSelectedRows(new Set());
-    console.log('Bulk status change:', Array.from(selectedRows), 'to', status);
-  };
+  }, [selectedRows]);
 
   return (
     <MainLayout title="Leads" subtitle="Manage customer enquiries and PEB requirements">
-      <div className="space-y-6">
+      <div className="space-y-2 sm:space-y-3 w-full overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">Leads</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">Leads</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+            <Button onClick={() => setIsCreateDialogOpen(true)} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               Add Lead
             </Button>
-            
+
             {/* View Toggle */}
-            <div className="flex items-center bg-muted rounded-lg p-1">
+            <div className="flex items-center bg-muted rounded-lg p-1 w-full sm:w-auto">
               <button
-                onClick={() => setViewMode('table')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                onClick={() => handleViewModeChange('table')}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
                   viewMode === 'table'
                     ? 'bg-background shadow-sm text-foreground'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <LayoutList className="h-4 w-4" />
-                Table
+                <span className="hidden sm:inline">Table</span>
               </button>
               <button
-                onClick={() => setViewMode('kanban')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                onClick={() => handleViewModeChange('kanban')}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
                   viewMode === 'kanban'
                     ? 'bg-background shadow-sm text-foreground'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <Grid3X3 className="h-4 w-4" />
-                Kanban
+                <span className="hidden sm:inline">Kanban</span>
+              </button>
+              <button
+                onClick={() => handleViewModeChange('calendar')}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                  viewMode === 'calendar'
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <CalendarDays className="h-4 w-4" />
+                <span className="hidden sm:inline">Calendar</span>
               </button>
             </div>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Leads</p>
-                  <p className="text-3xl font-bold mt-1">{leads.length}</p>
-                </div>
-                <div className="h-10 w-10 bg-blue-500/15 rounded-lg flex items-center justify-center">
-                  <Plus className="h-5 w-5 text-blue-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">New Leads</p>
-                  <p className="text-3xl font-bold mt-1">
-                    {leads.filter(l => l.status === 'New').length}
-                  </p>
-                </div>
-                <div className="h-10 w-10 bg-green-500/15 rounded-lg flex items-center justify-center">
-                  <Calendar className="h-5 w-5 text-green-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">In Progress</p>
-                  <p className="text-3xl font-bold mt-1">
-                    {leads.filter(l => 
-                      ['Contacted', 'Design Pending', 'BOQ Pending', 'Estimate Sent', 'Proposal Sent', 'Negotiation'].includes(l.status)
-                    ).length}
-                  </p>
-                </div>
-                <div className="h-10 w-10 bg-yellow-500/15 rounded-lg flex items-center justify-center">
-                  <RefreshCw className="h-5 w-5 text-yellow-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Converted</p>
-                  <p className="text-3xl font-bold mt-1">
-                    {leads.filter(l => l.status === 'Converted').length}
-                  </p>
-                </div>
-                <div className="h-10 w-10 bg-emerald-500/15 rounded-lg flex items-center justify-center">
-                  <Filter className="h-5 w-5 text-emerald-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <KPICard
+            data={{
+              title: 'Total Leads',
+              value: leads.length,
+              change: 0,
+              icon: <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+              color: 'text-blue-500'
+            }}
+            onClick={() => handleKpiCardClick('all')}
+          />
+          <KPICard
+            data={{
+              title: 'New Leads',
+              value: leads.filter(l => l.status === 'New').length,
+              change: 0,
+              icon: <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+              color: 'text-green-500'
+            }}
+            onClick={() => handleKpiCardClick('New')}
+          />
+          <KPICard
+            data={{
+              title: 'In Progress',
+              value: leads.filter(l =>
+                ['Contacted', 'Design Pending', 'BOQ Pending', 'Estimate Sent', 'Proposal Sent', 'Negotiation'].includes(l.status)
+              ).length,
+              change: 0,
+              icon: <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+              color: 'text-yellow-500'
+            }}
+            onClick={() => handleKpiCardClick('in-progress')}
+          />
+          <KPICard
+            data={{
+              title: 'Converted',
+              value: leads.filter(l => l.status === 'Converted').length,
+              change: 0,
+              icon: <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+              color: 'text-emerald-500'
+            }}
+            onClick={() => handleKpiCardClick('Converted')}
+          />
         </div>
 
         {/* Filters */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-wrap gap-4 items-center">
-              <div className="flex-1 min-w-[200px]">
-                <div className="relative">
+        <Card className="min-w-0">
+          <CardContent className="p-2 sm:p-3">
+            <div className="space-y-2 sm:space-y-3">
+              {/* Search Bar and Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center">
+                <div className="relative flex-1 w-full sm:max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
                     type="text"
-                    placeholder="Search by customer, company, mobile, or lead ID..."
-                    className="w-full pl-10 pr-4 py-2 text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    placeholder="Search by customer name, company, mobile number, or lead ID..."
+                    className="w-full pl-10 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
+                <div className="flex items-center gap-1 w-full sm:w-auto">
+                  <Button variant="outline" onClick={handleExport} className="flex-1 sm:flex-none gap-1.5 px-2 sm:px-3 py-2 h-8 sm:h-9 text-xs">
+                    <Download className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Export</span>
+                  </Button>
+                  <Button variant="outline" onClick={handleImport} className="flex-1 sm:flex-none gap-1.5 px-2 sm:px-3 py-2 h-8 sm:h-9 text-xs">
+                    <FileText className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Import</span>
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsCustomColumnDialogOpen(true)} className="flex-1 sm:flex-none gap-1.5 px-2 sm:px-3 py-2 h-8 sm:h-9 text-xs">
+                    <Settings className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Columns</span>
+                  </Button>
+                </div>
               </div>
-              <select
-                className="px-3 py-2 text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                {statusOptions.map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-              <select
-                className="px-3 py-2 text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
-              >
-                <option value="all">All Priority</option>
-                {priorityOptions.map(priority => (
-                  <option key={priority} value={priority}>{priority}</option>
-                ))}
-              </select>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
+
+              {/* Filter Groups */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 items-end">
+                {/* Status Filter */}
+                <div className="min-w-0">
+                  <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Status</label>
+                  <select
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="all">All Status</option>
+                    {statusOptions.map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Priority Filter */}
+                <div className="min-w-0">
+                  <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Priority</label>
+                  <select
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={priorityFilter}
+                    onChange={(e) => setPriorityFilter(e.target.value)}
+                  >
+                    <option value="all">All Priority</option>
+                    {priorityOptions.map(priority => (
+                      <option key={priority} value={priority}>{priority}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date Filters - only show in table and calendar view */}
+                {viewMode !== 'kanban' && (
+                  <>
+                    <div className="min-w-0">
+                      <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Time Period</label>
+                      <select
+                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        value={quickDateFilter}
+                        onChange={(e) => handleQuickDateFilterChange(e.target.value)}
+                      >
+                        <option value="all">All Time</option>
+                        <option value="today">Today</option>
+                        <option value="tomorrow">Tomorrow</option>
+                        <option value="this_week">This Week</option>
+                        <option value="this_month">This Month</option>
+                        <option value="this_year">This Year</option>
+                      </select>
+                    </div>
+
+                    <div className="min-w-0">
+                      <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Date Range</label>
+                      <div className="flex items-center gap-1 sm:gap-1.5">
+                        <input
+                          type="date"
+                          className="flex-1 min-w-0 px-1.5 sm:px-2 py-1.5 text-[10px] sm:text-xs rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          value={dateRangeFilter.from ? dateRangeFilter.from.toISOString().split('T')[0] : ''}
+                          onChange={(e) => handleDateRangeChange('from', e.target.value ? new Date(e.target.value) : null)}
+                        />
+                        <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">to</span>
+                        <input
+                          type="date"
+                          className="flex-1 min-w-0 px-1.5 sm:px-2 py-1.5 text-[10px] sm:text-xs rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          value={dateRangeFilter.to ? dateRangeFilter.to.toISOString().split('T')[0] : ''}
+                          onChange={(e) => handleDateRangeChange('to', e.target.value ? new Date(e.target.value) : null)}
+                        />
+                        {(quickDateFilter !== 'all' || dateRangeFilter.from || dateRangeFilter.to) && (
+                          <Button variant="ghost" size="sm" onClick={clearDateFilters} className="h-7 sm:h-8 px-1.5 sm:px-2 text-[10px] sm:text-xs shrink-0">
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Data Table / Kanban View */}
+        {/* Data Table / Kanban / Calendar View */}
         {viewMode === 'kanban' ? (
           <KanbanBoard
-            leads={leads}
+            leads={filteredLeads}
             onLeadUpdate={handleLeadUpdate}
             onLeadsReorder={handleLeadsReorder}
             onAddLead={() => setIsCreateDialogOpen(true)}
           />
+        ) : viewMode === 'calendar' ? (
+          <LeadCalendarView
+            leads={filteredLeads}
+            onLeadClick={handleRowClick}
+          />
         ) : (
-          <>
+          <div className="min-w-0">
             {selectedRows.size > 0 && (
-          <Card className="bg-muted/50">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">{selectedRows.size} lead(s) selected</p>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleBulkStatusChange('Contacted')}>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Mark Contacted
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Send className="h-4 w-4 mr-2" />
-                    Send Estimate
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Send Proposal
-                  </Button>
-                  <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              <Card className="bg-muted/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{selectedRows.size} lead(s) selected</p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleBulkStatusChange('Contacted')}>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Mark Contacted
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Send className="h-4 w-4 mr-2" />
+                        Send Estimate
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <FileText className="h-4 w-4 mr-2" />
+                        Send Proposal
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-        <DataTable
-          columns={columns}
-          data={leads}
-          onRowClick={handleRowClick}
-          enableSelection={true}
-          selectedRows={selectedRows}
-          onSelectionChange={setSelectedRows}
-          rowIdKey="id"
-          rowActions={(row) => (
-            <LeadRowActions
-              lead={row as Lead}
-              onEdit={handleEditLeadFromRow}
-              onDelete={handleDeleteLead}
-              onConvert={handleConvertLead}
-              onConvertToCustomer={handleConvertToCustomer}
-              onAddScore={handleAddScore}
-              onStatusChange={handleStatusChange}
+            <DataTable
+              columns={columns}
+              data={paginatedLeads}
+              onRowClick={handleRowClick}
+              enableSelection={true}
+              selectedRows={selectedRows}
+              onSelectionChange={setSelectedRows}
+              rowIdKey="id"
+              rowActions={(row) => (
+                <LeadRowActions
+                  lead={row as Lead}
+                  onEdit={handleEditLeadFromRow}
+                  onDelete={handleDeleteLead}
+                  onConvert={handleConvertLead}
+                  onConvertToCustomer={handleConvertToCustomer}
+                  onAddScore={handleAddScore}
+                  onStatusChange={handleStatusChange}
+                />
+              )}
             />
-          )}
-        />
-          </>
+
+            {/* Lazy Loading - Load More Button */}
+            {filteredLeads.length > currentPage * itemsPerPage && (
+              <div className="flex justify-center mt-4">
+                <Button
+                  variant="outline"
+                  onClick={handleLoadMore}
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Loading...' : `Load More (${filteredLeads.length - currentPage * itemsPerPage} remaining)`}
+                </Button>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Create Lead Dialog */}
@@ -579,6 +847,167 @@ export default function LeadsPage() {
                 onCancel={() => setIsEditDialogOpen(false)}
               />
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* View Lead Dialog */}
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Lead Details</DialogTitle>
+            </DialogHeader>
+            {selectedLead && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Lead ID</p>
+                    <p className="text-lg font-semibold">{selectedLead.leadId}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Status</p>
+                    <Badge variant={
+                      selectedLead.status === 'New' ? 'info' :
+                      selectedLead.status === 'Contacted' ? 'warning' :
+                      selectedLead.status === 'Converted' || selectedLead.status === 'Approved' ? 'success' :
+                      selectedLead.status === 'Rejected' ? 'destructive' :
+                      'secondary'
+                    }>{selectedLead.status}</Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Customer Name</p>
+                    <p className="text-lg font-semibold">{selectedLead.customerName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Company</p>
+                    <p className="text-lg font-semibold">{selectedLead.companyName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Mobile</p>
+                    <p className="text-lg font-semibold">{selectedLead.mobile}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Email</p>
+                    <p className="text-lg font-semibold">{selectedLead.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">City</p>
+                    <p className="text-lg font-semibold">{selectedLead.city}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">State</p>
+                    <p className="text-lg font-semibold">{selectedLead.state}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Project Title</p>
+                    <p className="text-lg font-semibold">{selectedLead.projectTitle}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Project Type</p>
+                    <p className="text-lg font-semibold">{selectedLead.projectType}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Structure Type</p>
+                    <p className="text-lg font-semibold">{selectedLead.structureType}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Priority</p>
+                    <Badge variant={
+                      selectedLead.priority === 'Urgent' ? 'destructive' :
+                      selectedLead.priority === 'High' ? 'warning' :
+                      selectedLead.priority === 'Medium' ? 'info' :
+                      'secondary'
+                    }>{selectedLead.priority}</Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Assigned To</p>
+                    <p className="text-lg font-semibold">{selectedLead.assignedEmployee}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Source</p>
+                    <p className="text-lg font-semibold">{selectedLead.source}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Created Date</p>
+                    <p className="text-lg font-semibold">{new Date(selectedLead.createdDate).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Next Follow-up</p>
+                    <p className="text-lg font-semibold">{selectedLead.nextFollowUpDate ? new Date(selectedLead.nextFollowUpDate).toLocaleDateString() : '-'}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end pt-4 border-t">
+                  <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+                    Close
+                  </Button>
+                  <Button onClick={() => {
+                    setIsViewDialogOpen(false);
+                    setIsEditDialogOpen(true);
+                  }}>
+                    Edit
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Custom Columns Dialog */}
+        <Dialog open={isCustomColumnDialogOpen} onOpenChange={setIsCustomColumnDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Custom Columns</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Column Key</label>
+                <input
+                  type="text"
+                  placeholder="e.g., customField1"
+                  className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  id="customColumnKey"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Column Label</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Custom Field 1"
+                  className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  id="customColumnLabel"
+                />
+              </div>
+              <div className="flex gap-2 justify-end pt-4">
+                <Button variant="outline" onClick={() => setIsCustomColumnDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={() => {
+                  const keyInput = document.getElementById('customColumnKey') as HTMLInputElement;
+                  const labelInput = document.getElementById('customColumnLabel') as HTMLInputElement;
+                  if (keyInput?.value && labelInput?.value) {
+                    handleAddCustomColumn(keyInput.value, labelInput.value);
+                    keyInput.value = '';
+                    labelInput.value = '';
+                  }
+                }}>
+                  Add Column
+                </Button>
+              </div>
+              {customColumns.length > 0 && (
+                <div className="pt-4 border-t">
+                  <p className="text-sm font-medium mb-2">Existing Custom Columns</p>
+                  <div className="space-y-2">
+                    {customColumns.map((col) => (
+                      <div key={col.key} className="flex items-center justify-between p-2 border rounded-md">
+                        <span className="text-sm">{col.label} ({col.key})</span>
+                        <Button variant="ghost" size="sm" onClick={() => handleRemoveCustomColumn(col.key)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </div>

@@ -16,7 +16,6 @@ export function ProjectConfiguration() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Save project config:', formData);
   };
 
   const handleChange = (field: keyof ProjectConfiguration, value: any) => {

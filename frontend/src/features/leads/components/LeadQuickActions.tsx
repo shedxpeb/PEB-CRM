@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -28,7 +29,7 @@ interface LeadQuickActionsProps {
   isDropdown?: boolean;
 }
 
-export function LeadQuickActions({
+export const LeadQuickActions = memo(function LeadQuickActions({
   onAddLead,
   onEdit,
   onAddFollowUp,
@@ -87,4 +88,4 @@ export function LeadQuickActions({
       ))}
     </div>
   );
-}
+});

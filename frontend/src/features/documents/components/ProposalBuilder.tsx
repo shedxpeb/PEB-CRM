@@ -1,189 +1,164 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  Save,
-  ArrowLeft,
-  FileText,
-  Building2,
-  Settings,
-  Clock,
-  DollarSign,
-  FileCheck,
-  Info,
-} from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft } from 'lucide-react';
 import { 
   Proposal, 
   Estimate,
-  ProposalConfiguration,
-  CommercialSummary,
-  ProposalTimeline,
-  TimelineMilestone,
-  CoverPage,
   CreateProposalDto,
+  TechnicalSpecifications,
 } from '../types/peb-commercial';
+import { TechnicalSpecsForm } from './TechnicalSpecsForm';
 
 interface ProposalBuilderProps {
   estimate: Estimate;
   proposal?: Proposal;
+  lead?: {
+    id: string;
+    leadId: string;
+    customerId?: string;
+    customerName: string;
+    companyName: string;
+  };
   onSave: (proposal: CreateProposalDto) => void;
   onCancel: () => void;
+}
+
+interface ProposalPayload {
+  proposalNumber: string;
+  coverPage: {
+    title: string;
+    subtitle: string;
+    preparedFor: string;
+    preparedBy: string;
+  };
+  companyProfile: string;
+  proposalConfiguration: {
+    labourIncluded: boolean;
+    installationIncluded: boolean;
+    transportationIncluded: boolean;
+    craneIncluded: boolean;
+    civilWorkIncluded: boolean;
+    accommodationIncluded: boolean;
+    erectionIncluded: boolean;
+    freightIncluded: boolean;
+    includeTechnicalDrawings: boolean;
+    include3DRenderings: boolean;
+    includeMaterialSamples: boolean;
+    includePastProjects: boolean;
+  };
+  commercialSummary?: string;
+  timeline: Array<{
+    phase: string;
+    start: string;
+    end: string;
+  }>;
+  technicalSpecifications: TechnicalSpecifications;
 }
 
 export function ProposalBuilder({
   estimate,
   proposal,
+  lead,
   onSave,
   onCancel,
 }: ProposalBuilderProps) {
-  // Proposal Configuration (User can configure these options)
-  const [proposalConfiguration, setProposalConfiguration] = useState<ProposalConfiguration>(
-    proposal?.proposalConfiguration || {
-      labourIncluded: false,
-      installationIncluded: false,
-      transportationIncluded: false,
-      craneIncluded: false,
-      civilWorkIncluded: false,
-      accommodationIncluded: false,
-      erectionIncluded: false,
-      freightIncluded: false,
-      includeTechnicalDrawings: false,
-      include3DRenderings: false,
-      includeMaterialSamples: false,
-      includePastProjects: false,
+  const [doc, setDoc] = useState<ProposalPayload>(
+    proposal ? {
+      proposalNumber: proposal.proposalNumber,
+      coverPage: {
+        title: proposal.coverPage?.title || 'PROPOSAL',
+        subtitle: proposal.coverPage?.subtitle || 'Pre-Engineered Building Solution',
+        preparedFor: proposal.coverPage?.preparedFor || estimate.customerName,
+        preparedBy: proposal.coverPage?.preparedBy || 'Your Company Name',
+      },
+      companyProfile: proposal.companyProfile || '',
+      proposalConfiguration: proposal.proposalConfiguration || {
+        labourIncluded: false,
+        installationIncluded: false,
+        transportationIncluded: false,
+        craneIncluded: false,
+        civilWorkIncluded: false,
+        accommodationIncluded: false,
+        erectionIncluded: false,
+        freightIncluded: false,
+        includeTechnicalDrawings: false,
+        include3DRenderings: false,
+        includeMaterialSamples: false,
+        includePastProjects: false,
+      },
+      commercialSummary: typeof proposal.commercialSummary === 'string'
+        ? proposal.commercialSummary
+        : (proposal.commercialSummary?.notes || ''),
+      timeline: proposal.timeline?.milestones?.map(m => ({
+        phase: m.milestone,
+        start: new Date().toISOString(),
+        end: new Date().toISOString(),
+      })) || [],
+      technicalSpecifications: estimate.technicalSpecifications,
+    } : {
+      proposalNumber: `PROP-${Date.now()}`,
+      coverPage: {
+        title: 'PROPOSAL',
+        subtitle: 'Pre-Engineered Building Solution',
+        preparedFor: lead?.companyName || lead?.customerName || estimate.customerName,
+        preparedBy: 'Your Company Name',
+      },
+      companyProfile: '',
+      proposalConfiguration: {
+        labourIncluded: false,
+        installationIncluded: false,
+        transportationIncluded: false,
+        craneIncluded: false,
+        civilWorkIncluded: false,
+        accommodationIncluded: false,
+        erectionIncluded: false,
+        freightIncluded: false,
+        includeTechnicalDrawings: false,
+        include3DRenderings: false,
+        includeMaterialSamples: false,
+        includePastProjects: false,
+      },
+      commercialSummary: '',
+      timeline: [],
+      technicalSpecifications: estimate.technicalSpecifications,
     }
   );
-  
-  // Commercial Summary (Optional - may include indicative pricing)
-  const [includeCommercialSummary, setIncludeCommercialSummary] = useState(
-    proposal?.includeCommercialSummary || false
-  );
-  const [commercialSummary, setCommercialSummary] = useState<CommercialSummary>(
-    proposal?.commercialSummary || {
-      subtotal: estimate.subtotal,
-      indicativeTotal: estimate.totalAmount,
-      notes: '',
-      disclaimer: 'This is an indicative quotation. Final pricing will be provided in the formal quotation.',
-    }
-  );
-  
-  // Timeline
-  const [timeline, setTimeline] = useState<ProposalTimeline>(
-    proposal?.timeline || {
-      estimatedDuration: 30,
-      unit: 'days',
-      milestones: [
-        {
-          id: '1',
-          milestone: 'Design Approval',
-          description: 'Client approval of design drawings',
-        },
-        {
-          id: '2',
-          milestone: 'Material Procurement',
-          description: 'Procurement of structural steel and cladding materials',
-        },
-        {
-          id: '3',
-          milestone: 'Fabrication',
-          description: 'Fabrication at factory',
-        },
-        {
-          id: '4',
-          milestone: 'Delivery to Site',
-          description: 'Transportation of materials to project site',
-        },
-        {
-          id: '5',
-          milestone: 'Erection & Installation',
-          description: 'Site erection and installation',
-        },
-        {
-          id: '6',
-          milestone: 'Completion',
-          description: 'Project handover',
-        },
-      ],
-    }
-  );
-  
-  // Cover Page
-  const [coverPage, setCoverPage] = useState<CoverPage>(
-    proposal?.coverPage || {
-      title: 'PROPOSAL',
-      subtitle: 'Pre-Engineered Building Solution',
-      date: new Date(),
-      referenceNumber: estimate.estimateNumber,
-      preparedFor: estimate.customerName,
-      preparedBy: 'Your Company Name',
-    }
-  );
-  
-  // Document Content
-  const [companyProfile, setCompanyProfile] = useState(proposal?.companyProfile || '');
-  const [projectOverview, setProjectOverview] = useState(proposal?.projectOverview || '');
-  const [scopeOfWork, setScopeOfWork] = useState(proposal?.scopeOfWork || '');
-  const [termsAndConditions, setTermsAndConditions] = useState(proposal?.termsAndConditions || '');
-  
-  // Notes
-  const [notes, setNotes] = useState(proposal?.notes || '');
-  const [internalNotes, setInternalNotes] = useState(proposal?.internalNotes || '');
-  
-  // UI State
-  const [activeTab, setActiveTab] = useState('configuration');
-  
+
+  const addPhase = () =>
+    setDoc({
+      ...doc,
+      timeline: [...doc.timeline, { phase: '', start: new Date().toISOString(), end: new Date().toISOString() }],
+    });
+
   const handleSave = () => {
     const proposalDto: CreateProposalDto = {
       estimateId: estimate.id,
-      proposalConfiguration,
-      includeCommercialSummary,
-      commercialSummary: includeCommercialSummary ? commercialSummary : undefined,
-      timeline,
-      coverPage,
-      companyProfile,
-      projectOverview,
-      scopeOfWork,
-      termsAndConditions,
-      notes,
-      internalNotes,
+      coverPage: doc.coverPage,
+      companyProfile: doc.companyProfile,
+      includeCommercialSummary: !!doc.commercialSummary,
+      commercialSummary: doc.commercialSummary ? {
+        notes: doc.commercialSummary,
+        disclaimer: 'This is an indicative quotation. Final pricing will be provided in the formal quotation.',
+      } : undefined,
+      timeline: {
+        estimatedDuration: doc.timeline.length * 7,
+        unit: 'days',
+        milestones: doc.timeline.map((t, i) => ({
+          id: `temp-${i}`,
+          milestone: t.phase,
+          description: '',
+        })),
+      },
     };
-    
+
     onSave(proposalDto);
-  };
-  
-  const updateProposalConfig = (key: keyof ProposalConfiguration, value: boolean) => {
-    setProposalConfiguration({ ...proposalConfiguration, [key]: value });
-  };
-  
-  const addMilestone = () => {
-    const newMilestone: TimelineMilestone = {
-      id: `temp-${Date.now()}`,
-      milestone: 'New Milestone',
-      description: '',
-    };
-    setTimeline({ ...timeline, milestones: [...(timeline.milestones || []), newMilestone] });
-  };
-  
-  const updateMilestone = (id: string, updates: Partial<TimelineMilestone>) => {
-    setTimeline({
-      ...timeline,
-      milestones: (timeline.milestones || []).map(m => m.id === id ? { ...m, ...updates } : m),
-    });
-  };
-  
-  const removeMilestone = (id: string) => {
-    setTimeline({
-      ...timeline,
-      milestones: (timeline.milestones || []).filter(m => m.id !== id),
-    });
   };
   
   return (
@@ -207,467 +182,143 @@ export function ProposalBuilder({
           </Button>
         </div>
       </div>
-      
-      {/* Inherited Data Summary */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Info className="h-5 w-5" />
-            Inherited from Estimate
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <p className="font-medium">Materials Selected</p>
-              <p className="text-muted-foreground">{estimate.materialSelections.length} items</p>
-            </div>
-            <div>
-              <p className="font-medium">Technical Specs</p>
-              <p className="text-muted-foreground">
-                {estimate.technicalSpecifications.buildingLength ? `${estimate.technicalSpecifications.buildingLength}m x ${estimate.technicalSpecifications.buildingWidth}m` : 'Not specified'}
-              </p>
-            </div>
-            <div>
-              <p className="font-medium">Inclusions</p>
-              <p className="text-muted-foreground">{estimate.inclusions.length} items</p>
-            </div>
-            <div>
-              <p className="font-medium">Exclusions</p>
-              <p className="text-muted-foreground">{estimate.exclusions.length} items</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      
+
       {/* Main Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="configuration">Configuration</TabsTrigger>
-          <TabsTrigger value="cover">Cover Page</TabsTrigger>
+      <Tabs defaultValue="cover">
+        <TabsList className="grid grid-cols-4">
+          <TabsTrigger value="cover">Cover</TabsTrigger>
           <TabsTrigger value="content">Content</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
-          <TabsTrigger value="commercial">Commercial</TabsTrigger>
-          <TabsTrigger value="notes">Notes</TabsTrigger>
+          <TabsTrigger value="tech">Tech (read-only)</TabsTrigger>
         </TabsList>
         
-        {/* Configuration Tab */}
-        <TabsContent value="configuration" className="space-y-4">
+        <TabsContent value="cover" className="space-y-3">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Proposal Configuration
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Configure which services and options to include in the proposal
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Service Inclusions */}
-              <div>
-                <h4 className="font-semibold mb-4">Service Inclusions</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <ConfigCheckbox
-                    label="Labour"
-                    checked={proposalConfiguration.labourIncluded}
-                    onChange={(checked) => updateProposalConfig('labourIncluded', checked)}
-                    description="Include labour costs"
-                  />
-                  <ConfigCheckbox
-                    label="Installation"
-                    checked={proposalConfiguration.installationIncluded}
-                    onChange={(checked) => updateProposalConfig('installationIncluded', checked)}
-                    description="Include installation services"
-                  />
-                  <ConfigCheckbox
-                    label="Transportation"
-                    checked={proposalConfiguration.transportationIncluded}
-                    onChange={(checked) => updateProposalConfig('transportationIncluded', checked)}
-                    description="Include transportation costs"
-                  />
-                  <ConfigCheckbox
-                    label="Crane"
-                    checked={proposalConfiguration.craneIncluded}
-                    onChange={(checked) => updateProposalConfig('craneIncluded', checked)}
-                    description="Include crane services"
-                  />
-                  <ConfigCheckbox
-                    label="Civil Work"
-                    checked={proposalConfiguration.civilWorkIncluded}
-                    onChange={(checked) => updateProposalConfig('civilWorkIncluded', checked)}
-                    description="Include civil work"
-                  />
-                  <ConfigCheckbox
-                    label="Accommodation"
-                    checked={proposalConfiguration.accommodationIncluded}
-                    onChange={(checked) => updateProposalConfig('accommodationIncluded', checked)}
-                    description="Include accommodation"
-                  />
-                  <ConfigCheckbox
-                    label="Erection"
-                    checked={proposalConfiguration.erectionIncluded}
-                    onChange={(checked) => updateProposalConfig('erectionIncluded', checked)}
-                    description="Include erection services"
-                  />
-                  <ConfigCheckbox
-                    label="Freight"
-                    checked={proposalConfiguration.freightIncluded}
-                    onChange={(checked) => updateProposalConfig('freightIncluded', checked)}
-                    description="Include freight charges"
-                  />
-                </div>
-              </div>
-              
-              {/* Presentation Options */}
-              <div>
-                <h4 className="font-semibold mb-4">Presentation Options</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <ConfigCheckbox
-                    label="Technical Drawings"
-                    checked={proposalConfiguration.includeTechnicalDrawings}
-                    onChange={(checked) => updateProposalConfig('includeTechnicalDrawings', checked)}
-                    description="Include technical drawings"
-                  />
-                  <ConfigCheckbox
-                    label="3D Renderings"
-                    checked={proposalConfiguration.include3DRenderings}
-                    onChange={(checked) => updateProposalConfig('include3DRenderings', checked)}
-                    description="Include 3D renderings"
-                  />
-                  <ConfigCheckbox
-                    label="Material Samples"
-                    checked={proposalConfiguration.includeMaterialSamples}
-                    onChange={(checked) => updateProposalConfig('includeMaterialSamples', checked)}
-                    description="Include material samples"
-                  />
-                  <ConfigCheckbox
-                    label="Past Projects"
-                    checked={proposalConfiguration.includePastProjects}
-                    onChange={(checked) => updateProposalConfig('includePastProjects', checked)}
-                    description="Include past projects"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* Cover Page Tab */}
-        <TabsContent value="cover" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Cover Page
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Title</Label>
-                  <Input
-                    value={coverPage.title || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCoverPage({ ...coverPage, title: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Subtitle</Label>
-                  <Input
-                    value={coverPage.subtitle || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCoverPage({ ...coverPage, subtitle: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Reference Number</Label>
-                  <Input
-                    value={coverPage.referenceNumber || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCoverPage({ ...coverPage, referenceNumber: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Date</Label>
-                  <Input
-                    type="date"
-                    value={coverPage.date ? new Date(coverPage.date).toISOString().split('T')[0] : ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCoverPage({ ...coverPage, date: new Date(e.target.value) })}
-                  />
-                </div>
-                <div>
-                  <Label>Prepared For</Label>
-                  <Input
-                    value={coverPage.preparedFor || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCoverPage({ ...coverPage, preparedFor: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Prepared By</Label>
-                  <Input
-                    value={coverPage.preparedBy || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCoverPage({ ...coverPage, preparedBy: e.target.value })}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* Content Tab */}
-        <TabsContent value="content" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Proposal Content
-              </CardTitle>
+              <CardTitle className="text-lg">Cover Page</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label>Company Profile</Label>
-                <Textarea
-                  value={companyProfile}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCompanyProfile(e.target.value)}
-                  rows={4}
-                  placeholder="Enter company profile and background..."
+                <Label>Title</Label>
+                <Input
+                  value={doc.coverPage.title}
+                  onChange={(e) => setDoc({ ...doc, coverPage: { ...doc.coverPage, title: e.target.value } })}
                 />
               </div>
               <div>
-                <Label>Project Overview</Label>
-                <Textarea
-                  value={projectOverview}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setProjectOverview(e.target.value)}
-                  rows={4}
-                  placeholder="Enter project overview and objectives..."
+                <Label>Subtitle</Label>
+                <Input
+                  value={doc.coverPage.subtitle}
+                  onChange={(e) => setDoc({ ...doc, coverPage: { ...doc.coverPage, subtitle: e.target.value } })}
                 />
               </div>
               <div>
-                <Label>Scope of Work</Label>
-                <Textarea
-                  value={scopeOfWork}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setScopeOfWork(e.target.value)}
-                  rows={6}
-                  placeholder="Enter detailed scope of work..."
+                <Label>Prepared for</Label>
+                <Input
+                  value={doc.coverPage.preparedFor}
+                  onChange={(e) => setDoc({ ...doc, coverPage: { ...doc.coverPage, preparedFor: e.target.value } })}
                 />
               </div>
               <div>
-                <Label>Terms & Conditions</Label>
-                <Textarea
-                  value={termsAndConditions}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setTermsAndConditions(e.target.value)}
-                  rows={4}
-                  placeholder="Enter terms and conditions..."
+                <Label>Prepared by</Label>
+                <Input
+                  value={doc.coverPage.preparedBy}
+                  onChange={(e) => setDoc({ ...doc, coverPage: { ...doc.coverPage, preparedBy: e.target.value } })}
                 />
               </div>
             </CardContent>
           </Card>
         </TabsContent>
         
-        {/* Timeline Tab */}
-        <TabsContent value="timeline" className="space-y-4">
+        
+        <TabsContent value="content" className="space-y-3">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Project Timeline
-              </CardTitle>
+              <CardTitle className="text-lg">Content</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Estimated Duration</Label>
-                  <Input
-                    type="number"
-                    value={timeline.estimatedDuration || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTimeline({ ...timeline, estimatedDuration: parseFloat(e.target.value) || 0 })}
-                  />
-                </div>
-                <div>
-                  <Label>Unit</Label>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={timeline.unit || 'days'}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTimeline({ ...timeline, unit: e.target.value as any })}
-                  >
-                    <option value="days">Days</option>
-                    <option value="weeks">Weeks</option>
-                    <option value="months">Months</option>
-                  </select>
-                </div>
-              </div>
-              
               <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-semibold">Milestones</h4>
-                  <Button size="sm" onClick={addMilestone}>
-                    Add Milestone
-                  </Button>
-                </div>
-                <div className="space-y-3">
-                  {(timeline.milestones || []).map((milestone, index) => (
-                    <div key={milestone.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">{index + 1}</Badge>
-                          <span className="font-medium">{milestone.milestone}</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeMilestone(milestone.id)}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                      <div className="space-y-2">
-                        <div>
-                          <Label className="text-xs">Milestone Name</Label>
-                          <Input
-                            value={milestone.milestone}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMilestone(milestone.id, { milestone: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Description</Label>
-                          <Textarea
-                            value={milestone.description || ''}
-                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateMilestone(milestone.id, { description: e.target.value })}
-                            rows={2}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <Label>Company profile</Label>
+                <Textarea
+                  rows={4}
+                  value={doc.companyProfile}
+                  onChange={(e) =>
+                    setDoc({
+                      ...doc,
+                      companyProfile: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <Label>Commercial summary</Label>
+                <Textarea
+                  rows={3}
+                  value={doc.commercialSummary ?? ''}
+                  onChange={(e) => setDoc({ ...doc, commercialSummary: e.target.value })}
+                />
               </div>
             </CardContent>
           </Card>
         </TabsContent>
         
-        {/* Commercial Tab */}
-        <TabsContent value="commercial" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                Commercial Summary
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Optional indicative pricing for the proposal
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="includeCommercialSummary"
-                  checked={includeCommercialSummary}
-                  onCheckedChange={(checked: boolean) => setIncludeCommercialSummary(checked)}
-                />
-                <Label htmlFor="includeCommercialSummary">Include Commercial Summary (Indicative Pricing)</Label>
-              </div>
-              
-              {includeCommercialSummary && (
-                <div className="space-y-4 pt-4 border-t">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Subtotal (₹)</Label>
-                      <Input
-                        type="number"
-                        value={commercialSummary.subtotal || ''}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCommercialSummary({ ...commercialSummary, subtotal: parseFloat(e.target.value) || 0 })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Indicative Total (₹)</Label>
-                      <Input
-                        type="number"
-                        value={commercialSummary.indicativeTotal || ''}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCommercialSummary({ ...commercialSummary, indicativeTotal: parseFloat(e.target.value) || 0 })}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Notes</Label>
-                    <Textarea
-                      value={commercialSummary.notes || ''}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCommercialSummary({ ...commercialSummary, notes: e.target.value })}
-                      rows={2}
-                    />
-                  </div>
-                  <div>
-                    <Label>Disclaimer</Label>
-                    <Textarea
-                      value={commercialSummary.disclaimer || ''}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCommercialSummary({ ...commercialSummary, disclaimer: e.target.value })}
-                      rows={2}
-                    />
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="timeline" className="space-y-2">
+          {doc.timeline.map((t, i) => (
+            <div key={i} className="grid grid-cols-1 gap-2 rounded-md border p-2 sm:grid-cols-4">
+              <Input
+                placeholder="Phase"
+                value={t.phase}
+                onChange={(e) =>
+                  setDoc({
+                    ...doc,
+                    timeline: doc.timeline.map((x, idx) => (idx === i ? { ...x, phase: e.target.value } : x)),
+                  })
+                }
+              />
+              <Input
+                type="date"
+                value={t.start.slice(0, 10)}
+                onChange={(e) =>
+                  setDoc({
+                    ...doc,
+                    timeline: doc.timeline.map((x, idx) =>
+                      idx === i ? { ...x, start: new Date(e.target.value).toISOString() } : x,
+                    ),
+                  })
+                }
+              />
+              <Input
+                type="date"
+                value={t.end.slice(0, 10)}
+                onChange={(e) =>
+                  setDoc({
+                    ...doc,
+                    timeline: doc.timeline.map((x, idx) =>
+                      idx === i ? { ...x, end: new Date(e.target.value).toISOString() } : x,
+                    ),
+                  })
+                }
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDoc({ ...doc, timeline: doc.timeline.filter((_, idx) => idx !== i) })}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <Button variant="secondary" size="sm" onClick={addPhase}>
+            <Plus className="mr-1 h-4 w-4" /> Add phase
+          </Button>
         </TabsContent>
         
-        {/* Notes Tab */}
-        <TabsContent value="notes" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <FileCheck className="h-5 w-5" />
-                Notes
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Customer Notes</Label>
-                <Textarea
-                  value={notes}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
-                  rows={4}
-                  placeholder="Notes visible to customer..."
-                />
-              </div>
-              <div>
-                <Label>Internal Notes</Label>
-                <Textarea
-                  value={internalNotes}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInternalNotes(e.target.value)}
-                  rows={4}
-                  placeholder="Internal notes only visible to team..."
-                />
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="tech">
+          <TechnicalSpecsForm value={doc.technicalSpecifications} onChange={() => {}} readOnly />
+          <p className="mt-2 text-xs text-muted-foreground">Inherited from estimate; edit in the estimate to change.</p>
         </TabsContent>
+        
       </Tabs>
-    </div>
-  );
-}
-
-// Helper Component for Configuration Checkbox
-interface ConfigCheckboxProps {
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  description?: string;
-}
-
-function ConfigCheckbox({ label, checked, onChange, description }: ConfigCheckboxProps) {
-  return (
-    <div className="flex items-start space-x-3 p-3 border rounded-lg">
-      <Checkbox
-        id={label}
-        checked={checked}
-        onCheckedChange={(checked: boolean) => onChange(checked)}
-        className="mt-1"
-      />
-      <div className="flex-1">
-        <Label htmlFor={label} className="font-medium cursor-pointer">
-          {label}
-        </Label>
-        {description && (
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
-        )}
-      </div>
     </div>
   );
 }

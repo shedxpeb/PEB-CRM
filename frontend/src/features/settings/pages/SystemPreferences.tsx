@@ -18,7 +18,6 @@ export function SystemPreferences() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Save system preferences:', formData);
   };
 
   const handleChange = (field: keyof SystemPreferences, value: any) => {
