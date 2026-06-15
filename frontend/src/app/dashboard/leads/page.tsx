@@ -21,6 +21,10 @@ const LeadRowActions = dynamic(() => import('@/features/leads/components/LeadRow
   loading: () => <div className="p-2">Loading...</div>,
   ssr: false
 });
+const LeadToCustomerConversionDialog = dynamic(() => import('@/features/leads/components/LeadToCustomerConversionDialog').then(mod => ({ default: mod.LeadToCustomerConversionDialog })), {
+  loading: () => <div className="p-8 text-center">Loading...</div>,
+  ssr: false
+});
 const KanbanBoard = dynamic(() => import('@/features/leads/components/KanbanBoard').then(mod => ({ default: mod.KanbanBoard })), {
   loading: () => <div className="p-8 text-center">Loading kanban...</div>,
   ssr: false
@@ -76,7 +80,7 @@ const baseColumns = [
   { key: 'structureType' as const, label: 'Structure Type', filterable: true },
   { key: 'width' as const, label: 'Area (sqm)', render: (_: any, row: Lead) => `${(row.width || 0) * (row.length || 0)}` },
   { key: 'status' as const, label: 'Status', sortable: true, render: (value: LeadStatus) => (
-    <Badge 
+    <Badge
       variant={
         value === 'New' ? 'info' :
         value === 'Contacted' ? 'warning' :
@@ -89,9 +93,17 @@ const baseColumns = [
       {value}
     </Badge>
   )},
+  { key: 'converted' as const, label: 'Converted', render: (_: any, row: Lead) => (
+    <Badge
+      variant={row.customerId ? 'success' : 'secondary'}
+      className="text-xs"
+    >
+      {row.customerId ? 'Yes' : 'No'}
+    </Badge>
+  )},
   { key: 'assignedEmployee' as const, label: 'Assigned To' },
   { key: 'priority' as const, label: 'Priority', sortable: true, render: (value: LeadPriority) => (
-    <Badge 
+    <Badge
       variant={
         value === 'Urgent' ? 'destructive' :
         value === 'High' ? 'warning' :
@@ -127,6 +139,7 @@ export default function LeadsPage() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isConvertToCustomerDialogOpen, setIsConvertToCustomerDialogOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
   const [viewMode, setViewMode] = useState<'table' | 'kanban' | 'calendar'>('table');
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
@@ -444,59 +457,35 @@ export default function LeadsPage() {
     // Convert to project
   }, []);
 
-  const handleConvertToCustomer = useCallback(async (lead: Lead) => {
+  const handleConvertToCustomer = useCallback((lead: Lead) => {
     // Duplicate prevention: Check if lead already has customerId
     if (lead.customerId) {
       alert('This lead has already been converted to a customer.');
       return;
     }
 
-    // Business workflow validation: Only allow conversion from approved statuses
-    const convertibleStatuses: LeadStatus[] = ['Approved', 'Negotiation'];
-    if (!convertibleStatuses.includes(lead.status)) {
-      alert(`Lead must be in 'Approved' or 'Negotiation' status to convert to customer. Current status: ${lead.status}`);
-      return;
-    }
+    setSelectedLead(lead);
+    setIsConvertToCustomerDialogOpen(true);
+  }, []);
 
-    try {
-      // Convert lead to customer
-      const result = await convertLeadToCustomerMutation.mutateAsync({
-        leadId: lead.id,
-        customerName: lead.customerName,
-        companyName: lead.companyName,
-        mobile: lead.mobile,
-        email: lead.email,
-        address: lead.address,
-        city: lead.city,
-        state: lead.state,
-        pincode: lead.pincode,
-        leadSource: lead.source,
-        assignedEmployeeId: lead.assignedEmployeeId,
-        notes: lead.remarks,
-      });
-
-      // Update lead with customerId and status (only after successful conversion)
-      setLeads((prevLeads) =>
-        prevLeads.map((l) =>
-          l.id === lead.id
-            ? {
-                ...l,
-                customerId: result.customer.id,
-                status: 'Converted' as LeadStatus,
-                convertedDate: new Date(),
-                updatedAt: new Date(),
-              }
-            : l
-        )
-      );
-
-      // Navigate to customer detail page
-      router.push(ROUTES.customersDetail(result.customer.id));
-    } catch (error) {
-      console.error('Error converting lead to customer:', error);
-      alert('Failed to convert lead to customer. Please try again.');
-    }
-  }, [convertLeadToCustomerMutation, router]);
+  const handleCustomerCreated = useCallback((customer: any) => {
+    // Update lead with customerId and status
+    setLeads((prevLeads) =>
+      prevLeads.map((l) =>
+        l.id === selectedLead?.id
+          ? {
+              ...l,
+              customerId: customer.id,
+              status: 'Converted' as LeadStatus,
+              convertedDate: new Date(),
+              updatedAt: new Date(),
+            }
+          : l
+      )
+    );
+    setIsConvertToCustomerDialogOpen(false);
+    setSelectedLead(null);
+  }, [selectedLead]);
 
   const handleAddScore = useCallback((lead: Lead, score: number) => {
     // Add score to lead
@@ -629,12 +618,13 @@ export default function LeadsPage() {
           />
         </div>
 
-        {/* Filters */}
-        <Card className="min-w-0">
-          <CardContent className="p-2 sm:p-3">
-            <div className="space-y-2 sm:space-y-3">
+        {/* Filters - Hide in calendar view */}
+        {viewMode !== 'calendar' && (
+          <Card className="min-w-0">
+            <CardContent className="p-2 sm:p-3">
+              <div className="space-y-2 sm:space-y-3">
               {/* Search Bar and Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center justify-between">
                 <div className="relative flex-1 w-full sm:max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
@@ -645,7 +635,7 @@ export default function LeadsPage() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
-                <div className="flex items-center gap-1 w-full sm:w-auto">
+                <div className="flex items-center gap-1 w-full sm:w-auto ml-auto">
                   <Button variant="outline" onClick={handleExport} className="flex-1 sm:flex-none gap-1.5 px-2 sm:px-3 py-2 h-8 sm:h-9 text-xs">
                     <Download className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">Export</span>
@@ -717,19 +707,19 @@ export default function LeadsPage() {
                       <div className="flex items-center gap-1 sm:gap-1.5">
                         <input
                           type="date"
-                          className="flex-1 min-w-0 px-1.5 sm:px-2 py-1.5 text-[10px] sm:text-xs rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="flex-1 min-w-0 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           value={dateRangeFilter.from ? dateRangeFilter.from.toISOString().split('T')[0] : ''}
                           onChange={(e) => handleDateRangeChange('from', e.target.value ? new Date(e.target.value) : null)}
                         />
-                        <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">to</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">to</span>
                         <input
                           type="date"
-                          className="flex-1 min-w-0 px-1.5 sm:px-2 py-1.5 text-[10px] sm:text-xs rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="flex-1 min-w-0 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           value={dateRangeFilter.to ? dateRangeFilter.to.toISOString().split('T')[0] : ''}
                           onChange={(e) => handleDateRangeChange('to', e.target.value ? new Date(e.target.value) : null)}
                         />
                         {(quickDateFilter !== 'all' || dateRangeFilter.from || dateRangeFilter.to) && (
-                          <Button variant="ghost" size="sm" onClick={clearDateFilters} className="h-7 sm:h-8 px-1.5 sm:px-2 text-[10px] sm:text-xs shrink-0">
+                          <Button variant="ghost" size="sm" onClick={clearDateFilters} className="h-7 sm:h-8 px-1.5 sm:px-2 text-xs sm:text-sm shrink-0">
                             Clear
                           </Button>
                         )}
@@ -741,6 +731,7 @@ export default function LeadsPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Data Table / Kanban / Calendar View */}
         {viewMode === 'kanban' ? (
@@ -1010,6 +1001,16 @@ export default function LeadsPage() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Lead to Customer Conversion Dialog */}
+        {selectedLead && (
+          <LeadToCustomerConversionDialog
+            open={isConvertToCustomerDialogOpen}
+            onOpenChange={setIsConvertToCustomerDialogOpen}
+            lead={selectedLead}
+            onCustomerCreated={handleCustomerCreated}
+          />
+        )}
       </div>
     </MainLayout>
   );

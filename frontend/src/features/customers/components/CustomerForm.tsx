@@ -13,16 +13,35 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Customer } from '@/features/customers/types';
 import { INDUSTRIES, BUSINESS_TYPES, CUSTOMER_SOURCES, CUSTOMER_STATUSES } from '@/features/customers/constants';
-import { X } from 'lucide-react';
+import { createCustomerSchema } from '@/features/customers/validations';
+import { X, AlertCircle, Search, Info, Lock } from 'lucide-react';
+import { useLeads } from '@/features/leads/hooks/useLeads';
+import { Lead } from '@/features/leads/types';
 
 interface CustomerFormProps {
   initialData?: Partial<Customer>;
   onSubmit: (data: Partial<Customer>) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  error?: string | null;
+  isEditMode?: boolean;
 }
 
-export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, onCancel, isLoading }: CustomerFormProps) {
+export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, onCancel, isLoading, error, isEditMode = false }: CustomerFormProps) {
+  // Fetch leads for dropdown (only in create mode)
+  const { data: leadsResponse } = useLeads({ page: 1, pageSize: 1000 });
+  const leads = leadsResponse?.data || [];
+
+  // Filter only non-converted leads
+  const availableLeads = leads.filter((lead: Lead) => lead.status !== 'Converted');
+
+  const [selectedLeadId, setSelectedLeadId] = useState<string>(initialData?.leadId || '');
+  const [leadSearchQuery, setLeadSearchQuery] = useState<string>('');
+  const [showAutoFillNotice, setShowAutoFillNotice] = useState<boolean>(false);
+
+  // Determine if this customer is linked to a lead (in edit mode or after lead selection)
+  const isLinkedToLead = isEditMode && !!initialData?.leadId;
+
   const [formData, setFormData] = useState<Partial<Customer>>({
     customerName: '',
     companyName: '',
@@ -45,67 +64,360 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
     ...initialData,
   });
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   const handleChange = (field: keyof Customer, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    // Clear error for this field when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
+
+  // Auto-fill customer fields from selected lead
+  const handleLeadSelect = (leadId: string) => {
+    setSelectedLeadId(leadId);
+    const selectedLead = availableLeads.find((lead: Lead) => lead.id === leadId);
+
+    if (selectedLead) {
+      setFormData((prev) => ({
+        ...prev,
+        customerName: selectedLead.customerName || prev.customerName,
+        companyName: selectedLead.companyName || prev.companyName,
+        mobile: selectedLead.mobile || prev.mobile,
+        email: selectedLead.email || prev.email,
+        address: selectedLead.address || prev.address,
+        city: selectedLead.city || prev.city,
+        state: selectedLead.state || prev.state,
+        pincode: selectedLead.pincode || prev.pincode,
+        leadSource: selectedLead.source as any || prev.leadSource,
+        assignedEmployee: selectedLead.assignedEmployee || prev.assignedEmployee,
+        assignedEmployeeId: selectedLead.assignedEmployeeId || prev.assignedEmployeeId,
+        notes: selectedLead.remarks ? `${prev.notes || ''}\n\nLead Notes: ${selectedLead.remarks}` : prev.notes,
+        leadId: selectedLead.id,
+      }));
+      setShowAutoFillNotice(true);
+    }
+  };
+
+  // Clear lead selection
+  const handleClearLead = () => {
+    setSelectedLeadId('');
+    setLeadSearchQuery('');
+    setShowAutoFillNotice(false);
+    setFormData((prev) => ({ ...prev, leadId: undefined }));
+  };
+
+  // Filter leads based on search query
+  const filteredLeads = availableLeads.filter((lead: Lead) => {
+    const searchLower = leadSearchQuery.toLowerCase();
+    return (
+      lead.customerName.toLowerCase().includes(searchLower) ||
+      lead.companyName.toLowerCase().includes(searchLower) ||
+      lead.city.toLowerCase().includes(searchLower) ||
+      lead.mobile.includes(searchLower)
+    );
+  });
+
+  const validateForm = () => {
+    try {
+      createCustomerSchema.parse(formData);
+      setErrors({});
+      return true;
+    } catch (error: any) {
+      const fieldErrors: Record<string, string> = {};
+      if (error.errors) {
+        error.errors.forEach((err: any) => {
+          fieldErrors[err.path[0]] = err.message;
+        });
+      }
+      setErrors(fieldErrors);
+      return false;
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) {
+      return;
+    }
     onSubmit(formData);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* API Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
+
+      {/* Lead Selection Section (Only in create mode) */}
+      {!isEditMode && (
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base">Convert from Lead (Optional)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select Lead</label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('lead-dropdown')?.classList.toggle('hidden')}
+                  className="w-full flex items-center justify-between px-3 py-2 border rounded-md bg-background hover:bg-muted"
+                >
+                  <span className="text-sm text-muted-foreground">
+                    {selectedLeadId
+                      ? `${availableLeads.find((l: Lead) => l.id === selectedLeadId)?.customerName} - ${availableLeads.find((l: Lead) => l.id === selectedLeadId)?.companyName}`
+                      : 'Select a lead to convert...'}
+                  </span>
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                </button>
+                
+                <div
+                  id="lead-dropdown"
+                  className="hidden absolute z-50 w-full mt-1 bg-background border rounded-md shadow-lg max-h-64 overflow-y-auto"
+                >
+                  <div className="p-2 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Search leads..."
+                        value={leadSearchQuery}
+                        onChange={(e) => setLeadSearchQuery(e.target.value)}
+                        className="pl-9"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                  {filteredLeads.length > 0 ? (
+                    filteredLeads.map((lead: Lead) => (
+                      <div
+                        key={lead.id}
+                        onClick={() => {
+                          handleLeadSelect(lead.id);
+                          document.getElementById('lead-dropdown')?.classList.add('hidden');
+                        }}
+                        className={`p-3 cursor-pointer hover:bg-muted border-b last:border-b-0 ${
+                          selectedLeadId === lead.id ? 'bg-muted' : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-sm">{lead.customerName}</p>
+                            <p className="text-xs text-muted-foreground">{lead.companyName}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">{lead.city}</p>
+                            <p className="text-xs text-muted-foreground">{lead.mobile}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3 text-sm text-muted-foreground text-center">
+                      {leadSearchQuery ? 'No leads found matching your search.' : 'No available leads to convert.'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {selectedLeadId && (
+              <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="flex items-center gap-2">
+                  <Info className="h-4 w-4 text-blue-600" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">Lead Selected</p>
+                    <p className="text-xs text-blue-700">
+                      {availableLeads.find((l: Lead) => l.id === selectedLeadId)?.customerName} - 
+                      {availableLeads.find((l: Lead) => l.id === selectedLeadId)?.companyName}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearLead}
+                  className="h-8 text-xs"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Clear
+                </Button>
+              </div>
+            )}
+
+            {showAutoFillNotice && (
+              <div className="bg-green-50 border border-green-200 rounded-md p-3 flex items-start gap-2">
+                <Info className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-green-700">
+                  Customer details have been pre-filled from the selected Lead. You can edit any field before saving.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Section 1: Customer Information */}
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-base">Customer Information</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Customer Information</CardTitle>
+            {isLinkedToLead && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
+                <Lock className="h-3 w-3" />
+                <span>Managed by Lead</span>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Customer Name *</label>
-              <Input
-                value={formData.customerName || ''}
-                onChange={(e) => handleChange('customerName', e.target.value)}
-                placeholder="Enter customer name"
-                required
-              />
+              <div className="relative">
+                <Input
+                  value={formData.customerName || ''}
+                  onChange={(e) => handleChange('customerName', e.target.value)}
+                  placeholder="Enter customer name"
+                  disabled={isLinkedToLead}
+                  className={errors.customerName ? 'border-red-500' : ''}
+                />
+                {isLinkedToLead && (
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              {errors.customerName && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.customerName}
+                </p>
+              )}
+              {isLinkedToLead && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  This value is synchronized from the linked Lead. Edit it from the Lead record.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Company Name *</label>
-              <Input
-                value={formData.companyName || ''}
-                onChange={(e) => handleChange('companyName', e.target.value)}
-                placeholder="Enter company name"
-                required
-              />
+              <div className="relative">
+                <Input
+                  value={formData.companyName || ''}
+                  onChange={(e) => handleChange('companyName', e.target.value)}
+                  placeholder="Enter company name"
+                  disabled={isLinkedToLead}
+                  className={errors.companyName ? 'border-red-500' : ''}
+                />
+                {isLinkedToLead && (
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              {errors.companyName && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.companyName}
+                </p>
+              )}
+              {isLinkedToLead && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  This value is synchronized from the linked Lead. Edit it from the Lead record.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Mobile *</label>
-              <Input
-                value={formData.mobile || ''}
-                onChange={(e) => handleChange('mobile', e.target.value)}
-                placeholder="+91 XXXXX XXXXX"
-                required
-              />
+              <div className="relative">
+                <Input
+                  value={formData.mobile || ''}
+                  onChange={(e) => handleChange('mobile', e.target.value)}
+                  placeholder="+91 XXXXX XXXXX"
+                  disabled={isLinkedToLead}
+                  className={errors.mobile ? 'border-red-500' : ''}
+                />
+                {isLinkedToLead && (
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              {errors.mobile && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.mobile}
+                </p>
+              )}
+              {isLinkedToLead && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  This value is synchronized from the linked Lead. Edit it from the Lead record.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Alternate Mobile</label>
-              <Input
-                value={formData.alternateMobile || ''}
-                onChange={(e) => handleChange('alternateMobile', e.target.value)}
-                placeholder="+91 XXXXX XXXXX"
-              />
+              <div className="relative">
+                <Input
+                  value={formData.alternateMobile || ''}
+                  onChange={(e) => handleChange('alternateMobile', e.target.value)}
+                  placeholder="+91 XXXXX XXXXX"
+                  disabled={isLinkedToLead}
+                  className={errors.alternateMobile ? 'border-red-500' : ''}
+                />
+                {isLinkedToLead && (
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              {errors.alternateMobile && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.alternateMobile}
+                </p>
+              )}
+              {isLinkedToLead && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  This value is synchronized from the linked Lead. Edit it from the Lead record.
+                </p>
+              )}
             </div>
             <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-medium">Email</label>
-              <Input
-                type="email"
-                value={formData.email || ''}
-                onChange={(e) => handleChange('email', e.target.value)}
-                placeholder="Enter email address"
-              />
+              <div className="relative">
+                <Input
+                  type="email"
+                  value={formData.email || ''}
+                  onChange={(e) => handleChange('email', e.target.value)}
+                  placeholder="Enter email address"
+                  disabled={isLinkedToLead}
+                  className={errors.email ? 'border-red-500' : ''}
+                />
+                {isLinkedToLead && (
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              {errors.email && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.email}
+                </p>
+              )}
+              {isLinkedToLead && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  This value is synchronized from the linked Lead. Edit it from the Lead record.
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -120,11 +432,30 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">GST Number</label>
-              <Input
-                value={formData.gstNumber || ''}
-                onChange={(e) => handleChange('gstNumber', e.target.value)}
-                placeholder="22AAAAA0000A1Z5"
-              />
+              <div className="relative">
+                <Input
+                  value={formData.gstNumber || ''}
+                  onChange={(e) => handleChange('gstNumber', e.target.value)}
+                  placeholder="22AAAAA0000A1Z5"
+                  disabled={isLinkedToLead}
+                  className={errors.gstNumber ? 'border-red-500' : ''}
+                />
+                {isLinkedToLead && (
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              {errors.gstNumber && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.gstNumber}
+                </p>
+              )}
+              {isLinkedToLead && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  This value is synchronized from the linked Lead. Edit it from the Lead record.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">PAN Number</label>
@@ -132,7 +463,14 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                 value={formData.panNumber || ''}
                 onChange={(e) => handleChange('panNumber', e.target.value)}
                 placeholder="AAAAA0000A"
+                className={errors.panNumber ? 'border-red-500' : ''}
               />
+              {errors.panNumber && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.panNumber}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Industry *</label>
@@ -140,7 +478,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                 value={formData.industry}
                 onValueChange={(v) => handleChange('industry', v)}
               >
-                <SelectTrigger>
+                <SelectTrigger className={errors.industry ? 'border-red-500' : ''}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -151,6 +489,12 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   ))}
                 </SelectContent>
               </Select>
+              {errors.industry && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.industry}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Business Type *</label>
@@ -158,7 +502,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                 value={formData.businessType}
                 onValueChange={(v) => handleChange('businessType', v)}
               >
-                <SelectTrigger>
+                <SelectTrigger className={errors.businessType ? 'border-red-500' : ''}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -169,6 +513,12 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   ))}
                 </SelectContent>
               </Select>
+              {errors.businessType && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.businessType}
+                </p>
+              )}
             </div>
             <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-medium">Website</label>
@@ -176,7 +526,14 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                 value={formData.website || ''}
                 onChange={(e) => handleChange('website', e.target.value)}
                 placeholder="https://www.example.com"
+                className={errors.website ? 'border-red-500' : ''}
               />
+              {errors.website && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.website}
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -191,30 +548,84 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-medium">Address *</label>
-              <Input
-                value={formData.address || ''}
-                onChange={(e) => handleChange('address', e.target.value)}
-                placeholder="Enter full address"
-                required
-              />
+              <div className="relative">
+                <Input
+                  value={formData.address || ''}
+                  onChange={(e) => handleChange('address', e.target.value)}
+                  placeholder="Enter full address"
+                  disabled={isLinkedToLead}
+                  className={errors.address ? 'border-red-500' : ''}
+                />
+                {isLinkedToLead && (
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              {errors.address && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.address}
+                </p>
+              )}
+              {isLinkedToLead && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  This value is synchronized from the linked Lead. Edit it from the Lead record.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">City *</label>
-              <Input
-                value={formData.city || ''}
-                onChange={(e) => handleChange('city', e.target.value)}
-                placeholder="Enter city"
-                required
-              />
+              <div className="relative">
+                <Input
+                  value={formData.city || ''}
+                  onChange={(e) => handleChange('city', e.target.value)}
+                  placeholder="Enter city"
+                  disabled={isLinkedToLead}
+                  className={errors.city ? 'border-red-500' : ''}
+                />
+                {isLinkedToLead && (
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              {errors.city && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.city}
+                </p>
+              )}
+              {isLinkedToLead && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  This value is synchronized from the linked Lead. Edit it from the Lead record.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">State *</label>
-              <Input
-                value={formData.state || ''}
-                onChange={(e) => handleChange('state', e.target.value)}
-                placeholder="Enter state"
-                required
-              />
+              <div className="relative">
+                <Input
+                  value={formData.state || ''}
+                  onChange={(e) => handleChange('state', e.target.value)}
+                  placeholder="Enter state"
+                  disabled={isLinkedToLead}
+                  className={errors.state ? 'border-red-500' : ''}
+                />
+                {isLinkedToLead && (
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              {errors.state && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.state}
+                </p>
+              )}
+              {isLinkedToLead && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  This value is synchronized from the linked Lead. Edit it from the Lead record.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Country</label>
@@ -222,15 +633,41 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                 value={formData.country || ''}
                 onChange={(e) => handleChange('country', e.target.value)}
                 placeholder="Enter country"
+                className={errors.country ? 'border-red-500' : ''}
               />
+              {errors.country && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.country}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Pincode</label>
-              <Input
-                value={formData.pincode || ''}
-                onChange={(e) => handleChange('pincode', e.target.value)}
-                placeholder="6-digit pincode"
-              />
+              <div className="relative">
+                <Input
+                  value={formData.pincode || ''}
+                  onChange={(e) => handleChange('pincode', e.target.value)}
+                  placeholder="6-digit pincode"
+                  disabled={isLinkedToLead}
+                  className={errors.pincode ? 'border-red-500' : ''}
+                />
+                {isLinkedToLead && (
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              {errors.pincode && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.pincode}
+                </p>
+              )}
+              {isLinkedToLead && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  This value is synchronized from the linked Lead. Edit it from the Lead record.
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -245,21 +682,39 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Lead Source *</label>
-              <Select
-                value={formData.leadSource}
-                onValueChange={(v) => handleChange('leadSource', v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CUSTOMER_SOURCES.map((src) => (
-                    <SelectItem key={src.value} value={src.value}>
-                      {src.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="relative">
+                <Select
+                  value={formData.leadSource}
+                  onValueChange={(v) => handleChange('leadSource', v)}
+                  disabled={isLinkedToLead}
+                >
+                  <SelectTrigger className={errors.leadSource ? 'border-red-500' : ''}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CUSTOMER_SOURCES.map((src) => (
+                      <SelectItem key={src.value} value={src.value}>
+                        {src.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isLinkedToLead && (
+                  <Lock className="absolute right-8 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                )}
+              </div>
+              {errors.leadSource && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.leadSource}
+                </p>
+              )}
+              {isLinkedToLead && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  This value is synchronized from the linked Lead. Edit it from the Lead record.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Status</label>
@@ -267,7 +722,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                 value={formData.status}
                 onValueChange={(v) => handleChange('status', v)}
               >
-                <SelectTrigger>
+                <SelectTrigger className={errors.status ? 'border-red-500' : ''}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -278,6 +733,12 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   ))}
                 </SelectContent>
               </Select>
+              {errors.status && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.status}
+                </p>
+              )}
             </div>
             <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-medium">Notes</label>
@@ -285,9 +746,15 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                 value={formData.notes || ''}
                 onChange={(e) => handleChange('notes', e.target.value)}
                 placeholder="Additional notes about the customer..."
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className={`flex min-h-[80px] w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${errors.notes ? 'border-red-500' : 'border-input'}`}
                 rows={3}
               />
+              {errors.notes && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.notes}
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -300,7 +767,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
           Cancel
         </Button>
         <Button type="submit" disabled={isLoading}>
-          {isLoading ? 'Saving...' : initialData?.id ? 'Update Customer' : 'Create Customer'}
+          {isLoading ? 'Saving...' : isEditMode ? 'Update Customer' : 'Create Customer'}
         </Button>
       </div>
     </form>

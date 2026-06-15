@@ -62,7 +62,7 @@ export function SettingsDashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {kpiData.map((kpi, index) => (
             <KPICard
-              key={index}
+              key={`${kpi.title}-${index}`}
               data={kpi}
               onClick={() => {}}
             />
@@ -79,7 +79,7 @@ export function SettingsDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
               {quickActions.map((action, index) => (
                 <Button
-                  key={index}
+                  key={`${action.label}-${index}`}
                   variant="outline"
                   className="justify-start text-xs sm:text-sm"
                   onClick={() => window.location.href = action.href}

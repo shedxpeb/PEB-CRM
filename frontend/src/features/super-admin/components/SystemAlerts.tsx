@@ -59,12 +59,12 @@ export function SystemAlerts({ alerts }: SystemAlertsProps) {
               <p className="text-xs text-sa-text-muted">All systems healthy</p>
             </div>
           ) : (
-            alerts.map((alert) => {
+            alerts.map((alert, index) => {
               const config = typeConfig[alert.type];
               const Icon = config.icon;
               return (
                 <div
-                  key={alert.id}
+                  key={`${alert.id}-${index}`}
                   className={cn(
                     'flex items-start gap-3 p-3 rounded-lg border transition-all',
                     alert.resolved ? 'border-sa-border bg-sa-header-bg opacity-50' : `${config.border} ${config.bg}`,

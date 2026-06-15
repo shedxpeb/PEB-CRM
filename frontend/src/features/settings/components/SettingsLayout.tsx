@@ -156,9 +156,9 @@ export function SettingsLayout({ children }: SettingsLayoutProps) {
                   {SECTIONS[section as keyof typeof SECTIONS] || section}
                 </h3>
                 <nav className="space-y-1">
-                  {items.map((item) => (
+                  {items.map((item, index) => (
                     <Button
-                      key={item.id}
+                      key={`${item.id}-${index}`}
                       variant={pathname === item.route ? 'secondary' : 'ghost'}
                       className={cn(
                         'w-full justify-start text-xs sm:text-sm',

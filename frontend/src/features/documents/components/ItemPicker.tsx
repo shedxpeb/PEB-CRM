@@ -15,7 +15,7 @@ interface ItemPickerProps {
   onChange: (next: MaterialSelection[]) => void;
 }
 
-// Item category labels matching the CRM's Item Master
+// Item category labels matching the CRM's Item
 const ITEM_CATEGORY_LABELS: Record<string, string> = {
   PrimaryStructure: 'Primary Structure',
   SecondaryStructure: 'Secondary Structure',
@@ -49,7 +49,7 @@ export function ItemPicker({ value, onChange }: ItemPickerProps) {
   });
   const [search, setSearch] = useState('');
 
-  // Fetch items from Item Master using React Query
+  // Fetch items from Item using React Query
   const { data: itemMasters, isLoading: itemsLoading } = useItemMasters({
     filter: {
       search: search || undefined,
@@ -147,7 +147,7 @@ export function ItemPicker({ value, onChange }: ItemPickerProps) {
 
   return (
     <div className="grid gap-3 lg:grid-cols-[320px_1fr]">
-      {/* LEFT: Item Master tree */}
+      {/* LEFT: Item tree */}
       <div className="rounded-md border bg-muted/20">
         <div className="border-b p-2">
           <Input

@@ -6,7 +6,7 @@ import { KanbanColumn } from './KanbanColumn';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useDebounce } from '@/shared/hooks/useDebounce';
-import { Grid3X3, LayoutList, Search, Filter, Plus } from 'lucide-react';
+import { Grid3X3, LayoutList, Search, Plus } from 'lucide-react';
 
 interface KanbanBoardProps {
   leads: Lead[];
@@ -188,13 +188,7 @@ export function KanbanBoard({ leads, onLeadUpdate, onLeadsReorder, onAddLead }: 
               className="pl-10 w-[250px]"
             />
           </div>
-
-          {/* Filters */}
-          <Button variant="outline" size="sm">
-            <Filter className="h-4 w-4 mr-2" />
-            Filters
-          </Button>
-
+          
           {/* Add Lead */}
           <Button onClick={onAddLead}>
             <Plus className="h-4 w-4 mr-2" />
@@ -205,9 +199,9 @@ export function KanbanBoard({ leads, onLeadUpdate, onLeadsReorder, onAddLead }: 
 
       {/* Kanban Board */}
       <div className="flex gap-3 overflow-x-auto pb-2">
-        {PIPELINE_STAGES.map((status) => (
+        {PIPELINE_STAGES.map((status, index) => (
           <KanbanColumn
-            key={status}
+            key={`${status}-${index}`}
             status={status}
             leads={leadsByStatus[status] || []}
             count={statusTotals[status]?.count || 0}

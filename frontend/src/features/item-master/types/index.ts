@@ -14,23 +14,23 @@
 
 // ─── Item Categories ─────────────────────────────────────────────────────────────
 
-export type ItemCategory =
-  | 'Structural Steel'
-  | 'Cladding'
-  | 'Roofing'
-  | 'Insulation'
-  | 'Fasteners'
-  | 'Accessories'
-  | 'Doors'
-  | 'Windows'
-  | 'Gutters'
-  | 'Downspouts'
-  | 'Ventilation'
-  | 'Foundation'
-  | 'Electrical'
-  | 'Plumbing'
-  | 'Other'
-  | 'Roofing Sheets';
+// Dynamic category from master data (no longer hardcoded)
+export type ItemCategory = string;
+
+// Category hierarchy types
+export interface CategoryNode {
+  id: string;
+  name: string;
+  code: string;
+  level: number; // 1 = main category, 2 = subcategory, 3 = item type
+  categoryType: 'PRODUCT' | 'PROCESS' | 'SPECIALIZED';
+  description?: string;
+  icon?: string;
+  children?: CategoryNode[];
+  items?: string[];
+}
+
+export type CategoryType = 'PRODUCT' | 'PROCESS' | 'SPECIALIZED';
 
 // ─── Item Status ────────────────────────────────────────────────────────────────
 
@@ -61,6 +61,9 @@ export interface ItemMaster {
   itemName: string; // Product name
   category: ItemCategory; // Category
   subCategory?: string; // Subcategory
+  categoryId?: string; // Reference to category ID
+  subcategoryId?: string; // Reference to subcategory ID
+  itemTypeId?: string; // Reference to item type ID
   brand?: string; // Brand
   grade?: string; // Grade
   specification?: string; // Specification

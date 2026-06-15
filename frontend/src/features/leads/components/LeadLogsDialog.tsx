@@ -252,8 +252,8 @@ export const LeadLogsDialog = memo(function LeadLogsDialog({ lead, open, onOpenC
                         {activity.metadata && Object.keys(activity.metadata).length > 0 && (
                           <div className="mt-3 p-3 bg-muted/50 rounded-lg">
                             <div className="grid grid-cols-2 gap-2">
-                              {Object.entries(activity.metadata).map(([key, value]) => (
-                                <div key={key} className="text-xs">
+                              {Object.entries(activity.metadata).map(([key, value], index) => (
+                                <div key={`${key}-${index}`} className="text-xs">
                                   <span className="font-medium text-muted-foreground">
                                     {key.replace(/([A-Z])/g, ' $1').trim()}:
                                   </span>{' '}

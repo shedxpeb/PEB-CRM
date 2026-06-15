@@ -76,8 +76,8 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, onCancel, isLoa
                   <SelectValue placeholder="Select customer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {customers?.data?.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
+                  {customers?.data?.map((customer, index) => (
+                    <SelectItem key={`${customer.id}-${index}`} value={customer.id}>
                       {customer.customerName}
                     </SelectItem>
                   ))}
@@ -92,8 +92,8 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, onCancel, isLoa
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects?.data?.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
+                  {projects?.data?.map((project, index) => (
+                    <SelectItem key={`${project.id}-${index}`} value={project.id}>
                       {project.projectName}
                     </SelectItem>
                   ))}
@@ -155,8 +155,8 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, onCancel, isLoa
                   <SelectValue placeholder="Select payment method" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PAYMENT_METHODS.map((method) => (
-                    <SelectItem key={method} value={method}>
+                  {PAYMENT_METHODS.map((method, index) => (
+                    <SelectItem key={`${method}-${index}`} value={method}>
                       {method}
                     </SelectItem>
                   ))}

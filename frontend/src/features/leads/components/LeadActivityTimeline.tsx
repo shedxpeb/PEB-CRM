@@ -112,8 +112,8 @@ export const LeadActivityTimeline = memo(function LeadActivityTimeline({ activit
                   </div>
                   {activity.metadata && (
                     <div className="mt-2 text-xs text-muted-foreground">
-                      {Object.entries(activity.metadata).map(([key, value]) => (
-                        <span key={key} className="mr-3">
+                      {Object.entries(activity.metadata).map(([key, value], index) => (
+                        <span key={`${key}-${index}`} className="mr-3">
                           <span className="font-medium">{key}:</span> {String(value)}
                         </span>
                       ))}

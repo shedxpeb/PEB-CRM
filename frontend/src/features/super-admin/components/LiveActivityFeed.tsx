@@ -80,12 +80,12 @@ export function LiveActivityFeed({ activities }: LiveActivityFeedProps) {
               <p className="text-xs text-sa-text-muted">No recent activity</p>
             </div>
           ) : (
-            activities.map((item) => {
+            activities.map((item, index) => {
               const Icon = moduleIconMap[item.module] || FileText;
               const dotColor = getActionColor(item.action);
               return (
                 <div
-                  key={item.id}
+                  key={`${item.id}-${index}`}
                   className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-sa-row-hover transition-colors"
                 >
                   <div className={cn('w-2 h-2 rounded-full mt-2 shrink-0', dotColor)} />

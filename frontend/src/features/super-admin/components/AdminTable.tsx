@@ -125,7 +125,7 @@ export function AdminTable<T extends Record<string, any>>({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-sa-text-muted" />
           <Input
             placeholder={searchPlaceholder}
-            value={search}
+            value={search || ''}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="pl-9 bg-sa-input border-sa-border text-sa-text placeholder:text-sa-text-muted h-8 text-sm"
           />
@@ -144,8 +144,8 @@ export function AdminTable<T extends Record<string, any>>({
             </SelectTrigger>
             <SelectContent className="bg-sa-card-solid border-sa-border">
               <SelectItem value="all">{f.label}</SelectItem>
-              {f.options.map((o) => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              {f.options.map((o, index) => (
+                <SelectItem key={`${o.value}-${index}`} value={o.value}>{o.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -192,7 +192,7 @@ export function AdminTable<T extends Record<string, any>>({
             ) : (
               paginated.map((row, idx) => (
                 <TableRow
-                  key={idx}
+                  key={`${row.id || row.email || idx}`}
                   className={cn(
                     'border-sa-border hover:bg-sa-row-hover',
                     onRowClick && 'cursor-pointer'
@@ -229,7 +229,7 @@ export function AdminTable<T extends Record<string, any>>({
           {Array.from({ length: totalPages }, (_, i) => i + 1)
             .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
             .map((p, i, arr) => (
-              <span key={p} className="flex items-center">
+              <span key={`page-${p}`} className="flex items-center">
                 {i > 0 && arr[i - 1] !== p - 1 && (
                   <span className="text-sa-text-dim text-xs px-1">...</span>
                 )}

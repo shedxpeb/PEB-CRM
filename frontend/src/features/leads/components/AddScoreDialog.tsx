@@ -123,9 +123,9 @@ export const AddScoreDialog = memo(function AddScoreDialog({ lead, open, onOpenC
                     { value: 50, label: 'Moderate' },
                     { value: 70, label: 'Warm' },
                     { value: 90, label: 'Hot' },
-                  ].map((item) => (
+                  ].map((item, index) => (
                     <Button
-                      key={item.value}
+                      key={`${item.value}-${index}`}
                       type="button"
                       variant={score === item.value ? 'default' : 'outline'}
                       size="sm"

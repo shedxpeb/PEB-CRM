@@ -66,11 +66,11 @@ const InventoryItemForm = memo(function InventoryItemForm({ initialData, onSubmi
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Item Master ID *</label>
+              <label className="text-sm font-medium">Item ID *</label>
               <Input
                 value={formData.itemMasterId || ''}
                 onChange={(e) => handleChange('itemMasterId', e.target.value)}
-                placeholder="Reference to Item Master"
+                placeholder="Reference to Item"
                 required
               />
             </div>

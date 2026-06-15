@@ -142,8 +142,8 @@ export const QuotationStatusChart = memo(function QuotationStatusChart({
         
         {/* Summary Metrics */}
         <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t">
-          {data.map((item) => (
-            <div key={item.name} className="flex items-center gap-2">
+          {data.map((item, index) => (
+            <div key={`${item.name}-${index}`} className="flex items-center gap-2">
               <div 
                 className="w-3 h-3 rounded-full flex-shrink-0"
                 style={{ backgroundColor: item.color || STATUS_COLORS[item.name as keyof typeof STATUS_COLORS] }}

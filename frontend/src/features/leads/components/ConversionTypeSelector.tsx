@@ -40,13 +40,13 @@ export const ConversionTypeSelector = memo(function ConversionTypeSelector({
     <div className="space-y-3">
       <label className="text-sm font-medium">What would you like to convert this lead into?</label>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {options.map((option) => {
+        {options.map((option, index) => {
           const Icon = option.icon;
           const isSelected = selectedType === option.type;
           
           return (
             <button
-              key={option.type}
+              key={`${option.type}-${index}`}
               type="button"
               onClick={() => onSelect(option.type)}
               className={`relative p-4 rounded-lg border-2 text-left transition-all ${

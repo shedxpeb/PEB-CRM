@@ -56,9 +56,9 @@ export const LeadQuickActions = memo(function LeadQuickActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {actions.map((action) => (
+          {actions.map((action, index) => (
             <DropdownMenuItem
-              key={action.label}
+              key={`${action.label}-${index}`}
               onClick={action.onClick}
               disabled={!action.onClick}
             >
@@ -73,9 +73,9 @@ export const LeadQuickActions = memo(function LeadQuickActions({
 
   return (
     <div className="flex flex-wrap gap-2">
-      {actions.map((action) => (
+      {actions.map((action, index) => (
         <Button
-          key={action.label}
+          key={`${action.label}-${index}`}
           variant={action.variant}
           size="sm"
           onClick={action.onClick}

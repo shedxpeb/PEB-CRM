@@ -54,14 +54,15 @@ const axis = {
 const tooltipStyle = {
   contentStyle: {
     background: 'hsl(var(--card))',
-    border: '1px solid hsl(var(--border))',
+    border: '5px solid hsl(var(--border))',
     borderRadius: 12,
-    fontSize: 12,
+    fontSize: 13,
     color: 'hsl(var(--foreground))',
-    boxShadow: '0 8px 24px -12px rgb(0 0 0 / 0.18)',
-    padding: '8px 12px',
+    boxShadow: '0 8px 24px -12px rgb(0 0 0 / 0.25)',
+    padding: '10px 14px',
   },
-  labelStyle: { color: 'hsl(var(--foreground))', fontWeight: 600 },
+  labelStyle: { color: 'hsl(var(--foreground))', fontWeight: 600, fontSize: 13 },
+  itemStyle: { color: 'hsl(var(--foreground))', fontSize: 13 },
 };
 
 interface SeriesProps {
@@ -92,16 +93,16 @@ export const DynamicChart = memo(function DynamicChart({
   switch (type) {
     case 'bar':
       return (
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+        <ResponsiveContainer width="100%" height={280} minWidth={0}>
           <BarChart data={data} margin={{ top: 12, right: 12, left: -10, bottom: 0 }} barCategoryGap="22%">
             <defs>
               <linearGradient id="barFillA" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.7} />
-                <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.4} />
+                <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.6} />
+                <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.3} />
               </linearGradient>
               <linearGradient id="barFillB" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.7} />
-                <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.4} />
+                <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.6} />
+                <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.3} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" strokeOpacity={0.6} vertical={false} />
@@ -109,7 +110,7 @@ export const DynamicChart = memo(function DynamicChart({
             <YAxis {...axis} width={36} />
             <Tooltip
               {...tooltipStyle}
-              cursor={{ fill: 'hsl(var(--accent))', opacity: 0.35, radius: 8 }}
+              cursor={{ fill: 'hsl(var(--accent))', opacity: 0.1, radius: 8 }}
             />
             <Bar
               dataKey={dataKey}
@@ -130,12 +131,12 @@ export const DynamicChart = memo(function DynamicChart({
       );
     case 'line':
       return (
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+        <ResponsiveContainer width="100%" height={280} minWidth={0}>
           <LineChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
             <XAxis dataKey={nameKey} {...axis} />
             <YAxis {...axis} />
-            <Tooltip {...tooltipStyle} />
+            <Tooltip {...tooltipStyle} cursor={{ fill: 'hsl(var(--accent))', opacity: 0.1, radius: 8 }} />
             <Line
               type="monotone"
               dataKey={dataKey}
@@ -158,7 +159,7 @@ export const DynamicChart = memo(function DynamicChart({
       );
     case 'area':
       return (
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+        <ResponsiveContainer width="100%" height={280} minWidth={0}>
           <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
             <defs>
               <linearGradient id="areaA" x1="0" y1="0" x2="0" y2="1">
@@ -169,7 +170,7 @@ export const DynamicChart = memo(function DynamicChart({
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
             <XAxis dataKey={nameKey} {...axis} />
             <YAxis {...axis} />
-            <Tooltip {...tooltipStyle} />
+            <Tooltip {...tooltipStyle} cursor={{ fill: 'hsl(var(--accent))', opacity: 0.15, radius: 8 }} />
             <Area
               type="monotone"
               dataKey={dataKey}
@@ -183,9 +184,9 @@ export const DynamicChart = memo(function DynamicChart({
     case 'pie':
     case 'donut':
       return (
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+        <ResponsiveContainer width="100%" height={280} minWidth={0}>
           <PieChart>
-            <Tooltip {...tooltipStyle} />
+            <Tooltip {...tooltipStyle} cursor={{ fill: 'hsl(var(--accent))', opacity: 0.15, radius: 8 }} />
             <Legend
               verticalAlign="bottom"
               iconType="circle"
@@ -210,11 +211,11 @@ export const DynamicChart = memo(function DynamicChart({
       );
     case 'radar':
       return (
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+        <ResponsiveContainer width="100%" height={280} minWidth={0}>
           <RadarChart data={data} outerRadius="75%">
             <PolarGrid stroke="hsl(var(--border))" />
             <PolarAngleAxis dataKey={nameKey} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-            <Tooltip {...tooltipStyle} />
+            <Tooltip {...tooltipStyle} cursor={{ fill: 'hsl(var(--accent))', opacity: 0.15, radius: 8 }} />
             <Radar
               dataKey={dataKey}
               stroke="#3b82f6"
@@ -227,7 +228,7 @@ export const DynamicChart = memo(function DynamicChart({
       );
     case 'radial':
       return (
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+        <ResponsiveContainer width="100%" height={280} minWidth={0}>
           <RadialBarChart
             data={data.map((d, i) => ({ ...d, fill: COLORS[i % COLORS.length] }))}
             innerRadius="25%"
@@ -236,7 +237,7 @@ export const DynamicChart = memo(function DynamicChart({
             endAngle={-270}
           >
             <RadialBar dataKey={dataKey} background cornerRadius={6} />
-            <Tooltip {...tooltipStyle} />
+            <Tooltip {...tooltipStyle} cursor={{ fill: 'hsl(var(--accent))', opacity: 0.15, radius: 8 }} />
             <Legend
               iconType="circle"
               verticalAlign="bottom"
@@ -247,12 +248,12 @@ export const DynamicChart = memo(function DynamicChart({
       );
     case 'composed':
       return (
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+        <ResponsiveContainer width="100%" height={280} minWidth={0}>
           <ComposedChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
             <XAxis dataKey={nameKey} {...axis} />
             <YAxis {...axis} />
-            <Tooltip {...tooltipStyle} />
+            <Tooltip {...tooltipStyle} cursor={{ fill: 'hsl(var(--accent))', opacity: 0.15, radius: 8 }} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <Bar dataKey={dataKey} barSize={22} radius={[6, 6, 0, 0]} fill="#3b82f6" />
             {secondKey && (

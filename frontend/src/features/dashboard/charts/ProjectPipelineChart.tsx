@@ -100,7 +100,7 @@ export const ProjectPipelineChart = memo(function ProjectPipelineChart({
       <CardContent>
         <div className="space-y-3">
           {data.map((item, index) => (
-            <div key={item.stage} className="flex items-center gap-3">
+            <div key={`${item.stage}-${index}`} className="flex items-center gap-3">
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-semibold text-gray-900">{item.stage}</span>

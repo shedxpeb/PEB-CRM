@@ -42,7 +42,7 @@ export const ConversionConfirmationDialog = memo(function ConversionConfirmation
       case 'proposal':
         return `${leadId} will be marked Converted (still viewable). A draft Proposal will be created and opened for review. Customer details, contact information, and initial notes will be inherited. Deliverables, timeline, and company profile will need to be added.`;
       case 'quotation':
-        return `${leadId} will be marked Converted (still viewable). A draft Quotation will be created with default rates from Item Master and opened for pricing — you can edit rates, discounts, GST and terms before sending.`;
+        return `${leadId} will be marked Converted (still viewable). A draft Quotation will be created with default rates from Item and opened for pricing — you can edit rates, discounts, GST and terms before sending.`;
     }
   };
 

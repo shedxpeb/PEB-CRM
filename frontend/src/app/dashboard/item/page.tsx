@@ -172,9 +172,7 @@ export default function ItemMasterPage() {
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add New Product</DialogTitle>
-                <DialogDescription>
-                  Fill in the details below to add a new product to the catalog.
-                </DialogDescription>
+                <DialogDescription>Create a new product item with category and item type details.</DialogDescription>
               </DialogHeader>
               <ItemForm 
                 mode="create"
@@ -189,9 +187,7 @@ export default function ItemMasterPage() {
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Edit Product</DialogTitle>
-                <DialogDescription>
-                  Update the product details below.
-                </DialogDescription>
+                <DialogDescription>Update the product details including category, item type, and specifications.</DialogDescription>
               </DialogHeader>
               {selectedItem && (
                 <ItemForm 
@@ -215,9 +211,6 @@ export default function ItemMasterPage() {
                   <AlertCircle className="h-5 w-5 text-destructive" />
                   Confirm Delete
                 </DialogTitle>
-                <DialogDescription>
-                  This action cannot be undone.
-                </DialogDescription>
               </DialogHeader>
               <div className="py-4">
                 <p className="text-sm text-muted-foreground">
@@ -489,7 +482,6 @@ const ItemForm = memo(function ItemForm({
               setFormData({
                 ...formData,
                 categoryId,
-                subcategoryId: '',
                 itemTypeId: itemTypeId || '',
                 itemName: itemName || '',
                 category: categoryPath || '',

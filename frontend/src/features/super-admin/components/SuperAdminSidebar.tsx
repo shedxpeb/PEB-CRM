@@ -73,13 +73,13 @@ export function SuperAdminSidebar() {
       </div>
 
       <nav className="p-3 space-y-0.5 overflow-y-auto flex-1">
-        {navItems.map((item) => {
+        {navItems.map((item, index) => {
           const Icon = item.icon;
           const active = isActive(item.path);
 
           return (
             <Link
-              key={item.path}
+              key={`${item.path}-${index}`}
               href={item.path}
               onClick={() => setMobileOpen(false)}
               className={cn(

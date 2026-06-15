@@ -77,8 +77,8 @@ export function UsersRoles() {
       label: 'Permissions',
       render: (value: string[]) => (
         <div className="flex flex-wrap gap-1">
-          {value.slice(0, 3).map((perm) => (
-            <span key={perm} className="px-2 py-1 rounded text-xs bg-gray-100">
+          {value.slice(0, 3).map((perm, index) => (
+            <span key={`${perm}-${index}`} className="px-2 py-1 rounded text-xs bg-gray-100">
               {perm}
             </span>
           ))}
@@ -286,8 +286,8 @@ export function UsersRoles() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {roles?.map((role) => (
-                          <SelectItem key={role.id} value={role.name}>
+                        {roles?.map((role, index) => (
+                          <SelectItem key={`${role.id}-${index}`} value={role.name}>
                             {role.name}
                           </SelectItem>
                         ))}
@@ -368,8 +368,8 @@ export function UsersRoles() {
                       'DOCUMENTS_VIEW', 'DOCUMENTS_CREATE', 'DOCUMENTS_APPROVE',
                       'INVENTORY_VIEW', 'INVENTORY_CREATE', 'INVENTORY_EDIT',
                       'FINANCE_VIEW', 'FINANCE_CREATE', 'FINANCE_EDIT',
-                      'SETTINGS_VIEW', 'SETTINGS_EDIT'].map((perm) => (
-                      <div key={perm} className="flex items-center gap-2">
+                      'SETTINGS_VIEW', 'SETTINGS_EDIT'].map((perm, index) => (
+                      <div key={`${perm}-${index}`} className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           id={perm}

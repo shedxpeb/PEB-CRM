@@ -45,8 +45,8 @@ const navigationItems = [
     roles: ['owner', 'admin', 'employee'],
   },
   {
-    title: 'Item Master',
-    href: '/dashboard/item-master',
+    title: 'Item',
+    href: '/dashboard/item',
     icon: ItemMasterIcon,
     roles: ['owner', 'admin', 'employee'],
   },
@@ -122,12 +122,12 @@ export const Sidebar = memo(function Sidebar({ currentPath, userRole = 'owner' }
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4">
           <ul className="space-y-2">
-            {filteredItems.map((item) => {
+            {filteredItems.map((item, index) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               
               return (
-                <li key={item.href}>
+                <li key={`${item.href}-${index}`}>
                   <Link
                     href={item.href}
                     onMouseEnter={() => router.prefetch(item.href)}

@@ -21,6 +21,8 @@ import { getStatusVariant } from '@/features/customers/constants';
 import { useCustomer, useCustomerActivities } from '@/features/customers/hooks/useCustomers';
 import { useProjects } from '@/features/projects/hooks/useProjects';
 import { useQuotations } from '@/features/documents/hooks';
+import { useLeads } from '@/features/leads/hooks/useLeads';
+import { documentsApi } from '@/features/documents/services/documentsApi';
 import { ROUTES } from '@/core/routes';
 
 // Lazy load heavy components
@@ -54,13 +56,19 @@ export default function CustomerDetailPage() {
   const { data: activities } = useCustomerActivities(customerId);
   const { data: projectsData } = useProjects({ page: 1, pageSize: 100, customer: customerId });
   const { data: quotationsData } = useQuotations({ customerId });
+  const { data: leadsData } = useLeads({ page: 1, pageSize: 1000 });
 
   // UI state only
   const [activeTab, setActiveTab] = useState('overview');
+  const [timelineFilter, setTimelineFilter] = useState('all');
   const [documents, setDocuments] = useState<any[]>([]);
 
   // Extract projects from data
   const projects = projectsData?.data || [];
+  const leads = leadsData?.data || [];
+
+  // Find originating lead
+  const originatingLead = customer?.leadId ? leads.find((l: any) => l.id === customer.leadId) : null;
 
   // Extract documents from quotations data and sync with state
   useEffect(() => {
@@ -73,9 +81,15 @@ export default function CustomerDetailPage() {
     router.push(`/dashboard/documents/quotations/${docId}`);
   }, [router]);
 
-  const handleDeleteDocument = useCallback((docId: string) => {
+  const handleDeleteDocument = useCallback(async (docId: string) => {
     if (confirm('Are you sure you want to delete this document?')) {
-      setDocuments(prev => prev.filter(doc => doc.id !== docId));
+      try {
+        await documentsApi.deleteDocument(docId);
+        setDocuments(prev => prev.filter(doc => doc.id !== docId));
+      } catch (error) {
+        console.error('Failed to delete document:', error);
+        alert('Failed to delete document. Please try again.');
+      }
     }
   }, []);
 
@@ -89,12 +103,8 @@ export default function CustomerDetailPage() {
     router.push(`/dashboard/documents?customerId=${customerId}&create=true`);
   }, [router, customerId]);
 
-  const handleExportReport = useCallback(() => {
-    alert('Export report functionality - will be implemented with backend');
-  }, []);
-
   const handleTimelineFilter = useCallback((filter: string) => {
-    // Timeline filter
+    setTimelineFilter(filter);
   }, []);
 
   const handleProjectRowClick = useCallback((row: any) => {
@@ -105,6 +115,63 @@ export default function CustomerDetailPage() {
   const communications: any[] = [];
 
   // Memoized computed values
+  const lastActivity = useMemo(() => {
+    return activities && activities.length > 0
+      ? new Date(activities[0].performedAt)
+      : undefined;
+  }, [activities]);
+
+  const handleExportReport = useCallback(() => {
+    if (!customer) return;
+
+    // Generate CSV content
+    const csvContent = [
+      ['Customer Report'],
+      ['Generated:', new Date().toLocaleString()],
+      [],
+      ['Customer Information'],
+      ['Name', customer.customerName],
+      ['Company', customer.companyName],
+      ['Email', customer.email || 'N/A'],
+      ['Mobile', customer.mobile],
+      ['Status', customer.status],
+      ['Industry', customer.industry],
+      ['Business Type', customer.businessType],
+      [],
+      ['Financial Summary'],
+      ['Total Revenue', `₹${customer.totalRevenue.toLocaleString()}`],
+      ['Active Projects', customer.activeProjects],
+      ['Completed Projects', customer.completedProjects],
+      ['Pending Quotations', customer.pendingQuotations],
+      [],
+      ['Address'],
+      ['Address Line', customer.address],
+      ['City', customer.city],
+      ['State', customer.state],
+      ['Country', customer.country],
+      ['Pincode', customer.pincode],
+      [],
+      ['Additional Information'],
+      ['Lead Source', customer.leadSource],
+      ['Customer Since', customer.customerSince ? new Date(customer.customerSince).toLocaleDateString() : 'N/A'],
+      ['Last Activity', lastActivity ? lastActivity.toLocaleDateString() : 'N/A'],
+      ['Notes', customer.notes || 'N/A'],
+    ]
+      .map(row => row.join(','))
+      .join('\n');
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `customer-report-${customer.customerName.replace(/\s+/g, '-')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [customer, lastActivity]);
+
   const healthScore = useMemo(() => {
     let score = 50;
     if (customer && customer.totalRevenue > 1000000) score += 15;
@@ -115,11 +182,30 @@ export default function CustomerDetailPage() {
     return Math.min(score, 100);
   }, [customer]);
 
-  const lastActivity = useMemo(() => {
-    return activities && activities.length > 0
-      ? new Date(activities[0].performedAt)
-      : undefined;
-  }, [activities]);
+  // Filter activities based on timeline filter
+  const filteredActivities = useMemo(() => {
+    if (!activities || activities.length === 0) return [];
+    if (timelineFilter === 'all') return activities;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    return activities.filter((activity: any) => {
+      const activityDate = new Date(activity.performedAt);
+      switch (timelineFilter) {
+        case 'today':
+          return activityDate >= today;
+        case 'this_week':
+          return activityDate >= thisWeek;
+        case 'this_month':
+          return activityDate >= thisMonth;
+        default:
+          return true;
+      }
+    });
+  }, [activities, timelineFilter]);
 
   const detailKPIs = useMemo(() => {
     if (!customer) return [];
@@ -401,6 +487,58 @@ export default function CustomerDetailPage() {
               </Card>
             </div>
 
+            {/* Originating Lead Card */}
+            {originatingLead && (
+              <Card>
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Originating Lead</CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(`/dashboard/leads/${originatingLead.id}`)}
+                    >
+                      View Lead
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-3 text-sm">
+                    <Hash className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground w-24">Lead ID:</span>
+                    <span className="font-mono">{originatingLead.leadId}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground w-24">Customer:</span>
+                    <span>{originatingLead.customerName}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <Building className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground w-24">Company:</span>
+                    <span>{originatingLead.companyName}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground w-24">Location:</span>
+                    <span>{originatingLead.city}, {originatingLead.state}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground w-24">Created:</span>
+                    <span>{originatingLead.createdDate ? new Date(originatingLead.createdDate).toLocaleDateString() : '-'}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <Zap className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground w-24">Status:</span>
+                    <Badge variant={originatingLead.status === 'Converted' ? 'success' : 'secondary'}>
+                      {originatingLead.status}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Notes */}
             {customer.notes && (
               <Card>
@@ -565,22 +703,22 @@ export default function CustomerDetailPage() {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Customer Journey Timeline</h3>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleTimelineFilter('all')}>
-                  All Activities
+                <Button size="sm" variant={timelineFilter === 'all' ? 'default' : 'outline'} onClick={() => handleTimelineFilter('all')}>
+                  All
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => handleTimelineFilter('projects')}>
-                  Projects
+                <Button size="sm" variant={timelineFilter === 'today' ? 'default' : 'outline'} onClick={() => handleTimelineFilter('today')}>
+                  Today
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => handleTimelineFilter('documents')}>
-                  Documents
+                <Button size="sm" variant={timelineFilter === 'this_week' ? 'default' : 'outline'} onClick={() => handleTimelineFilter('this_week')}>
+                  This Week
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => handleTimelineFilter('communication')}>
-                  Communication
+                <Button size="sm" variant={timelineFilter === 'this_month' ? 'default' : 'outline'} onClick={() => handleTimelineFilter('this_month')}>
+                  This Month
                 </Button>
               </div>
             </div>
             <LeadActivityTimeline
-              activities={(activities ?? []).map((a) => ({
+              activities={(filteredActivities ?? []).map((a) => ({
                 id: a.id,
                 leadId: a.customerId,
                 type: a.type === 'customer_created' ? 'created'

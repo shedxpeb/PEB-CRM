@@ -220,8 +220,8 @@ export default function SettingsPage() {
               { label: 'Require Numbers', desc: 'Passwords must contain at least one number', enabled: requireNumbers, onToggle: () => setRequireNumbers(!requireNumbers) },
               { label: 'Require Special Characters', desc: 'Passwords must contain at least one special character', enabled: requireSpecial, onToggle: () => setRequireSpecial(!requireSpecial) },
               { label: 'Enforce Two-Factor Authentication', desc: 'Require 2FA for all users', enabled: twoFactor, onToggle: () => setTwoFactor(!twoFactor) },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center justify-between py-2 border-b border-sa-border">
+            ].map((item, index) => (
+              <div key={`${item.label}-${index}`} className="flex items-center justify-between py-2 border-b border-sa-border">
                 <div>
                   <p className="text-sm text-sa-text-secondary">{item.label}</p>
                   <p className="text-xs text-sa-text-muted">{item.desc}</p>
