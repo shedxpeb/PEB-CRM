@@ -108,9 +108,9 @@ export const LeadRowActions = memo(function LeadRowActions({
               Change Status
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
-              {['New', 'Contacted', 'Design Pending', 'BOQ Pending', 'Estimate Sent', 'Proposal Sent', 'Negotiation', 'Approved', 'Rejected', 'Converted'].map((status) => (
+              {['New', 'Contacted', 'Design Pending', 'BOQ Pending', 'Estimate Sent', 'Proposal Sent', 'Negotiation', 'Approved', 'Rejected', 'Converted'].map((status, index) => (
                 <DropdownMenuItem
-                  key={status}
+                  key={`${status}-${index}`}
                   onClick={() => handleStatusChange(status as LeadStatus)}
                   className={lead.status === status ? 'bg-muted' : ''}
                 >

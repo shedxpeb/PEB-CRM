@@ -65,8 +65,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return (
     <div className="bg-sa-card-solid border border-sa-border-solid rounded-lg px-3 py-2 shadow-xl">
       <p className="text-xs text-sa-text-secondary mb-1">{label}</p>
-      {payload.map((entry: any) => (
-        <p key={entry.dataKey} className="text-xs font-medium" style={{ color: entry.color }}>
+      {payload.map((entry: any, index: number) => (
+        <p key={`${entry.dataKey}-${index}`} className="text-xs font-medium" style={{ color: entry.color }}>
           {entry.dataKey}: {entry.value}
         </p>
       ))}
@@ -85,11 +85,11 @@ export function AnalyticsCharts({ data }: AnalyticsChartsProps) {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {chartConfig.map((cfg) => {
+          {chartConfig.map((cfg, index) => {
             const chartData = data.map((d) => ({ month: d.month, [cfg.key]: d[cfg.key as keyof ChartDataPoint] || 0 }));
 
             return (
-              <div key={cfg.key} className="bg-sa-chart-bg rounded-lg p-3 border border-sa-border/40">
+              <div key={`${cfg.key}-${index}`} className="bg-sa-chart-bg rounded-lg p-3 border border-sa-border/40">
                 <p className="text-xs text-sa-text-muted font-medium mb-3">{cfg.title}</p>
                 <ResponsiveContainer width="100%" height={140}>
                   {cfg.type === 'bar' ? (

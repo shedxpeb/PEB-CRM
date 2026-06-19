@@ -185,8 +185,8 @@ export function DocumentViewDialog({ document, open, onOpenChange }: DocumentVie
                       </tr>
                     </thead>
                     <tbody>
-                      {document.materialSelections.map((item: any, index: number) => (
-                        <tr key={item.id || index} className="border-b">
+                      {document.materialSelections.map((item: any) => (
+                        <tr key={item.id || `${item.itemName}-${item.itemCode}`} className="border-b">
                           <td className="py-2 px-3 font-medium">{item.itemName}</td>
                           <td className="py-2 px-3 text-muted-foreground">{item.itemCode}</td>
                           <td className="py-2 px-3 text-right">{item.quantity || '-'}</td>
@@ -244,8 +244,8 @@ export function DocumentViewDialog({ document, open, onOpenChange }: DocumentVie
               </CardHeader>
               <CardContent>
                 <ul className="list-disc list-inside space-y-1 text-sm">
-                  {document.inclusions.map((item: string, index: number) => (
-                    <li key={index}>{item}</li>
+                  {document.inclusions.map((item: string) => (
+                    <li key={`inclusion-${item}`}>{item}</li>
                   ))}
                 </ul>
               </CardContent>
@@ -263,8 +263,8 @@ export function DocumentViewDialog({ document, open, onOpenChange }: DocumentVie
               </CardHeader>
               <CardContent>
                 <ul className="list-disc list-inside space-y-1 text-sm">
-                  {document.exclusions.map((item: string, index: number) => (
-                    <li key={index}>{item}</li>
+                  {document.exclusions.map((item: string) => (
+                    <li key={`exclusion-${item}`}>{item}</li>
                   ))}
                 </ul>
               </CardContent>

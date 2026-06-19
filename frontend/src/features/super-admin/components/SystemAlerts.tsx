@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, Shield, Database, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { componentTextSizes } from '@/lib/design-system';
 
 export interface SystemAlert {
   id: string;
@@ -40,13 +41,13 @@ export function SystemAlerts({ alerts }: SystemAlertsProps) {
           </CardTitle>
           <div className="flex items-center gap-2">
             {critical > 0 && (
-              <Badge variant="destructive" className="text-[10px]">{critical} Critical</Badge>
+              <Badge variant="destructive" className={componentTextSizes.badge}>{critical} Critical</Badge>
             )}
             {warnings > 0 && (
-              <Badge variant="warning" className="text-[10px]">{warnings} Warning</Badge>
+              <Badge variant="warning" className={componentTextSizes.badge}>{warnings} Warning</Badge>
             )}
             {resolved > 0 && (
-              <Badge variant="secondary" className="text-[10px]">{resolved} Resolved</Badge>
+              <Badge variant="secondary" className={componentTextSizes.badge}>{resolved} Resolved</Badge>
             )}
           </div>
         </div>
@@ -59,12 +60,12 @@ export function SystemAlerts({ alerts }: SystemAlertsProps) {
               <p className="text-xs text-sa-text-muted">All systems healthy</p>
             </div>
           ) : (
-            alerts.map((alert) => {
+            alerts.map((alert, index) => {
               const config = typeConfig[alert.type];
               const Icon = config.icon;
               return (
                 <div
-                  key={alert.id}
+                  key={`${alert.id}-${index}`}
                   className={cn(
                     'flex items-start gap-3 p-3 rounded-lg border transition-all',
                     alert.resolved ? 'border-sa-border bg-sa-header-bg opacity-50' : `${config.border} ${config.bg}`,
@@ -77,13 +78,13 @@ export function SystemAlerts({ alerts }: SystemAlertsProps) {
                         {alert.title}
                       </span>
                       {alert.resolved && (
-                        <Badge variant="secondary" className="text-[9px] h-4">Resolved</Badge>
+                        <Badge variant="secondary" className={cn(componentTextSizes.badge, 'h-4')}>Resolved</Badge>
                       )}
                     </div>
                     <p className="text-xs text-sa-text-muted mt-0.5">{alert.description}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] text-sa-text-dim">{alert.module}</span>
-                      <span className="text-[10px] text-sa-text-dim">· {alert.time}</span>
+                      <span className={cn(componentTextSizes.badge, 'text-sa-text-dim')}>{alert.module}</span>
+                      <span className={cn(componentTextSizes.badge, 'text-sa-text-dim')}>· {alert.time}</span>
                     </div>
                   </div>
                 </div>

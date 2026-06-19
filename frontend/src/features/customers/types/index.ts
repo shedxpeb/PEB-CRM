@@ -167,6 +167,7 @@ export interface CreateCustomerDto {
   leadSource: CustomerSource;
   status?: CustomerStatus;
   notes?: string;
+  leadId?: string; // Reference to the lead that was converted to this customer
 }
 
 /**

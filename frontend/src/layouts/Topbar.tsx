@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useSidebarToggle } from '@/store/useSidebarStore';
+import { componentTextSizes } from '@/lib/design-system';
 
 interface TopbarProps {
   title: string;
@@ -58,7 +59,7 @@ export const Topbar = memo(function Topbar({ title, subtitle, showBackButton, on
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative h-8 w-8 md:h-9 md:w-9 lg:h-10 lg:w-10 flex-shrink-0">
           <Bell className="h-4 w-4 md:h-5 md:w-5" />
-          <Badge className="absolute -top-1 -right-1 h-4 w-4 md:h-5 md:w-5 flex items-center justify-center p-0 bg-red-500 text-[10px] md:text-xs">
+          <Badge className={cn('absolute -top-1 -right-1 h-4 w-4 md:h-5 md:w-5 flex items-center justify-center p-0 bg-red-500', componentTextSizes.badge, 'md:text-xs')}>
             3
           </Badge>
         </Button>

@@ -61,6 +61,32 @@ export function EstimatesPage() {
     window.location.href = '/dashboard/documents/proposals';
   };
 
+  const handleDuplicateEstimate = async (estimate: Estimate) => {
+    try {
+      const duplicateData: CreateEstimateDto = {
+        leadId: estimate.leadId,
+        customerId: estimate.customerId,
+        estimateNumber: `${estimate.estimateNumber}-COPY`,
+        validUntil: estimate.validUntil,
+        items: estimate.items,
+        subtotal: estimate.subtotal,
+        taxAmount: estimate.taxAmount,
+        totalAmount: estimate.totalAmount,
+        paymentTerms: estimate.paymentTerms,
+        termsAndConditions: estimate.termsAndConditions,
+        notes: estimate.notes,
+        status: 'Draft',
+      };
+      
+      await createEstimate(duplicateData);
+      alert('Estimate duplicated successfully!');
+      refetch();
+    } catch (err) {
+      console.error('Failed to duplicate estimate:', err);
+      alert('Failed to duplicate estimate. Please try again.');
+    }
+  };
+
   const handleBuilderSave = async (data: CreateEstimateDto) => {
     try {
       if (editingEstimate) {
@@ -176,9 +202,9 @@ export function EstimatesPage() {
         {/* Header Actions */}
         <div className="flex justify-between items-center">
           <div>
-            <p className="text-sm text-gray-600">Total Estimates: {estimates.length}</p>
+            <p className="text-sm text-muted-foreground">Total Estimates: {estimates.length}</p>
           </div>
-          <Button onClick={handleCreateNew}>
+          <Button onClick={handleCreateNew} className="h-9">
             <Plus className="h-4 w-4 mr-2" />
             New Estimate
           </Button>
@@ -212,6 +238,7 @@ export function EstimatesPage() {
                   onPrint={() => {}}
                   onDownload={() => {}}
                   onCopy={() => {}}
+                  onDuplicate={() => handleDuplicateEstimate(row as Estimate)}
                 />
               )}
             />

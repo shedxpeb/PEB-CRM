@@ -59,6 +59,8 @@ export function useUpdateLead() {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['lead', id] });
+      // Invalidate customers cache to sync inherited fields from lead
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
   });
 }

@@ -8,23 +8,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardSkeleton } from '@/components/loading/CardSkeleton';
+import { ErrorState } from '@/components/states/ErrorState';
 import { useProject, useProjectActivities } from '@/features/projects/hooks/useProjects';
-import { getProjectStatusVariant, getPriorityVariant, getHealthStatusVariant } from '@/features/projects/constants';
-import { ArrowLeft, Edit, Calendar, MapPin, DollarSign, Users, Building2, FileText, AlertCircle, Link2, Package, Truck, Receipt, FileCheck, Wrench, Shield, AlertTriangle, MessageSquare, Map, CreditCard } from 'lucide-react';
+import { useCustomers } from '@/features/customers/hooks/useCustomers';
+import { getProjectStatusVariant, getPriorityVariant } from '@/features/projects/constants';
+import type { Customer } from '@/features/customers/types';
+import { ArrowLeft, Edit, Calendar, DollarSign, Users, Building2, FileText, AlertCircle, Link2, Package, Truck, Receipt, FileCheck, Wrench, Shield, AlertTriangle, MessageSquare, Map, CreditCard } from 'lucide-react';
 
 // Lazy load tab components to reduce initial bundle size
 const ProjectTimeline = dynamic(() => import('@/features/projects/components/ProjectTimeline').then(mod => ({ default: mod.ProjectTimeline })), {
-  loading: () => <div className="p-8 text-center">Loading timeline...</div>,
+  loading: () => <CardSkeleton />,
   ssr: false
 });
 
 const ProjectHealthCard = dynamic(() => import('@/features/projects/components/ProjectHealthCard').then(mod => ({ default: mod.ProjectHealthCard })), {
-  loading: () => <div className="p-4 text-center">Loading health card...</div>,
+  loading: () => <CardSkeleton />,
   ssr: false
 });
 
 const MilestoneTracker = dynamic(() => import('@/features/projects/components/MilestoneTracker').then(mod => ({ default: mod.MilestoneTracker })), {
-  loading: () => <div className="p-8 text-center">Loading milestones...</div>,
+  loading: () => <CardSkeleton />,
   ssr: false
 });
 
@@ -33,15 +37,18 @@ export default function ProjectDetailPage() {
   const projectId = params.id as string;
   const { data: project, isLoading } = useProject(projectId);
   const { data: activities } = useProjectActivities(projectId);
+  const { data: customersData } = useCustomers({ page: 1, pageSize: 1000 });
+
+  // Find linked customer
+  const linkedCustomer = project?.customerId && customersData?.data
+    ? customersData.data.find((customer: Customer) => customer.id === project.customerId)
+    : null;
 
   if (isLoading) {
     return (
       <MainLayout title="Project Details">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center space-y-2">
-            <div className="h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-sm text-muted-foreground">Loading project details...</p>
-          </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <CardSkeleton count={6} />
         </div>
       </MainLayout>
     );
@@ -50,9 +57,13 @@ export default function ProjectDetailPage() {
   if (!project) {
     return (
       <MainLayout title="Project Details">
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Project not found</p>
-        </div>
+        <ErrorState
+          title="Project not found"
+          message="The selected project could not be loaded. It may have been removed or the link may be invalid."
+          retryLabel="Go Back"
+          onRetry={() => window.history.back()}
+          className="min-h-64"
+        />
       </MainLayout>
     );
   }
@@ -76,22 +87,46 @@ export default function ProjectDetailPage() {
 
         {/* Quick Navigation */}
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" className="text-xs">
-            <Users className="h-3.5 w-3.5 mr-1.5" />
-            View Customer
-          </Button>
-          <Button variant="outline" size="sm" className="text-xs">
-            <FileText className="h-3.5 w-3.5 mr-1.5" />
-            View Estimate
-          </Button>
-          <Button variant="outline" size="sm" className="text-xs">
-            <FileText className="h-3.5 w-3.5 mr-1.5" />
-            View Proposal
-          </Button>
-          <Button variant="outline" size="sm" className="text-xs">
-            <Receipt className="h-3.5 w-3.5 mr-1.5" />
-            View Quotation
-          </Button>
+          {linkedCustomer && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => window.location.href = `/dashboard/customers/${linkedCustomer.id}`}
+            >
+              <Users className="h-3.5 w-3.5 mr-1.5" />
+              View Customer
+            </Button>
+          )}
+          {project.leadId && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => window.location.href = `/dashboard/leads/${project.leadId}`}
+            >
+              <FileText className="h-3.5 w-3.5 mr-1.5" />
+              View Lead
+            </Button>
+          )}
+          {project.estimateId && (
+            <Button variant="outline" size="sm" className="text-xs">
+              <FileText className="h-3.5 w-3.5 mr-1.5" />
+              View Estimate
+            </Button>
+          )}
+          {project.proposalId && (
+            <Button variant="outline" size="sm" className="text-xs">
+              <FileText className="h-3.5 w-3.5 mr-1.5" />
+              View Proposal
+            </Button>
+          )}
+          {project.quotationId && (
+            <Button variant="outline" size="sm" className="text-xs">
+              <Receipt className="h-3.5 w-3.5 mr-1.5" />
+              View Quotation
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="text-xs">
             <CreditCard className="h-3.5 w-3.5 mr-1.5" />
             View Finance
@@ -202,7 +237,7 @@ export default function ProjectDetailPage() {
               </Card>
 
               {/* Health Card */}
-              <Suspense fallback={<div className="p-4 text-center">Loading health card...</div>}>
+              <Suspense fallback={<CardSkeleton />}>
                 <ProjectHealthCard
                   healthStatus={project.healthStatus}
                   timelineHealth={project.timelineHealth}
@@ -411,38 +446,55 @@ export default function ProjectDetailPage() {
             {/* Customer Snapshot */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Customer Snapshot
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Customer Snapshot
+                  </CardTitle>
+                  {linkedCustomer && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.location.href = `/dashboard/customers/${linkedCustomer.id}`}
+                    >
+                      View Customer
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Company Name</p>
-                    <Button variant="link" size="sm" className="h-auto p-0 text-sm font-medium">{project.customerName}</Button>
+                {linkedCustomer ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Company Name</p>
+                      <Button variant="link" size="sm" className="h-auto p-0 text-sm font-medium">{linkedCustomer.companyName}</Button>
+                    </div>
+                    <div>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Contact Person</p>
+                      <p className="text-sm font-medium">{linkedCustomer.customerName}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Phone</p>
+                      <Button variant="link" size="sm" className="h-auto p-0 text-sm font-medium">{linkedCustomer.mobile}</Button>
+                    </div>
+                    <div>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Email</p>
+                      <Button variant="link" size="sm" className="h-auto p-0 text-sm font-medium">{linkedCustomer.email}</Button>
+                    </div>
+                    <div>
+                      <p className="text-xs sm:text-sm text-muted-foreground">GST</p>
+                      <p className="text-sm font-medium">{linkedCustomer.gstNumber || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Address</p>
+                      <p className="text-sm font-medium">{linkedCustomer.address}, {linkedCustomer.city}, {linkedCustomer.state}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Contact Person</p>
-                    <p className="text-sm font-medium">{project.projectManager}</p>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    No customer linked to this project
                   </div>
-                  <div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Phone</p>
-                    <Button variant="link" size="sm" className="h-auto p-0 text-sm font-medium">📞 +91 98765 43210</Button>
-                  </div>
-                  <div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Email</p>
-                    <Button variant="link" size="sm" className="h-auto p-0 text-sm font-medium">✉️ customer@example.com</Button>
-                  </div>
-                  <div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">GST</p>
-                    <p className="text-sm font-medium">27AAACT1234A1Z5</p>
-                  </div>
-                  <div>
-                    <p className="text-xs sm:text-sm text-muted-foreground">Address</p>
-                    <p className="text-sm font-medium">{project.location}, {project.city}, {project.state}</p>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -822,7 +874,7 @@ export default function ProjectDetailPage() {
 
           {/* Milestones Tab */}
           <TabsContent value="milestones">
-            <Suspense fallback={<div className="p-8 text-center">Loading milestones...</div>}>
+            <Suspense fallback={<CardSkeleton />}>
               <MilestoneTracker milestones={project.milestones} />
             </Suspense>
           </TabsContent>
@@ -864,7 +916,7 @@ export default function ProjectDetailPage() {
 
           {/* Timeline Tab */}
           <TabsContent value="timeline">
-            <Suspense fallback={<div className="p-8 text-center">Loading timeline...</div>}>
+            <Suspense fallback={<CardSkeleton />}>
               <ProjectTimeline activities={activities || []} />
             </Suspense>
           </TabsContent>

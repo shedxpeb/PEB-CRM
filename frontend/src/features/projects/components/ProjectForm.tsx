@@ -1,16 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Badge } from '@/components/ui/badge';
 import { createProjectSchema, CreateProjectInput } from '@/features/projects/validations';
 import { PROJECT_TYPES, PROJECT_PRIORITIES, STRUCTURE_TYPES, ROOF_TYPES, CRANE_SYSTEMS, WALL_TYPES } from '@/features/projects/constants';
 import { useCustomers } from '@/features/customers/hooks/useCustomers';
+import { Info, Lock } from 'lucide-react';
 
 interface ProjectFormProps {
   onSubmit: (data: Partial<CreateProjectInput>) => void;
@@ -22,6 +24,8 @@ interface ProjectFormProps {
 
 export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefillCustomerId }: ProjectFormProps) {
   const { data: customers } = useCustomers();
+  const [showAutoFillNotice, setShowAutoFillNotice] = useState(false);
+  const isLinkedToCustomer = !!initialData?.customerId;
 
   const {
     register,
@@ -45,11 +49,43 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
     },
   });
 
+  const customerId = watch('customerId');
+
+  // Auto-fill project fields from selected customer
+  useEffect(() => {
+    if (customerId && customers?.data) {
+      const selectedCustomer = customers.data.find((c) => c.id === customerId);
+      if (selectedCustomer) {
+        setValue('location', selectedCustomer.address || '');
+        setValue('city', selectedCustomer.city || '');
+        setValue('state', selectedCustomer.state || '');
+        setValue('pincode', selectedCustomer.pincode || '');
+        setShowAutoFillNotice(true);
+
+        // Hide notice after 3 seconds
+        const timer = setTimeout(() => {
+          setShowAutoFillNotice(false);
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [customerId, customers?.data, setValue]);
+
   const mezzanine = watch('mezzanine');
   const insulation = watch('insulation');
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* Auto-fill Notice */}
+      {showAutoFillNotice && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-3 flex items-start gap-2">
+          <Info className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-green-700">
+            Location details have been auto-filled from the selected Customer. You can edit any field before saving.
+          </p>
+        </div>
+      )}
+
       {/* General Information */}
       <Card>
         <CardHeader>
@@ -64,18 +100,17 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Customer *</label>
-              <Select onValueChange={(value) => setValue('customerId', value)} defaultValue={initialData?.customerId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers?.data?.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.customerName} ({customer.companyName})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={customers?.data?.map((customer) => ({
+                  value: customer.id,
+                  label: `${customer.customerName} (${customer.companyName})`
+                })) || []}
+                value={watch('customerId') || ''}
+                onValueChange={(value) => setValue('customerId', value)}
+                placeholder="Select customer"
+                searchPlaceholder="Search customers..."
+                emptyMessage="No customer found"
+              />
               {errors.customerId && <p className="text-sm text-red-500">{errors.customerId.message}</p>}
             </div>
           </div>
@@ -145,24 +180,68 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Location *</label>
-            <Input {...register('location')} placeholder="Enter project location" />
+            <div className="relative">
+              <Input {...register('location')} placeholder="Enter project location" disabled={isLinkedToCustomer} />
+              {isLinkedToCustomer && (
+                <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
             {errors.location && <p className="text-sm text-red-500">{errors.location.message}</p>}
+            {isLinkedToCustomer && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Info className="h-3 w-3" />
+                This value is synchronized from the linked Customer. Edit it from the Customer record.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">City *</label>
-              <Input {...register('city')} placeholder="City" />
+              <div className="relative">
+                <Input {...register('city')} placeholder="City" disabled={isLinkedToCustomer} />
+                {isLinkedToCustomer && (
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
               {errors.city && <p className="text-sm text-red-500">{errors.city.message}</p>}
+              {isLinkedToCustomer && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  Synchronized from Customer
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">State *</label>
-              <Input {...register('state')} placeholder="State" />
+              <div className="relative">
+                <Input {...register('state')} placeholder="State" disabled={isLinkedToCustomer} />
+                {isLinkedToCustomer && (
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
               {errors.state && <p className="text-sm text-red-500">{errors.state.message}</p>}
+              {isLinkedToCustomer && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  Synchronized from Customer
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Pincode</label>
-              <Input {...register('pincode')} placeholder="Pincode" />
+              <div className="relative">
+                <Input {...register('pincode')} placeholder="Pincode" disabled={isLinkedToCustomer} />
+                {isLinkedToCustomer && (
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              {isLinkedToCustomer && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  Synchronized from Customer
+                </p>
+              )}
             </div>
           </div>
 

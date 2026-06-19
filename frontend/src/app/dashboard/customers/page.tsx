@@ -5,13 +5,24 @@ import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/layouts/MainLayout';
 import { DataTable, Column } from '@/components/data-table/DataTable';
 import { KPICard } from '@/components/dashboard/KPICard';
+import { StandardPageLayout } from '@/components/layout/StandardPageLayout';
+import { FilterBar, FilterConfig } from '@/components/layout/FilterBar';
 const CustomerForm = lazy(() => import('@/features/customers/components/CustomerForm').then(m => ({ default: m.CustomerForm })));
 const CustomerRowActions = lazy(() => import('@/features/customers/components/CustomerRowActions').then(m => ({ default: m.CustomerRowActions })));
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Customer, CustomerStatus } from '@/features/customers';
-import { getStatusVariant } from '@/features/customers/constants';
+import { getStatusVariant, CUSTOMER_STATUSES } from '@/features/customers/constants';
 import {
   useCustomers,
   useCustomersStats,
@@ -19,6 +30,7 @@ import {
   useUpdateCustomer,
   useDeleteCustomer,
 } from '@/features/customers/hooks/useCustomers';
+import { useUpdateLead } from '@/features/leads/hooks/useLeads';
 import { customersApi } from '@/features/customers';
 import { ROUTES } from '@/core/routes';
 import { useDebounce } from '@/shared/hooks/useDebounce';
@@ -43,40 +55,116 @@ export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 300);
 
+  // Filter state
+  const [statusFilter, setStatusFilter] = useState<CustomerStatus | 'all'>('all');
+  const [cityFilter, setCityFilter] = useState<string>('all');
+  const [stateFilter, setStateFilter] = useState<string>('all');
+
   // React Query hooks - single source of truth for server data
-  const [params, setParams] = useState({ page: 1, pageSize: 20, search: '' });
-  const { data: customersResponse, isLoading, error } = useCustomers(params);
+  // Fetch all customers once without filters, then filter client-side
+  const { data: allCustomersResponse, isLoading, error } = useCustomers({ page: 1, pageSize: 1000 });
   const { data: stats } = useCustomersStats();
+
+  // Client-side filtering
+  const filteredCustomers = useMemo(() => {
+    if (!allCustomersResponse?.data) return [];
+    return allCustomersResponse.data.filter((customer: Customer) => {
+      const matchesStatus = statusFilter === 'all' || customer.status === statusFilter;
+      const matchesCity = cityFilter === 'all' || customer.city === cityFilter;
+      const matchesState = stateFilter === 'all' || customer.state === stateFilter;
+      const matchesSearch = !debouncedSearch ||
+        customer.customerName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        customer.companyName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        customer.email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        customer.mobile.includes(debouncedSearch);
+      return matchesStatus && matchesCity && matchesState && matchesSearch;
+    });
+  }, [allCustomersResponse?.data, statusFilter, cityFilter, stateFilter, debouncedSearch]);
   const createMutation = useCreateCustomer();
   const updateMutation = useUpdateCustomer();
   const deleteMutation = useDeleteCustomer();
-
-  // Update search in params when debounced search changes
-  useEffect(() => {
-    setParams(prev => ({ ...prev, search: debouncedSearch }));
-  }, [debouncedSearch]);
+  const updateLeadMutation = useUpdateLead();
 
   // UI state only - no server data in useState
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Extract data from query results
-  const customers = customersResponse?.data ?? [];
+  const customers = filteredCustomers;
   const statsData = stats;
 
-  // Memoized KPI cards from live stats API
+  // Calculate KPI stats based on filtered customers
+  const filteredStats = useMemo(() => {
+    const total = customers.length;
+    const active = customers.filter(c => c.status === 'Active').length;
+    const newThisMonth = customers.filter(c => {
+      const now = new Date();
+      const customerDate = new Date(c.customerSince);
+      return customerDate.getMonth() === now.getMonth() && customerDate.getFullYear() === now.getFullYear();
+    }).length;
+    const activeProjects = customers.reduce((sum, c) => sum + (c.activeProjects || 0), 0);
+    const completedProjects = customers.reduce((sum, c) => sum + ((c.totalProjects || 0) - (c.activeProjects || 0)), 0);
+    const totalRevenue = customers.reduce((sum, c) => sum + (c.totalRevenue || 0), 0);
+    const pendingQuotations = customers.reduce((sum, c) => sum + (c.pendingQuotations || 0), 0);
+    const pendingFollowups = customers.reduce((sum, c) => sum + (c.pendingFollowups || 0), 0);
+
+    return { total, active, newThisMonth, activeProjects, completedProjects, totalRevenue, pendingQuotations, pendingFollowups };
+  }, [customers]);
+
+  // Memoized KPI cards from filtered data
   const kpiData = useMemo(() => [
-    { title: 'Total Customers', value: String(statsData?.totalCustomers ?? 0), change: 12.5, icon: <Users className="h-6 w-6 text-blue-600" />, color: 'text-blue-600' },
-    { title: 'Active Customers', value: String(statsData?.activeCustomers ?? 0), change: 8.2, icon: <UserCheck className="h-6 w-6 text-green-600" />, color: 'text-green-600' },
-    { title: 'New This Month', value: String(statsData?.newThisMonth ?? 0), change: 15.3, icon: <UserPlus className="h-6 w-6 text-purple-600" />, color: 'text-purple-600' },
-    { title: 'Active Projects', value: String(statsData?.activeProjects ?? 0), change: 5.7, icon: <FolderKanban className="h-6 w-6 text-orange-600" />, color: 'text-orange-600' },
-    { title: 'Completed Projects', value: String(statsData?.completedProjects ?? 0), change: 3.2, icon: <CheckCircle className="h-6 w-6 text-emerald-600" />, color: 'text-emerald-600' },
-    { title: 'Total Revenue', value: `₹${((statsData?.totalRevenue ?? 0) / 10000000).toFixed(1)}Cr`, change: 18.9, icon: <DollarSign className="h-6 w-6 text-green-700" />, color: 'text-green-700' },
-    { title: 'Pending Quotations', value: String(statsData?.pendingQuotations ?? 0), change: -4.5, icon: <FileText className="h-6 w-6 text-amber-600" />, color: 'text-amber-600' },
-    { title: 'Pending Followups', value: String(statsData?.pendingFollowups ?? 0), change: -2.1, icon: <Clock className="h-6 w-6 text-red-500" />, color: 'text-red-500' },
-  ], [statsData]);
+    { title: 'Total Customers', value: String(filteredStats.total), change: 12.5, icon: <Users className="h-6 w-6 text-blue-600" />, color: 'text-blue-600' },
+    { title: 'Active Customers', value: String(filteredStats.active), change: 8.2, icon: <UserCheck className="h-6 w-6 text-green-600" />, color: 'text-green-600' },
+    { title: 'New This Month', value: String(filteredStats.newThisMonth), change: 15.3, icon: <UserPlus className="h-6 w-6 text-purple-600" />, color: 'text-purple-600' },
+    { title: 'Total Revenue', value: `₹${(filteredStats.totalRevenue / 10000000).toFixed(1)}Cr`, change: 18.9, icon: <DollarSign className="h-6 w-6 text-green-700" />, color: 'text-green-700' },
+  ], [filteredStats]);
+
+  // Filter configuration for FilterBar
+  const filterConfigs: FilterConfig[] = useMemo(() => [
+    {
+      key: 'status',
+      label: 'Status',
+      value: statusFilter,
+      onChange: (value: string) => setStatusFilter(value as CustomerStatus | 'all'),
+      options: [{ value: 'all', label: 'All Status' }, ...CUSTOMER_STATUSES.map(s => ({ value: s.value, label: s.label }))],
+    },
+    {
+      key: 'city',
+      label: 'City',
+      value: cityFilter,
+      onChange: setCityFilter,
+      options: [
+        { value: 'all', label: 'All Cities' },
+        ...Array.from(new Set(allCustomersResponse?.data?.map(c => c.city) || []))
+          .filter(Boolean)
+          .sort()
+          .map(city => ({ value: city, label: city }))
+      ],
+    },
+    {
+      key: 'state',
+      label: 'State',
+      value: stateFilter,
+      onChange: setStateFilter,
+      options: [
+        { value: 'all', label: 'All States' },
+        ...Array.from(new Set(allCustomersResponse?.data?.map(c => c.state) || []))
+          .filter(Boolean)
+          .sort()
+          .map(state => ({ value: state, label: state }))
+      ],
+    },
+  ], [statusFilter, cityFilter, stateFilter, allCustomersResponse?.data]);
+
+  const handleClearFilters = useCallback(() => {
+    setStatusFilter('all');
+    setCityFilter('all');
+    setStateFilter('all');
+    setSearchQuery('');
+  }, []);
 
   // Memoized table columns
   const columns: Column<Customer>[] = useMemo(() => [
@@ -161,19 +249,50 @@ export default function CustomersPage() {
 
   // Memoized handlers using React Query mutations
   const handleCreateCustomer = useCallback((data: Partial<Customer>) => {
+    setFormError(null);
     createMutation.mutate(data as any, {
-      onSuccess: () => setIsCreateDialogOpen(false),
+      onSuccess: (response: any) => {
+        // If customer was created from a lead, update the lead status
+        if (data.leadId) {
+          updateLeadMutation.mutate(
+            {
+              id: data.leadId,
+              data: {
+                status: 'Converted',
+                customerId: response?.customer?.id || response?.id,
+                convertedDate: new Date(),
+              },
+            },
+            {
+              onError: (error: any) => {
+                console.error('Failed to update lead status:', error);
+                // Don't block customer creation if lead update fails
+              },
+            }
+          );
+        }
+        setIsCreateDialogOpen(false);
+        setFormError(null);
+      },
+      onError: (error: any) => {
+        setFormError(error.message || 'Failed to create customer. Please try again.');
+      },
     });
-  }, [createMutation]);
+  }, [createMutation, updateLeadMutation]);
 
   const handleEditCustomer = useCallback((data: Partial<Customer>) => {
     if (!selectedCustomer) return;
+    setFormError(null);
     updateMutation.mutate(
       { id: selectedCustomer.id, data: data as any },
       {
         onSuccess: () => {
           setIsEditDialogOpen(false);
           setSelectedCustomer(null);
+          setFormError(null);
+        },
+        onError: (error: any) => {
+          setFormError(error.message || 'Failed to update customer. Please try again.');
         },
       }
     );
@@ -219,8 +338,8 @@ export default function CustomersPage() {
     }
   }, []);
 
-  // Loading state
-  if (isLoading) {
+  // Loading state - only show full loading screen on initial load
+  if (isLoading && !allCustomersResponse) {
     return (
       <MainLayout title="Customers" subtitle="Manage your customer database">
         <div className="flex items-center justify-center h-64">
@@ -250,44 +369,37 @@ export default function CustomersPage() {
   }
 
   return (
-    <MainLayout title="Customers" subtitle="Manage your customer database">
-      <div className="space-y-4 sm:space-y-6 w-full overflow-hidden">
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-          {kpiData.map((kpi) => (
-            <KPICard key={kpi.title} data={kpi} />
-          ))}
+    <MainLayout>
+      <StandardPageLayout
+        title="Customers"
+        subtitle="Manage your customer database"
+        headerActions={
+          <Button onClick={() => setIsCreateDialogOpen(true)} className="h-9">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Customer
+          </Button>
+        }
+        kpiCards={
+          <>
+            <KPICard data={kpiData[0]} />
+            <KPICard data={kpiData[1]} />
+            <KPICard data={kpiData[2]} />
+            <KPICard data={kpiData[3]} />
+          </>
+        }
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search customers..."
+        filters={filterConfigs}
+        onClearFilters={handleClearFilters}
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <Button variant="outline" onClick={handleExport} className="gap-1.5 text-xs">
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </Button>
         </div>
 
-        {/* Action Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 min-w-0">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-base sm:text-lg font-semibold">All Customers</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground">{customers.length} total customers</p>
-          </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 sm:flex-none">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search customers..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 w-full sm:w-64 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <Button variant="outline" size="sm" onClick={handleExport} className="flex-1 sm:flex-none">
-              <Download className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Export</span>
-            </Button>
-            <Button size="sm" onClick={() => setIsCreateDialogOpen(true)} className="flex-1 sm:flex-none">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Customer
-            </Button>
-          </div>
-        </div>
-
-        {/* Data Table */}
         <DataTable
           columns={columns}
           data={customers}
@@ -296,6 +408,7 @@ export default function CustomersPage() {
           selectedRows={selectedRows}
           onSelectionChange={setSelectedRows}
           rowIdKey="id"
+          emptyMessage="No customers found. Adjust your filters or add a new customer."
           rowActions={(row) => (
             <CustomerRowActions
               customer={row as Customer}
@@ -306,42 +419,53 @@ export default function CustomersPage() {
             />
           )}
         />
-        </div>
+      </StandardPageLayout>
 
-        {/* Create Customer Dialog */}
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Customer</DialogTitle>
-            </DialogHeader>
+      {/* Create Customer Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Customer</DialogTitle>
+          </DialogHeader>
+          <Suspense fallback={<div className="flex items-center justify-center h-32">Loading form...</div>}>
+            <CustomerForm
+              onSubmit={handleCreateCustomer}
+              onCancel={() => {
+                setIsCreateDialogOpen(false);
+                setFormError(null);
+              }}
+              isLoading={createMutation.isPending}
+              error={formError}
+              isEditMode={false}
+            />
+          </Suspense>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Customer Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Customer</DialogTitle>
+          </DialogHeader>
+          {selectedCustomer && (
             <Suspense fallback={<div className="flex items-center justify-center h-32">Loading form...</div>}>
               <CustomerForm
-                onSubmit={handleCreateCustomer}
-                onCancel={() => setIsCreateDialogOpen(false)}
-                isLoading={createMutation.isPending}
+                initialData={selectedCustomer}
+                onSubmit={handleEditCustomer}
+                onCancel={() => {
+                  setIsEditDialogOpen(false);
+                  setSelectedCustomer(null);
+                  setFormError(null);
+                }}
+                isLoading={updateMutation.isPending}
+                error={formError}
+                isEditMode={true}
               />
             </Suspense>
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Customer Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Customer</DialogTitle>
-            </DialogHeader>
-            {selectedCustomer && (
-              <Suspense fallback={<div className="flex items-center justify-center h-32">Loading form...</div>}>
-                <CustomerForm
-                  initialData={selectedCustomer}
-                  onSubmit={handleEditCustomer}
-                  onCancel={() => setIsEditDialogOpen(false)}
-                  isLoading={updateMutation.isPending}
-                />
-              </Suspense>
-            )}
-          </DialogContent>
-        </Dialog>
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

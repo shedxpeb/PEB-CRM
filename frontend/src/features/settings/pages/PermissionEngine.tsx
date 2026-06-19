@@ -82,9 +82,9 @@ export function PermissionEngine() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
-              {safeRoles.map((role) => (
+              {safeRoles.map((role, index) => (
                 <Button
-                  key={role.id}
+                  key={`${role.id}-${index}`}
                   variant={selectedRole?.id === role.id ? 'default' : 'outline'}
                   onClick={() => setSelectedRole(role)}
                   disabled={role.isSystem}
@@ -128,11 +128,11 @@ export function PermissionEngine() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                    {module.permissions.map((permission) => {
+                    {module.permissions.map((permission, index) => {
                       const hasPermission = (selectedRole.permissions as unknown as string[])?.includes(permission);
                       return (
                         <button
-                          key={permission}
+                          key={`${permission}-${index}`}
                           onClick={() => handleTogglePermission(selectedRole, permission)}
                           disabled={selectedRole.isSystem}
                           className={`p-3 rounded-lg border-2 text-center transition-all ${

@@ -154,7 +154,7 @@ export const CustomerRowActions = memo(function CustomerRowActions({
         {/* Delete */}
         <DropdownMenuItem
           onClick={() => onDelete(customer)}
-          className="text-destructIVE focus:text-destructive"
+          className="text-destructive focus:text-destructive"
         >
           <Trash2 className="h-4 w-4 mr-2" />
           Delete Customer

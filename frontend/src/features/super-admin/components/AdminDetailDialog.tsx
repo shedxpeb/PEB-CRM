@@ -68,7 +68,7 @@ export function AdminDetailDialog({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-sa-text-muted" />
             <Input
               placeholder="Search..."
-              value={search}
+              value={search || ''}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 bg-sa-input border-sa-border text-sa-text placeholder:text-sa-text-muted h-9 text-sm"
             />
@@ -101,7 +101,7 @@ export function AdminDetailDialog({
                 ) : (
                   filteredData.map((row, idx) => (
                     <TableRow
-                      key={idx}
+                      key={`${row.id || row.email || idx}`}
                       className="border-sa-border hover:bg-sa-row-hover"
                     >
                       {columns.map((col) => (

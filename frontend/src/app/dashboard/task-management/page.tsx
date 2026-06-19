@@ -861,14 +861,14 @@ export default function TaskManagementPage() {
   );
 }
 
-function TaskForm({ 
-  task, 
-  onSubmit, 
-  onCancel 
-}: { 
-  task?: Task; 
-  onSubmit: (data: CreateTaskDto) => void; 
-  onCancel: () => void; 
+function TaskForm({
+  task,
+  onSubmit,
+  onCancel
+}: {
+  task?: Task;
+  onSubmit: (data: CreateTaskDto) => void;
+  onCancel: () => void;
 }) {
   const isEdit = !!task;
   const [formData, setFormData] = useState({
@@ -880,13 +880,14 @@ function TaskForm({
     linkedModule: task?.linkedModule || 'General' as LinkedModule,
     linkedRecordId: task?.linkedRecordId || '',
     linkedRecordName: task?.linkedRecordName || '',
+    projectId: task?.projectId || '',
     incentiveValue: task?.incentiveValue?.toString() || '',
     notes: task?.notes || '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const dto: CreateTaskDto = {
       title: formData.title,
       description: formData.description,
@@ -896,6 +897,7 @@ function TaskForm({
       linkedModule: formData.linkedModule,
       linkedRecordId: formData.linkedRecordId || undefined,
       linkedRecordName: formData.linkedRecordName || undefined,
+      projectId: formData.projectId || undefined,
       incentiveValue: parseFloat(formData.incentiveValue),
       notes: formData.notes || undefined,
     };
@@ -943,7 +945,7 @@ function TaskForm({
           <Input
             id="dueDate"
             type="date"
-            value={formData.dueDate}
+            value={formData.dueDate || ''}
             onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
             required
           />
@@ -1005,6 +1007,15 @@ function TaskForm({
           id="linkedRecordName"
           value={formData.linkedRecordName}
           onChange={(e) => setFormData({ ...formData, linkedRecordName: e.target.value })}
+        />
+      </div>
+      <div>
+        <Label htmlFor="projectId">Project ID (Direct Link)</Label>
+        <Input
+          id="projectId"
+          value={formData.projectId}
+          onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+          placeholder="Enter project ID for direct hierarchy link"
         />
       </div>
       <div>

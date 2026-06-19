@@ -92,11 +92,11 @@ export default function ReportsPage() {
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">From Date</label>
-                  <Input type="date" />
+                  <Input type="date" value="" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">To Date</label>
-                  <Input type="date" />
+                  <Input type="date" value="" />
                 </div>
               </div>
             )}

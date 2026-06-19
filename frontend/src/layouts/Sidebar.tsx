@@ -12,6 +12,7 @@ import {
   CheckSquare,
   Package,
   DollarSign,
+  Calculator,
   FileText,
   Settings,
   ChevronLeft,
@@ -45,8 +46,8 @@ const navigationItems = [
     roles: ['owner', 'admin', 'employee'],
   },
   {
-    title: 'Item Master',
-    href: '/dashboard/item-master',
+    title: 'Item',
+    href: '/dashboard/item',
     icon: ItemMasterIcon,
     roles: ['owner', 'admin', 'employee'],
   },
@@ -75,6 +76,12 @@ const navigationItems = [
     roles: ['owner', 'admin'],
   },
   {
+    title: 'Accounting',
+    href: '/dashboard/accounting',
+    icon: Calculator,
+    roles: ['owner', 'admin'],
+  },
+  {
     title: 'Documents',
     href: '/dashboard/documents',
     icon: FileText,
@@ -89,7 +96,8 @@ const navigationItems = [
 ];
 
 export const Sidebar = memo(function Sidebar({ currentPath, userRole = 'owner' }: SidebarProps) {
-  const pathname = currentPath || usePathname();
+  const nextPathname = usePathname();
+  const pathname = currentPath || nextPathname;
   const router = useRouter();
   const isOpen = useSidebarIsOpen();
   const isCollapsed = useSidebarIsCollapsed();
@@ -122,12 +130,12 @@ export const Sidebar = memo(function Sidebar({ currentPath, userRole = 'owner' }
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4">
           <ul className="space-y-2">
-            {filteredItems.map((item) => {
+            {filteredItems.map((item, index) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               
               return (
-                <li key={item.href}>
+                <li key={`${item.href}-${index}`}>
                   <Link
                     href={item.href}
                     onMouseEnter={() => router.prefetch(item.href)}

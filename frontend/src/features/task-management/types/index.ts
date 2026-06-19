@@ -65,6 +65,7 @@ export interface Task {
   linkedModule?: LinkedModule;
   linkedRecordId?: string;
   linkedRecordName?: string;
+  projectId?: string; // Direct link to Project for hierarchy
   
   // Payment (Incentive-based, not full salary)
   incentiveValue: number; // Set by Admin/Manager - this is the incentive amount, not full salary
@@ -280,6 +281,7 @@ export interface CreateTaskDto {
   linkedModule?: LinkedModule;
   linkedRecordId?: string;
   linkedRecordName?: string;
+  projectId?: string; // Direct link to Project for hierarchy
   incentiveValue: number; // Incentive amount, not full salary
   notes?: string;
   tags?: string[];
@@ -295,6 +297,7 @@ export interface UpdateTaskDto {
   linkedModule?: LinkedModule;
   linkedRecordId?: string;
   linkedRecordName?: string;
+  projectId?: string; // Direct link to Project for hierarchy
   incentiveValue?: number;
   notes?: string;
   tags?: string[];

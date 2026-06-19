@@ -24,9 +24,11 @@ frontend/out/
 frontend/build/
 backend/dist/
 
-# Frontend package files
+# Package files
 frontend/package.json
 frontend/package-lock.json
+backend/package.json
+backend/package-lock.json
 
 # IDE
 .vscode/
@@ -59,13 +61,14 @@ backend/coverage/
 .temp/
 tmp/
 *.tmp
-.cache/
 frontend/.cache/
 backend/.cache/
 
-# Lock files (optional - uncomment if you don't want to commit them)
+# Lock files (commit these for consistency)
+# Uncomment if you prefer not to commit lock files
 # package-lock.json
 # yarn.lock
+# pnpm-lock.yaml
 # frontend/package-lock.json
 # backend/package-lock.json
 

@@ -1,6 +1,6 @@
 /**
- * Item Master Selector Component
- * Allows browsing and selecting products from Item Master for Estimates
+ * Item Selector Component
+ * Allows browsing and selecting products from Item for Estimates
  */
 
 'use client';

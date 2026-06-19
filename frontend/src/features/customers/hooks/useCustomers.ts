@@ -2,7 +2,7 @@
  * useCustomers Hook
  * React Query hooks for customers - never use useState/useEffect for server data
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { customersApi } from '@/features/customers/services/customersApi';
 import { CustomerFilters, CreateCustomerDto, UpdateCustomerDto, ConvertLeadToCustomerDto } from '@/features/customers/types';
 import { PaginationParams } from '@/shared/types/pagination';
@@ -17,6 +17,7 @@ export function useCustomers(params?: PaginationParams & CustomerFilters) {
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -59,6 +60,8 @@ export function useUpdateCustomer() {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['customer', id] });
+      // Invalidate projects cache to sync inherited fields from customer
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 }

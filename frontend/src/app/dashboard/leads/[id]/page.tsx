@@ -65,6 +65,7 @@ const mockLead: Lead = {
   createdBy: 'Admin',
   updatedAt: new Date('2024-05-29'),
   updatedBy: 'Vikram Singh',
+  customerId: undefined, // Will be set when lead is converted to customer
 };
 
 // Mock activity data
@@ -132,11 +133,23 @@ export default function LeadDetailsPage({ params }: { params: { id: string } }) 
             {/* Lead Status Card */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Lead Status</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Lead Status</CardTitle>
+                  {mockLead.customerId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.location.href = `/dashboard/customers/${mockLead.customerId}`}
+                    >
+                      <User className="h-3.5 w-3.5 mr-1.5" />
+                      View Customer
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-4">
-                  <Badge 
+                  <Badge
                     variant={
                       mockLead.status === 'New' ? 'info' :
                       mockLead.status === 'Contacted' ? 'warning' :
@@ -148,7 +161,7 @@ export default function LeadDetailsPage({ params }: { params: { id: string } }) 
                   >
                     {mockLead.status}
                   </Badge>
-                  <Badge 
+                  <Badge
                     variant={
                       mockLead.priority === 'Urgent' ? 'destructive' :
                       mockLead.priority === 'High' ? 'warning' :

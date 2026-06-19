@@ -58,14 +58,14 @@ export function AnalyticsPage() {
     <MainLayout title="Analytics" subtitle="Document performance insights">
       <div className="space-y-6">
         {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           <KPICard
             data={{
               title: 'Total Documents',
               value: (safeStats.totalEstimates + safeStats.totalProposals + safeStats.totalQuotations).toString(),
               change: 12,
               color: 'text-blue-600',
-              icon: <FileText className="h-5 w-5" />,
+              icon: <FileText />,
             }}
           />
           <KPICard
@@ -74,7 +74,7 @@ export function AnalyticsPage() {
               value: `₹${(safeStats.totalRevenuePipeline / 1000000).toFixed(1)}M`,
               change: 8,
               color: 'text-green-600',
-              icon: <DollarSign className="h-5 w-5" />,
+              icon: <DollarSign />,
             }}
           />
           <KPICard
@@ -83,7 +83,7 @@ export function AnalyticsPage() {
               value: `${safeStats.conversionRate}%`,
               change: 5,
               color: 'text-purple-600',
-              icon: <Target className="h-5 w-5" />,
+              icon: <Target />,
             }}
           />
           <KPICard
@@ -92,20 +92,20 @@ export function AnalyticsPage() {
               value: `₹${(safeStats.averageDealSize / 1000).toFixed(0)}K`,
               change: 3,
               color: 'text-orange-600',
-              icon: <TrendingUp className="h-5 w-5" />,
+              icon: <TrendingUp />,
             }}
           />
         </div>
 
         {/* Document Type Breakdown */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
           <KPICard
             data={{
               title: 'Estimates',
               value: safeStats.totalEstimates.toString(),
               change: 15,
               color: 'text-blue-600',
-              icon: <FileText className="h-5 w-5" />,
+              icon: <FileText />,
             }}
           />
           <KPICard
@@ -114,7 +114,7 @@ export function AnalyticsPage() {
               value: safeStats.totalProposals.toString(),
               change: 10,
               color: 'text-purple-600',
-              icon: <FileText className="h-5 w-5" />,
+              icon: <FileText />,
             }}
           />
           <KPICard
@@ -123,20 +123,20 @@ export function AnalyticsPage() {
               value: safeStats.totalQuotations.toString(),
               change: 8,
               color: 'text-green-600',
-              icon: <FileText className="h-5 w-5" />,
+              icon: <FileText />,
             }}
           />
         </div>
 
         {/* Status Breakdown */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           <KPICard
             data={{
               title: 'Accepted',
               value: safeStats.acceptedDocuments.toString(),
               change: 12,
               color: 'text-green-600',
-              icon: <CheckCircle className="h-5 w-5" />,
+              icon: <CheckCircle />,
             }}
           />
           <KPICard
@@ -145,7 +145,7 @@ export function AnalyticsPage() {
               value: (safeStats.draftDocuments + safeStats.sentDocuments).toString(),
               change: -5,
               color: 'text-yellow-600',
-              icon: <Clock className="h-5 w-5" />,
+              icon: <Clock />,
             }}
           />
           <KPICard
@@ -154,7 +154,7 @@ export function AnalyticsPage() {
               value: safeStats.convertedDocuments.toString(),
               change: 8,
               color: 'text-blue-600',
-              icon: <CheckCircle className="h-5 w-5" />,
+              icon: <CheckCircle />,
             }}
           />
           <KPICard
@@ -163,7 +163,7 @@ export function AnalyticsPage() {
               value: safeStats.pendingApprovals.toString(),
               change: -2,
               color: 'text-orange-600',
-              icon: <Clock className="h-5 w-5" />,
+              icon: <Clock />,
             }}
           />
         </div>

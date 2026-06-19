@@ -115,4 +115,6 @@ export interface UpdateLeadDto {
   score?: number;
   remarks?: string;
   nextFollowUpDate?: Date;
+  customerId?: string; // Links to Customer when lead is converted
+  convertedDate?: Date; // Date when lead was converted to customer
 }

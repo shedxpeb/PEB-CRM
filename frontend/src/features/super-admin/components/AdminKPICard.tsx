@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ReactNode } from 'react';
+import { componentTextSizes } from '@/lib/design-system';
 
 interface AdminKPICardProps {
   title: string;
@@ -51,17 +52,17 @@ export function AdminKPICard({
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-medium text-sa-text-muted uppercase tracking-wider mb-1">{title}</p>
-              <p className="text-xl font-bold text-sa-text mb-1.5">{value}</p>
+              <p className={cn(componentTextSizes.kpiCard.label, 'font-medium text-sa-text-muted uppercase tracking-wider mb-1')}>{title}</p>
+              <p className={cn(componentTextSizes.kpiCard.value, 'font-bold text-sa-text mb-1.5')}>{value}</p>
               <Badge
                 variant={change > 0 ? 'success' : change < 0 ? 'destructive' : 'secondary'}
-                className="text-[10px] px-1.5 py-0"
+                className={cn(componentTextSizes.badge, 'px-1.5 py-0')}
               >
                 {change > 0 ? '+' : ''}{change}%
               </Badge>
             </div>
             <div className={cn('p-2 rounded-lg shrink-0', iconBg)}>
-              <div className={color}>{icon}</div>
+              <div className={`${color} h-4 w-4 flex items-center justify-center`}>{icon}</div>
             </div>
           </div>
         </CardContent>

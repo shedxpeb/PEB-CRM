@@ -33,6 +33,8 @@ import {
   Edit,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import { componentTextSizes } from '@/lib/design-system';
 
 export function DocumentsDashboard() {
   const searchParams = useSearchParams();
@@ -369,7 +371,7 @@ export function DocumentsDashboard() {
                       router.push('/dashboard/documents/estimates?create=true');
                       setIsDropdownOpen(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                    className={cn('w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2', componentTextSizes.button.md)}
                   >
                     <FileText className="h-4 w-4" />
                     New Estimate
@@ -379,7 +381,7 @@ export function DocumentsDashboard() {
                       router.push('/dashboard/documents/proposals?create=true');
                       setIsDropdownOpen(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                    className={cn('w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2', componentTextSizes.button.md)}
                   >
                     <File className="h-4 w-4" />
                     New Proposal
@@ -389,7 +391,7 @@ export function DocumentsDashboard() {
                       router.push('/dashboard/documents/quotations?create=true');
                       setIsDropdownOpen(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                    className={cn('w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2', componentTextSizes.button.md)}
                   >
                     <FileSpreadsheet className="h-4 w-4" />
                     New Quotation
@@ -408,7 +410,7 @@ export function DocumentsDashboard() {
             value: ((estimateStats?.totalEstimates || 0) + (proposalStats?.totalProposals || 0) + (quotationStats?.totalQuotations || 0)).toString(),
             change: 12,
             color: 'text-blue-600',
-            icon: <FileText className="h-5 w-5" />,
+            icon: <FileText />,
           }}
         />
         <KPICard
@@ -417,7 +419,7 @@ export function DocumentsDashboard() {
             value: `₹${(quotationStats?.totalRevenuePipeline || 0).toLocaleString()}`,
             change: 8,
             color: 'text-green-600',
-            icon: <DollarSign className="h-5 w-5" />,
+            icon: <DollarSign />,
           }}
         />
         <KPICard
@@ -426,7 +428,7 @@ export function DocumentsDashboard() {
             value: '0%',
             change: 5,
             color: 'text-purple-600',
-            icon: <TrendingUp className="h-5 w-5" />,
+            icon: <TrendingUp />,
           }}
         />
         <KPICard
@@ -435,7 +437,7 @@ export function DocumentsDashboard() {
             value: '0',
             change: -2,
             color: 'text-orange-600',
-            icon: <Clock className="h-5 w-5" />,
+            icon: <Clock />,
           }}
         />
       </div>
@@ -448,7 +450,7 @@ export function DocumentsDashboard() {
             value: (estimateStats?.totalEstimates || 0).toString(),
             change: 15,
             color: 'text-blue-600',
-            icon: <FileText className="h-5 w-5" />,
+            icon: <FileText />,
           }}
         />
         <KPICard
@@ -457,7 +459,7 @@ export function DocumentsDashboard() {
             value: (proposalStats?.totalProposals || 0).toString(),
             change: 10,
             color: 'text-purple-600',
-            icon: <File className="h-5 w-5" />,
+            icon: <File />,
           }}
         />
         <KPICard
@@ -466,7 +468,7 @@ export function DocumentsDashboard() {
             value: (quotationStats?.totalQuotations || 0).toString(),
             change: 8,
             color: 'text-green-600',
-            icon: <FileSpreadsheet className="h-5 w-5" />,
+            icon: <FileSpreadsheet />,
           }}
         />
       </div>
@@ -475,7 +477,7 @@ export function DocumentsDashboard() {
       <Card className="min-w-0">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <CardTitle className="text-base sm:text-lg">Documents</CardTitle>
+            <CardTitle className={cn(componentTextSizes.cardHeader.title, 'sm:text-lg')}>Documents</CardTitle>
             <div className="relative flex-1 sm:flex-none max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
@@ -491,10 +493,10 @@ export function DocumentsDashboard() {
         <CardContent>
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
             <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
-              <TabsTrigger value="all" className="text-xs sm:text-sm">All Docs</TabsTrigger>
-              <TabsTrigger value="estimates" className="text-xs sm:text-sm">Estimates</TabsTrigger>
-              <TabsTrigger value="proposals" className="text-xs sm:text-sm">Proposals</TabsTrigger>
-              <TabsTrigger value="quotations" className="text-xs sm:text-sm">Quotes</TabsTrigger>
+              <TabsTrigger value="all" className={componentTextSizes.tab}>All Docs</TabsTrigger>
+              <TabsTrigger value="estimates" className={componentTextSizes.tab}>Estimates</TabsTrigger>
+              <TabsTrigger value="proposals" className={componentTextSizes.tab}>Proposals</TabsTrigger>
+              <TabsTrigger value="quotations" className={componentTextSizes.tab}>Quotes</TabsTrigger>
             </TabsList>
             <TabsContent value="all" className="mt-4">
               <DataTable

@@ -6,9 +6,14 @@ import dynamic from 'next/dynamic';
 import { MainLayout } from '@/layouts/MainLayout';
 import { DataTable } from '@/components/data-table/DataTable';
 import { KPICard } from '@/components/dashboard/KPICard';
+import { ConsolidatedFilterBox, FilterConfig } from '@/components/layout/ConsolidatedFilterBox';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import { componentTextSizes } from '@/lib/design-system';
 import { useDebounce } from '@/shared/hooks/useDebounce';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -19,6 +24,10 @@ const LeadForm = dynamic(() => import('@/features/leads/components/LeadForm').th
 });
 const LeadRowActions = dynamic(() => import('@/features/leads/components/LeadRowActions').then(mod => ({ default: mod.LeadRowActions })), {
   loading: () => <div className="p-2">Loading...</div>,
+  ssr: false
+});
+const LeadToCustomerConversionDialog = dynamic(() => import('@/features/leads/components/LeadToCustomerConversionDialog').then(mod => ({ default: mod.LeadToCustomerConversionDialog })), {
+  loading: () => <div className="p-8 text-center">Loading...</div>,
   ssr: false
 });
 const KanbanBoard = dynamic(() => import('@/features/leads/components/KanbanBoard').then(mod => ({ default: mod.KanbanBoard })), {
@@ -76,7 +85,7 @@ const baseColumns = [
   { key: 'structureType' as const, label: 'Structure Type', filterable: true },
   { key: 'width' as const, label: 'Area (sqm)', render: (_: any, row: Lead) => `${(row.width || 0) * (row.length || 0)}` },
   { key: 'status' as const, label: 'Status', sortable: true, render: (value: LeadStatus) => (
-    <Badge 
+    <Badge
       variant={
         value === 'New' ? 'info' :
         value === 'Contacted' ? 'warning' :
@@ -89,9 +98,17 @@ const baseColumns = [
       {value}
     </Badge>
   )},
+  { key: 'converted' as const, label: 'Converted', render: (_: any, row: Lead) => (
+    <Badge
+      variant={row.customerId ? 'success' : 'secondary'}
+      className="text-xs"
+    >
+      {row.customerId ? 'Yes' : 'No'}
+    </Badge>
+  )},
   { key: 'assignedEmployee' as const, label: 'Assigned To' },
   { key: 'priority' as const, label: 'Priority', sortable: true, render: (value: LeadPriority) => (
-    <Badge 
+    <Badge
       variant={
         value === 'Urgent' ? 'destructive' :
         value === 'High' ? 'warning' :
@@ -127,6 +144,7 @@ export default function LeadsPage() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isConvertToCustomerDialogOpen, setIsConvertToCustomerDialogOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
   const [viewMode, setViewMode] = useState<'table' | 'kanban' | 'calendar'>('table');
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
@@ -429,6 +447,50 @@ export default function LeadsPage() {
     }, 500);
   }, []);
 
+  // Extract unique cities from leads data
+  const cityOptions = useMemo(() => {
+    const cities = [...new Set(leads.map(l => l.city).filter(Boolean))];
+    return cities.sort();
+  }, [leads]);
+
+  // Filter configuration for ConsolidatedFilterBox
+  const filterConfigs: FilterConfig[] = useMemo(() => [
+    {
+      key: 'status',
+      label: 'Status',
+      value: statusFilter,
+      onChange: setStatusFilter,
+      options: [{ value: 'all', label: 'All Status' }, ...statusOptions.map(s => ({ value: s, label: s }))],
+    },
+    {
+      key: 'priority',
+      label: 'Priority',
+      value: priorityFilter,
+      onChange: setPriorityFilter,
+      options: [{ value: 'all', label: 'All Priority' }, ...priorityOptions.map(p => ({ value: p, label: p }))],
+    },
+    {
+      key: 'city',
+      label: 'City',
+      value: '',
+      onChange: () => {},
+      options: [{ value: 'all', label: 'All Cities' }, ...cityOptions.map(c => ({ value: c, label: c }))],
+    },
+  ], [statusFilter, priorityFilter, cityOptions]);
+
+  const handleClearFilters = useCallback(() => {
+    setStatusFilter('all');
+    setPriorityFilter('all');
+    setKpiFilterMode('none');
+    setSearchQuery('');
+    setDateRangeFilter({ from: null, to: null });
+    setQuickDateFilter('all');
+  }, []);
+
+  const handleDateRangeChangeWrapper = useCallback((range: { from?: Date | null; to?: Date | null }) => {
+    setDateRangeFilter({ from: range.from || null, to: range.to || null });
+  }, []);
+
   const handleEditLeadFromRow = useCallback((lead: Lead) => {
     setSelectedLead(lead);
     setIsEditDialogOpen(true);
@@ -444,59 +506,35 @@ export default function LeadsPage() {
     // Convert to project
   }, []);
 
-  const handleConvertToCustomer = useCallback(async (lead: Lead) => {
+  const handleConvertToCustomer = useCallback((lead: Lead) => {
     // Duplicate prevention: Check if lead already has customerId
     if (lead.customerId) {
       alert('This lead has already been converted to a customer.');
       return;
     }
 
-    // Business workflow validation: Only allow conversion from approved statuses
-    const convertibleStatuses: LeadStatus[] = ['Approved', 'Negotiation'];
-    if (!convertibleStatuses.includes(lead.status)) {
-      alert(`Lead must be in 'Approved' or 'Negotiation' status to convert to customer. Current status: ${lead.status}`);
-      return;
-    }
+    setSelectedLead(lead);
+    setIsConvertToCustomerDialogOpen(true);
+  }, []);
 
-    try {
-      // Convert lead to customer
-      const result = await convertLeadToCustomerMutation.mutateAsync({
-        leadId: lead.id,
-        customerName: lead.customerName,
-        companyName: lead.companyName,
-        mobile: lead.mobile,
-        email: lead.email,
-        address: lead.address,
-        city: lead.city,
-        state: lead.state,
-        pincode: lead.pincode,
-        leadSource: lead.source,
-        assignedEmployeeId: lead.assignedEmployeeId,
-        notes: lead.remarks,
-      });
-
-      // Update lead with customerId and status (only after successful conversion)
-      setLeads((prevLeads) =>
-        prevLeads.map((l) =>
-          l.id === lead.id
-            ? {
-                ...l,
-                customerId: result.customer.id,
-                status: 'Converted' as LeadStatus,
-                convertedDate: new Date(),
-                updatedAt: new Date(),
-              }
-            : l
-        )
-      );
-
-      // Navigate to customer detail page
-      router.push(ROUTES.customersDetail(result.customer.id));
-    } catch (error) {
-      console.error('Error converting lead to customer:', error);
-      alert('Failed to convert lead to customer. Please try again.');
-    }
-  }, [convertLeadToCustomerMutation, router]);
+  const handleCustomerCreated = useCallback((customer: any) => {
+    // Update lead with customerId and status
+    setLeads((prevLeads) =>
+      prevLeads.map((l) =>
+        l.id === selectedLead?.id
+          ? {
+              ...l,
+              customerId: customer.id,
+              status: 'Converted' as LeadStatus,
+              convertedDate: new Date(),
+              updatedAt: new Date(),
+            }
+          : l
+      )
+    );
+    setIsConvertToCustomerDialogOpen(false);
+    setSelectedLead(null);
+  }, [selectedLead]);
 
   const handleAddScore = useCallback((lead: Lead, score: number) => {
     // Add score to lead
@@ -532,23 +570,23 @@ export default function LeadsPage() {
 
   return (
     <MainLayout title="Leads" subtitle="Manage customer enquiries and PEB requirements">
-      <div className="space-y-2 sm:space-y-3 w-full overflow-hidden">
-        {/* Header */}
+      <div className="space-y-4">
+        {/* Header with Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold">Leads</h1>
+            <h1 className={cn(componentTextSizes.pageHeader.title, 'font-bold')}>Leads</h1>
           </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-            <Button onClick={() => setIsCreateDialogOpen(true)} className="w-full sm:w-auto">
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setIsCreateDialogOpen(true)} className="h-9">
               <Plus className="h-4 w-4 mr-2" />
               Add Lead
             </Button>
 
             {/* View Toggle */}
-            <div className="flex items-center bg-muted rounded-lg p-1 w-full sm:w-auto">
+            <div className="flex items-center bg-muted rounded-lg p-1">
               <button
                 onClick={() => handleViewModeChange('table')}
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
                   viewMode === 'table'
                     ? 'bg-background shadow-sm text-foreground'
                     : 'text-muted-foreground hover:text-foreground'
@@ -559,7 +597,7 @@ export default function LeadsPage() {
               </button>
               <button
                 onClick={() => handleViewModeChange('kanban')}
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
                   viewMode === 'kanban'
                     ? 'bg-background shadow-sm text-foreground'
                     : 'text-muted-foreground hover:text-foreground'
@@ -570,7 +608,7 @@ export default function LeadsPage() {
               </button>
               <button
                 onClick={() => handleViewModeChange('calendar')}
-                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
+                className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
                   viewMode === 'calendar'
                     ? 'bg-background shadow-sm text-foreground'
                     : 'text-muted-foreground hover:text-foreground'
@@ -583,14 +621,14 @@ export default function LeadsPage() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           <KPICard
             data={{
               title: 'Total Leads',
               value: leads.length,
               change: 0,
-              icon: <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+              icon: <Plus />,
               color: 'text-blue-500'
             }}
             onClick={() => handleKpiCardClick('all')}
@@ -600,7 +638,7 @@ export default function LeadsPage() {
               title: 'New Leads',
               value: leads.filter(l => l.status === 'New').length,
               change: 0,
-              icon: <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+              icon: <Calendar />,
               color: 'text-green-500'
             }}
             onClick={() => handleKpiCardClick('New')}
@@ -612,7 +650,7 @@ export default function LeadsPage() {
                 ['Contacted', 'Design Pending', 'BOQ Pending', 'Estimate Sent', 'Proposal Sent', 'Negotiation'].includes(l.status)
               ).length,
               change: 0,
-              icon: <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+              icon: <RefreshCw />,
               color: 'text-yellow-500'
             }}
             onClick={() => handleKpiCardClick('in-progress')}
@@ -622,395 +660,306 @@ export default function LeadsPage() {
               title: 'Converted',
               value: leads.filter(l => l.status === 'Converted').length,
               change: 0,
-              icon: <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4" />,
+              icon: <Filter />,
               color: 'text-emerald-500'
             }}
             onClick={() => handleKpiCardClick('Converted')}
           />
         </div>
 
-        {/* Filters */}
-        <Card className="min-w-0">
-          <CardContent className="p-2 sm:p-3">
-            <div className="space-y-2 sm:space-y-3">
-              {/* Search Bar and Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center">
-                <div className="relative flex-1 w-full sm:max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Search by customer name, company, mobile number, or lead ID..."
-                    className="w-full pl-10 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                <div className="flex items-center gap-1 w-full sm:w-auto">
-                  <Button variant="outline" onClick={handleExport} className="flex-1 sm:flex-none gap-1.5 px-2 sm:px-3 py-2 h-8 sm:h-9 text-xs">
-                    <Download className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Export</span>
-                  </Button>
-                  <Button variant="outline" onClick={handleImport} className="flex-1 sm:flex-none gap-1.5 px-2 sm:px-3 py-2 h-8 sm:h-9 text-xs">
-                    <FileText className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Import</span>
-                  </Button>
-                  <Button variant="outline" onClick={() => setIsCustomColumnDialogOpen(true)} className="flex-1 sm:flex-none gap-1.5 px-2 sm:px-3 py-2 h-8 sm:h-9 text-xs">
-                    <Settings className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Columns</span>
-                  </Button>
-                </div>
-              </div>
+        {/* Consolidated Filter Box */}
+        <ConsolidatedFilterBox
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Search by customer name, company, mobile number, or lead ID..."
+          filters={filterConfigs}
+          onClearFilters={handleClearFilters}
+          dateRange={dateRangeFilter}
+          onDateRangeChange={handleDateRangeChangeWrapper}
+          onExport={handleExport}
+          onImport={handleImport}
+          onColumns={() => setIsCustomColumnDialogOpen(true)}
+        />
 
-              {/* Filter Groups */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 items-end">
-                {/* Status Filter */}
-                <div className="min-w-0">
-                  <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Status</label>
-                  <select
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    <option value="all">All Status</option>
-                    {statusOptions.map(status => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Priority Filter */}
-                <div className="min-w-0">
-                  <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Priority</label>
-                  <select
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    value={priorityFilter}
-                    onChange={(e) => setPriorityFilter(e.target.value)}
-                  >
-                    <option value="all">All Priority</option>
-                    {priorityOptions.map(priority => (
-                      <option key={priority} value={priority}>{priority}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Date Filters - only show in table and calendar view */}
-                {viewMode !== 'kanban' && (
-                  <>
-                    <div className="min-w-0">
-                      <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Time Period</label>
-                      <select
-                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        value={quickDateFilter}
-                        onChange={(e) => handleQuickDateFilterChange(e.target.value)}
-                      >
-                        <option value="all">All Time</option>
-                        <option value="today">Today</option>
-                        <option value="tomorrow">Tomorrow</option>
-                        <option value="this_week">This Week</option>
-                        <option value="this_month">This Month</option>
-                        <option value="this_year">This Year</option>
-                      </select>
-                    </div>
-
-                    <div className="min-w-0">
-                      <label className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1 block">Date Range</label>
-                      <div className="flex items-center gap-1 sm:gap-1.5">
-                        <input
-                          type="date"
-                          className="flex-1 min-w-0 px-1.5 sm:px-2 py-1.5 text-[10px] sm:text-xs rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          value={dateRangeFilter.from ? dateRangeFilter.from.toISOString().split('T')[0] : ''}
-                          onChange={(e) => handleDateRangeChange('from', e.target.value ? new Date(e.target.value) : null)}
-                        />
-                        <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">to</span>
-                        <input
-                          type="date"
-                          className="flex-1 min-w-0 px-1.5 sm:px-2 py-1.5 text-[10px] sm:text-xs rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          value={dateRangeFilter.to ? dateRangeFilter.to.toISOString().split('T')[0] : ''}
-                          onChange={(e) => handleDateRangeChange('to', e.target.value ? new Date(e.target.value) : null)}
-                        />
-                        {(quickDateFilter !== 'all' || dateRangeFilter.from || dateRangeFilter.to) && (
-                          <Button variant="ghost" size="sm" onClick={clearDateFilters} className="h-7 sm:h-8 px-1.5 sm:px-2 text-[10px] sm:text-xs shrink-0">
-                            Clear
-                          </Button>
-                        )}
+          {/* Data Table / Kanban / Calendar View */}
+          {viewMode === 'kanban' ? (
+            <KanbanBoard
+              leads={filteredLeads}
+              onLeadUpdate={handleLeadUpdate}
+              onLeadsReorder={handleLeadsReorder}
+              onAddLead={() => setIsCreateDialogOpen(true)}
+            />
+          ) : viewMode === 'calendar' ? (
+            <LeadCalendarView
+              leads={filteredLeads}
+              onLeadClick={handleRowClick}
+            />
+          ) : (
+            <div className="min-w-0">
+              {selectedRows.size > 0 && (
+                <Card className="bg-muted/50">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">{selectedRows.size} lead(s) selected</p>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleBulkStatusChange('Contacted')}>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Mark Contacted
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <Send className="h-4 w-4 mr-2" />
+                          Send Estimate
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <FileText className="h-4 w-4 mr-2" />
+                          Send Proposal
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
                       </div>
                     </div>
-                  </>
+                  </CardContent>
+                </Card>
+              )}
+
+              <DataTable
+                columns={columns}
+                data={paginatedLeads}
+                onRowClick={handleRowClick}
+                enableSelection={true}
+                selectedRows={selectedRows}
+                onSelectionChange={setSelectedRows}
+                rowIdKey="id"
+                rowActions={(row) => (
+                  <LeadRowActions
+                    lead={row as Lead}
+                    onEdit={handleEditLeadFromRow}
+                    onDelete={handleDeleteLead}
+                    onConvert={handleConvertLead}
+                    onConvertToCustomer={handleConvertToCustomer}
+                    onAddScore={handleAddScore}
+                    onStatusChange={handleStatusChange}
+                  />
                 )}
+              />
+
+              {/* Lazy Loading - Load More Button */}
+              {filteredLeads.length > currentPage * itemsPerPage && (
+                <div className="flex justify-center mt-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleLoadMore}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Loading...' : `Load More (${filteredLeads.length - currentPage * itemsPerPage} remaining)`}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+      {/* Create Lead Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Lead</DialogTitle>
+          </DialogHeader>
+          <LeadForm
+            onSubmit={handleCreateLead}
+            onCancel={() => setIsCreateDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Lead Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Lead</DialogTitle>
+          </DialogHeader>
+          {selectedLead ? (
+            <LeadForm
+              initialData={selectedLead as Partial<Lead>}
+              onSubmit={handleEditLead}
+              onCancel={() => setIsEditDialogOpen(false)}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* View Lead Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Lead Details</DialogTitle>
+          </DialogHeader>
+          {selectedLead ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Lead ID</p>
+                  <p className="text-lg font-semibold">{selectedLead!.leadId}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Status</p>
+                  <Badge variant={
+                    selectedLead!.status === 'New' ? 'info' :
+                    selectedLead!.status === 'Contacted' ? 'warning' :
+                    selectedLead!.status === 'Converted' || selectedLead!.status === 'Approved' ? 'success' :
+                    selectedLead!.status === 'Rejected' ? 'destructive' :
+                    'secondary'
+                  }>{selectedLead!.status}</Badge>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Customer Name</p>
+                  <p className="text-lg font-semibold">{selectedLead!.customerName}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Company</p>
+                  <p className="text-lg font-semibold">{selectedLead!.companyName}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Mobile</p>
+                  <p className="text-lg font-semibold">{selectedLead!.mobile}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Email</p>
+                  <p className="text-lg font-semibold">{selectedLead!.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">City</p>
+                  <p className="text-lg font-semibold">{selectedLead!.city}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">State</p>
+                  <p className="text-lg font-semibold">{selectedLead!.state}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Project Title</p>
+                  <p className="text-lg font-semibold">{selectedLead!.projectTitle}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Project Type</p>
+                  <p className="text-lg font-semibold">{selectedLead!.projectType}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Structure Type</p>
+                  <p className="text-lg font-semibold">{selectedLead!.structureType}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Priority</p>
+                  <Badge variant={
+                    selectedLead!.priority === 'Urgent' ? 'destructive' :
+                    selectedLead!.priority === 'High' ? 'warning' :
+                    selectedLead!.priority === 'Medium' ? 'info' :
+                    'secondary'
+                  }>{selectedLead!.priority}</Badge>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Assigned To</p>
+                  <p className="text-lg font-semibold">{selectedLead!.assignedEmployee}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Source</p>
+                  <p className="text-lg font-semibold">{selectedLead!.source}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Created Date</p>
+                  <p className="text-lg font-semibold">{new Date(selectedLead!.createdDate).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Next Follow-up</p>
+                  <p className="text-lg font-semibold">{selectedLead!.nextFollowUpDate ? new Date(selectedLead!.nextFollowUpDate || '').toLocaleDateString() : '-'}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end pt-4 border-t">
+                <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+                  Close
+                </Button>
+                <Button onClick={() => {
+                  setIsViewDialogOpen(false);
+                  setIsEditDialogOpen(true);
+                }}>
+                  Edit
+                </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
-        {/* Data Table / Kanban / Calendar View */}
-        {viewMode === 'kanban' ? (
-          <KanbanBoard
-            leads={filteredLeads}
-            onLeadUpdate={handleLeadUpdate}
-            onLeadsReorder={handleLeadsReorder}
-            onAddLead={() => setIsCreateDialogOpen(true)}
-          />
-        ) : viewMode === 'calendar' ? (
-          <LeadCalendarView
-            leads={filteredLeads}
-            onLeadClick={handleRowClick}
-          />
-        ) : (
-          <div className="min-w-0">
-            {selectedRows.size > 0 && (
-              <Card className="bg-muted/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">{selectedRows.size} lead(s) selected</p>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleBulkStatusChange('Contacted')}>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Mark Contacted
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Send className="h-4 w-4 mr-2" />
-                        Send Estimate
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <FileText className="h-4 w-4 mr-2" />
-                        Send Proposal
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
+      {/* Custom Columns Dialog */}
+      <Dialog open={isCustomColumnDialogOpen} onOpenChange={setIsCustomColumnDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Custom Columns</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Column Key</label>
+              <input
+                type="text"
+                placeholder="e.g., customField1"
+                className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                id="customColumnKey"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Column Label</label>
+              <input
+                type="text"
+                placeholder="e.g., Custom Field 1"
+                className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                id="customColumnLabel"
+              />
+            </div>
+            <div className="flex gap-2 justify-end pt-4">
+              <Button variant="outline" onClick={() => setIsCustomColumnDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => {
+                const keyInput = document.getElementById('customColumnKey') as HTMLInputElement;
+                const labelInput = document.getElementById('customColumnLabel') as HTMLInputElement;
+                if (keyInput?.value && labelInput?.value) {
+                  handleAddCustomColumn(keyInput.value, labelInput.value);
+                  keyInput.value = '';
+                  labelInput.value = '';
+                }
+              }}>
+                Add Column
+              </Button>
+            </div>
+            {customColumns.length > 0 && (
+              <div className="pt-4 border-t">
+                <p className="text-sm font-medium mb-2">Existing Custom Columns</p>
+                <div className="space-y-2">
+                  {customColumns.map((col) => (
+                    <div key={col.key} className="flex items-center justify-between p-2 border rounded-md">
+                      <span className="text-sm">{col.label} ({col.key})</span>
+                      <Button variant="ghost" size="sm" onClick={() => handleRemoveCustomColumn(col.key)}>
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <DataTable
-              columns={columns}
-              data={paginatedLeads}
-              onRowClick={handleRowClick}
-              enableSelection={true}
-              selectedRows={selectedRows}
-              onSelectionChange={setSelectedRows}
-              rowIdKey="id"
-              rowActions={(row) => (
-                <LeadRowActions
-                  lead={row as Lead}
-                  onEdit={handleEditLeadFromRow}
-                  onDelete={handleDeleteLead}
-                  onConvert={handleConvertLead}
-                  onConvertToCustomer={handleConvertToCustomer}
-                  onAddScore={handleAddScore}
-                  onStatusChange={handleStatusChange}
-                />
-              )}
-            />
-
-            {/* Lazy Loading - Load More Button */}
-            {filteredLeads.length > currentPage * itemsPerPage && (
-              <div className="flex justify-center mt-4">
-                <Button
-                  variant="outline"
-                  onClick={handleLoadMore}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Loading...' : `Load More (${filteredLeads.length - currentPage * itemsPerPage} remaining)`}
-                </Button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
-        )}
+        </DialogContent>
+      </Dialog>
 
-        {/* Create Lead Dialog */}
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Lead</DialogTitle>
-            </DialogHeader>
-            <LeadForm
-              onSubmit={handleCreateLead}
-              onCancel={() => setIsCreateDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Lead Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Lead</DialogTitle>
-            </DialogHeader>
-            {selectedLead && (
-              <LeadForm
-                initialData={selectedLead}
-                onSubmit={handleEditLead}
-                onCancel={() => setIsEditDialogOpen(false)}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* View Lead Dialog */}
-        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Lead Details</DialogTitle>
-            </DialogHeader>
-            {selectedLead && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Lead ID</p>
-                    <p className="text-lg font-semibold">{selectedLead.leadId}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Status</p>
-                    <Badge variant={
-                      selectedLead.status === 'New' ? 'info' :
-                      selectedLead.status === 'Contacted' ? 'warning' :
-                      selectedLead.status === 'Converted' || selectedLead.status === 'Approved' ? 'success' :
-                      selectedLead.status === 'Rejected' ? 'destructive' :
-                      'secondary'
-                    }>{selectedLead.status}</Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Customer Name</p>
-                    <p className="text-lg font-semibold">{selectedLead.customerName}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Company</p>
-                    <p className="text-lg font-semibold">{selectedLead.companyName}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Mobile</p>
-                    <p className="text-lg font-semibold">{selectedLead.mobile}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Email</p>
-                    <p className="text-lg font-semibold">{selectedLead.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">City</p>
-                    <p className="text-lg font-semibold">{selectedLead.city}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">State</p>
-                    <p className="text-lg font-semibold">{selectedLead.state}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Project Title</p>
-                    <p className="text-lg font-semibold">{selectedLead.projectTitle}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Project Type</p>
-                    <p className="text-lg font-semibold">{selectedLead.projectType}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Structure Type</p>
-                    <p className="text-lg font-semibold">{selectedLead.structureType}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Priority</p>
-                    <Badge variant={
-                      selectedLead.priority === 'Urgent' ? 'destructive' :
-                      selectedLead.priority === 'High' ? 'warning' :
-                      selectedLead.priority === 'Medium' ? 'info' :
-                      'secondary'
-                    }>{selectedLead.priority}</Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Assigned To</p>
-                    <p className="text-lg font-semibold">{selectedLead.assignedEmployee}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Source</p>
-                    <p className="text-lg font-semibold">{selectedLead.source}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Created Date</p>
-                    <p className="text-lg font-semibold">{new Date(selectedLead.createdDate).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Next Follow-up</p>
-                    <p className="text-lg font-semibold">{selectedLead.nextFollowUpDate ? new Date(selectedLead.nextFollowUpDate).toLocaleDateString() : '-'}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2 justify-end pt-4 border-t">
-                  <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-                    Close
-                  </Button>
-                  <Button onClick={() => {
-                    setIsViewDialogOpen(false);
-                    setIsEditDialogOpen(true);
-                  }}>
-                    Edit
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Custom Columns Dialog */}
-        <Dialog open={isCustomColumnDialogOpen} onOpenChange={setIsCustomColumnDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Custom Columns</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Column Key</label>
-                <input
-                  type="text"
-                  placeholder="e.g., customField1"
-                  className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  id="customColumnKey"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Column Label</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Custom Field 1"
-                  className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  id="customColumnLabel"
-                />
-              </div>
-              <div className="flex gap-2 justify-end pt-4">
-                <Button variant="outline" onClick={() => setIsCustomColumnDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={() => {
-                  const keyInput = document.getElementById('customColumnKey') as HTMLInputElement;
-                  const labelInput = document.getElementById('customColumnLabel') as HTMLInputElement;
-                  if (keyInput?.value && labelInput?.value) {
-                    handleAddCustomColumn(keyInput.value, labelInput.value);
-                    keyInput.value = '';
-                    labelInput.value = '';
-                  }
-                }}>
-                  Add Column
-                </Button>
-              </div>
-              {customColumns.length > 0 && (
-                <div className="pt-4 border-t">
-                  <p className="text-sm font-medium mb-2">Existing Custom Columns</p>
-                  <div className="space-y-2">
-                    {customColumns.map((col) => (
-                      <div key={col.key} className="flex items-center justify-between p-2 border rounded-md">
-                        <span className="text-sm">{col.label} ({col.key})</span>
-                        <Button variant="ghost" size="sm" onClick={() => handleRemoveCustomColumn(col.key)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+      {/* Lead to Customer Conversion Dialog */}
+      {selectedLead ? (
+        <LeadToCustomerConversionDialog
+          open={isConvertToCustomerDialogOpen}
+          onOpenChange={setIsConvertToCustomerDialogOpen}
+          lead={selectedLead!}
+          onCustomerCreated={handleCustomerCreated}
+        />
+      ) : null}
     </MainLayout>
   );
 }

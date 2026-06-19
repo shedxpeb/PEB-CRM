@@ -49,6 +49,7 @@ interface DocumentRowActionsProps {
   onPrint?: (document: Estimate | Proposal | Quotation) => void;
   onDownload?: (document: Estimate | Proposal | Quotation) => void;
   onCopy?: (document: Estimate | Proposal | Quotation) => void;
+  onDuplicate?: (document: Estimate | Proposal | Quotation) => void;
 }
 
 export function DocumentRowActions({
@@ -67,6 +68,7 @@ export function DocumentRowActions({
   onPrint,
   onDownload,
   onCopy,
+  onDuplicate,
 }: DocumentRowActionsProps) {
   const [open, setOpen] = useState(false);
 
@@ -210,6 +212,11 @@ export function DocumentRowActions({
         <DropdownMenuItem onClick={() => onCopy?.(document)}>
           <Copy className="h-4 w-4 mr-2" />
           Copy Document
+        </DropdownMenuItem>
+
+        <DropdownMenuItem onClick={() => onDuplicate?.(document)}>
+          <Copy className="h-4 w-4 mr-2" />
+          Duplicate Document
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />

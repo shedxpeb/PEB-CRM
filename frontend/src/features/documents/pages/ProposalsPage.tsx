@@ -62,6 +62,32 @@ export function ProposalsPage() {
     window.location.href = '/dashboard/documents/quotations';
   };
 
+  const handleDuplicateProposal = async (proposal: Proposal) => {
+    try {
+      const duplicateData: CreateProposalDto = {
+        estimateId: proposal.estimateId,
+        customerId: proposal.customerId,
+        proposalNumber: `${proposal.proposalNumber}-COPY`,
+        validUntil: proposal.validUntil,
+        items: proposal.items,
+        subtotal: proposal.subtotal,
+        taxAmount: proposal.taxAmount,
+        totalAmount: proposal.totalAmount,
+        paymentTerms: proposal.paymentTerms,
+        termsAndConditions: proposal.termsAndConditions,
+        notes: proposal.notes,
+        status: 'Draft',
+      };
+      
+      await createProposal(duplicateData);
+      alert('Proposal duplicated successfully!');
+      refetch();
+    } catch (err) {
+      console.error('Failed to duplicate proposal:', err);
+      alert('Failed to duplicate proposal. Please try again.');
+    }
+  };
+
   const handleBuilderSave = async (data: CreateProposalDto) => {
     try {
       if (editingProposal) {
@@ -145,7 +171,7 @@ export function ProposalsPage() {
                 value: stats.totalProposals?.toString() || '0',
                 change: 0,
                 color: 'text-blue-600',
-                icon: <File className="h-4 w-4" />,
+                icon: <File />,
               }}
             />
             <KPICard
@@ -154,7 +180,7 @@ export function ProposalsPage() {
                 value: stats.draftProposals?.toString() || '0',
                 change: 0,
                 color: 'text-gray-600',
-                icon: <Clock className="h-4 w-4" />,
+                icon: <Clock />,
               }}
             />
             <KPICard
@@ -163,7 +189,7 @@ export function ProposalsPage() {
                 value: stats.sentProposals?.toString() || '0',
                 change: 0,
                 color: 'text-orange-600',
-                icon: <DollarSign className="h-4 w-4" />,
+                icon: <DollarSign />,
               }}
             />
             <KPICard
@@ -172,7 +198,7 @@ export function ProposalsPage() {
                 value: stats.convertedProposals?.toString() || '0',
                 change: 0,
                 color: 'text-green-600',
-                icon: <CheckCircle className="h-4 w-4" />,
+                icon: <CheckCircle />,
               }}
             />
           </div>
@@ -181,9 +207,9 @@ export function ProposalsPage() {
         {/* Header Actions */}
         <div className="flex justify-between items-center">
           <div>
-            <p className="text-sm text-gray-600">Total Proposals: {proposals.length}</p>
+            <p className="text-sm text-muted-foreground">Total Proposals: {proposals.length}</p>
           </div>
-          <Button onClick={handleCreateNew}>
+          <Button onClick={handleCreateNew} className="h-9">
             <Plus className="h-4 w-4 mr-2" />
             New Proposal
           </Button>
@@ -217,6 +243,7 @@ export function ProposalsPage() {
                   onPrint={() => {}}
                   onDownload={() => {}}
                   onCopy={() => {}}
+                  onDuplicate={() => handleDuplicateProposal(row as Proposal)}
                 />
               )}
             />

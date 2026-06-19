@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useMemo, useCallback, lazy, Suspense, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useMemo, useCallback, lazy, Suspense, useEffect, useRef } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/layouts/MainLayout';
 import { DataTable, Column } from '@/components/data-table/DataTable';
-import { LeadActivityTimeline } from '@/features/leads/components/LeadActivityTimeline';
-import { LeadQuickActions } from '@/features/leads/components/LeadQuickActions';
+import { CustomerActivityTimeline } from '@/features/customers/components/CustomerActivityTimeline';
+import { CustomerQuickActions } from '@/features/customers/components/CustomerQuickActions';
+import { CustomerHeroCard } from '@/features/customers/components/CustomerHeroCard';
 import { CustomerHealthScore } from '@/features/customers/components/CustomerHealthScore';
 import { CustomerSummary } from '@/features/customers/components/CustomerSummary';
 import { ClickableKPICard } from '@/features/customers/components/ClickableKPICard';
@@ -16,12 +17,23 @@ import { CustomerQuotationTrendChart } from '@/features/customers/components/Cus
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Customer, CustomerStatus } from '@/features/customers';
 import { getStatusVariant } from '@/features/customers/constants';
 import { useCustomer, useCustomerActivities } from '@/features/customers/hooks/useCustomers';
 import { useProjects } from '@/features/projects/hooks/useProjects';
 import { useQuotations } from '@/features/documents/hooks';
+import { useLeads } from '@/features/leads/hooks/useLeads';
+import { documentsApi } from '@/features/documents/services/documentsApi';
+import { EstimateBuilder } from '@/features/documents/components/EstimateBuilder';
+import { ProposalBuilder } from '@/features/documents/components/ProposalBuilder';
+import { QuotationBuilder } from '@/features/documents/components/QuotationBuilder';
+import { useEstimates } from '@/features/documents/hooks/useEstimate';
+import { useProposals } from '@/features/documents/hooks/useProposal';
+import { useQueryClient } from '@tanstack/react-query';
 import { ROUTES } from '@/core/routes';
+import { cn } from '@/lib/utils';
+import { componentTextSizes } from '@/lib/design-system';
 
 // Lazy load heavy components
 const CommunicationCenter = lazy(() => import('@/features/customers/components/CommunicationCenter').then(m => ({ default: m.CommunicationCenter })));
@@ -47,20 +59,40 @@ import {
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const customerId = params.id as string;
+  const queryClient = useQueryClient();
 
   // React Query hooks - single source of truth
   const { data: customer, isLoading, error } = useCustomer(customerId);
   const { data: activities } = useCustomerActivities(customerId);
   const { data: projectsData } = useProjects({ page: 1, pageSize: 100, customer: customerId });
   const { data: quotationsData } = useQuotations({ customerId });
+  const { data: leadsData } = useLeads({ page: 1, pageSize: 1000 });
+  const { createEstimate } = useEstimates();
+  const { createProposal } = useProposals();
+  const { createQuotation } = useQuotations();
 
   // UI state only
   const [activeTab, setActiveTab] = useState('overview');
+  const [timelineFilter, setTimelineFilter] = useState('all');
   const [documents, setDocuments] = useState<any[]>([]);
+  
+  // Dialog states for inline document creation
+  const [estimateDialogOpen, setEstimateDialogOpen] = useState(false);
+  const [proposalDialogOpen, setProposalDialogOpen] = useState(false);
+  const [quotationDialogOpen, setQuotationDialogOpen] = useState(false);
+
+  // Sticky header state
+  const [isSticky, setIsSticky] = useState(false);
+  const headerRef = useRef<HTMLDivElement>(null);
 
   // Extract projects from data
   const projects = projectsData?.data || [];
+  const leads = leadsData?.data || [];
+
+  // Find originating lead
+  const originatingLead = customer?.leadId ? leads.find((l: any) => l.id === customer.leadId) : null;
 
   // Extract documents from quotations data and sync with state
   useEffect(() => {
@@ -69,13 +101,54 @@ export default function CustomerDetailPage() {
     }
   }, [quotationsData]);
 
+  // Sticky header detection using scroll on main element
+  useEffect(() => {
+    const handleScroll = () => {
+      if (headerRef.current) {
+        const rect = headerRef.current.getBoundingClientRect();
+        const topbar = document.querySelector('header');
+        const topbarHeight = topbar ? topbar.offsetHeight : 64;
+        setIsSticky(rect.top <= topbarHeight);
+      }
+    };
+
+    const main = document.querySelector('main');
+    if (main) {
+      main.addEventListener('scroll', handleScroll, { passive: true });
+    }
+
+    return () => {
+      if (main) {
+        main.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, []);
+
+  // Auto-open dialogs from query params
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'create-estimate') {
+      setEstimateDialogOpen(true);
+    } else if (action === 'create-proposal') {
+      setProposalDialogOpen(true);
+    } else if (action === 'create-quotation') {
+      setQuotationDialogOpen(true);
+    }
+  }, [searchParams]);
+
   const handleEditDocument = useCallback((docId: string) => {
     router.push(`/dashboard/documents/quotations/${docId}`);
   }, [router]);
 
-  const handleDeleteDocument = useCallback((docId: string) => {
+  const handleDeleteDocument = useCallback(async (docId: string) => {
     if (confirm('Are you sure you want to delete this document?')) {
-      setDocuments(prev => prev.filter(doc => doc.id !== docId));
+      try {
+        await documentsApi.deleteDocument(docId);
+        setDocuments(prev => prev.filter(doc => doc.id !== docId));
+      } catch (error) {
+        console.error('Failed to delete document:', error);
+        alert('Failed to delete document. Please try again.');
+      }
     }
   }, []);
 
@@ -89,22 +162,112 @@ export default function CustomerDetailPage() {
     router.push(`/dashboard/documents?customerId=${customerId}&create=true`);
   }, [router, customerId]);
 
-  const handleExportReport = useCallback(() => {
-    alert('Export report functionality - will be implemented with backend');
-  }, []);
-
   const handleTimelineFilter = useCallback((filter: string) => {
-    // Timeline filter
+    setTimelineFilter(filter);
   }, []);
 
   const handleProjectRowClick = useCallback((row: any) => {
     router.push(`/dashboard/projects/${row.id}`);
   }, [router]);
 
+  // Document save handlers
+  const handleEstimateSave = useCallback(async (data: any) => {
+    try {
+      await createEstimate(data);
+      setEstimateDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
+      queryClient.invalidateQueries({ queryKey: ['customer', customerId, 'activities'] });
+    } catch (error) {
+      console.error('Failed to create estimate:', error);
+      alert('Failed to create estimate. Please try again.');
+    }
+  }, [createEstimate, customerId, queryClient]);
+
+  const handleProposalSave = useCallback(async (data: any) => {
+    try {
+      await createProposal(data);
+      setProposalDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
+      queryClient.invalidateQueries({ queryKey: ['customer', customerId, 'activities'] });
+    } catch (error) {
+      console.error('Failed to create proposal:', error);
+      alert('Failed to create proposal. Please try again.');
+    }
+  }, [createProposal, customerId, queryClient]);
+
+  const handleQuotationSave = useCallback(async (data: any) => {
+    try {
+      await createQuotation(data);
+      setQuotationDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
+      queryClient.invalidateQueries({ queryKey: ['customer', customerId, 'activities'] });
+    } catch (error) {
+      console.error('Failed to create quotation:', error);
+      alert('Failed to create quotation. Please try again.');
+    }
+  }, [createQuotation, customerId, queryClient]);
+
   // Communications will come from their respective module hooks
   const communications: any[] = [];
 
   // Memoized computed values
+  const lastActivity = useMemo(() => {
+    return activities && activities.length > 0
+      ? new Date(activities[0].performedAt)
+      : undefined;
+  }, [activities]);
+
+  const handleExportReport = useCallback(() => {
+    if (!customer) return;
+
+    // Generate CSV content
+    const csvContent = [
+      ['Customer Report'],
+      ['Generated:', new Date().toLocaleString()],
+      [],
+      ['Customer Information'],
+      ['Name', customer.customerName],
+      ['Company', customer.companyName],
+      ['Email', customer.email || 'N/A'],
+      ['Mobile', customer.mobile],
+      ['Status', customer.status],
+      ['Industry', customer.industry],
+      ['Business Type', customer.businessType],
+      [],
+      ['Financial Summary'],
+      ['Total Revenue', `₹${customer.totalRevenue.toLocaleString()}`],
+      ['Active Projects', customer.activeProjects],
+      ['Completed Projects', customer.completedProjects],
+      ['Pending Quotations', customer.pendingQuotations],
+      [],
+      ['Address'],
+      ['Address Line', customer.address],
+      ['City', customer.city],
+      ['State', customer.state],
+      ['Country', customer.country],
+      ['Pincode', customer.pincode],
+      [],
+      ['Additional Information'],
+      ['Lead Source', customer.leadSource],
+      ['Customer Since', customer.customerSince ? new Date(customer.customerSince).toLocaleDateString() : 'N/A'],
+      ['Last Activity', lastActivity ? lastActivity.toLocaleDateString() : 'N/A'],
+      ['Notes', customer.notes || 'N/A'],
+    ]
+      .map(row => row.join(','))
+      .join('\n');
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `customer-report-${customer.customerName.replace(/\s+/g, '-')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [customer, lastActivity]);
+
   const healthScore = useMemo(() => {
     let score = 50;
     if (customer && customer.totalRevenue > 1000000) score += 15;
@@ -115,11 +278,30 @@ export default function CustomerDetailPage() {
     return Math.min(score, 100);
   }, [customer]);
 
-  const lastActivity = useMemo(() => {
-    return activities && activities.length > 0
-      ? new Date(activities[0].performedAt)
-      : undefined;
-  }, [activities]);
+  // Filter activities based on timeline filter
+  const filteredActivities = useMemo(() => {
+    if (!activities || activities.length === 0) return [];
+    if (timelineFilter === 'all') return activities;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    return activities.filter((activity: any) => {
+      const activityDate = new Date(activity.performedAt);
+      switch (timelineFilter) {
+        case 'today':
+          return activityDate >= today;
+        case 'this_week':
+          return activityDate >= thisWeek;
+        case 'this_month':
+          return activityDate >= thisMonth;
+        default:
+          return true;
+      }
+    });
+  }, [activities, timelineFilter]);
 
   const detailKPIs = useMemo(() => {
     if (!customer) return [];
@@ -168,12 +350,11 @@ export default function CustomerDetailPage() {
   }, [router]);
 
   const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'projects', label: 'Projects' },
-    { id: 'documents', label: 'Documents' },
-    { id: 'communication', label: 'Communication' },
-    { id: 'timeline', label: 'Timeline' },
-    { id: 'analytics', label: 'Analytics' },
+    { id: 'overview', label: 'Overview', count: null },
+    { id: 'documents', label: 'Documents', count: documents.length },
+    { id: 'projects', label: 'Projects', count: projects.length },
+    { id: 'timeline', label: 'Timeline', count: filteredActivities.length },
+    { id: 'communication', label: 'Communication', count: communications.length },
   ];
 
   const handleTabKeyDown = useCallback((e: React.KeyboardEvent, tabId: string) => {
@@ -253,31 +434,70 @@ export default function CustomerDetailPage() {
 
   return (
     <MainLayout title={customer.customerName} subtitle={customer.companyName}>
-      <div className="space-y-6">
-        {/* Back Button + Quick Actions */}
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Customers
-          </Button>
-          <LeadQuickActions
-            isDropdown={true}
-            onAddFollowUp={() => {}}
-            onSendEstimate={() => {}}
-            onSendProposal={() => {}}
-            onConvertToProject={() => {}}
-          />
+      <div className="space-y-4">
+        {/* Header - contained within content area */}
+        <div
+          ref={headerRef}
+          className={cn(
+            'bg-background transition-all duration-300',
+            'sticky top-16 z-40',
+            isSticky && 'shadow-md border-b'
+          )}
+        >
+          <div className="px-6 py-4">
+            <div className={cn("flex items-center justify-between transition-all duration-300", !isSticky && "mb-4")}>
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <Button variant="ghost" size="sm" onClick={handleBack} className="gap-2 flex-shrink-0">
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className={cn("transition-all duration-300", isSticky && "hidden")}>Back to Customers</span>
+                  <span className={cn("transition-all duration-300", !isSticky && "hidden")}>Back</span>
+                </Button>
+                <div className="h-4 w-px bg-border flex-shrink-0" />
+                <Badge variant={getStatusVariant(customer.status as CustomerStatus)} className="flex-shrink-0">
+                  {customer.status}
+                </Badge>
+                {isSticky && (
+                  <div className="flex items-center gap-2 min-w-0 flex-1 animate-in fade-in slide-in-from-left duration-300">
+                    <CustomerHeroCard
+                      customer={customer}
+                      metrics={{
+                        totalRevenue: customer.totalRevenue,
+                        activeProjects: customer.activeProjects,
+                        completedProjects: customer.completedProjects,
+                        pendingQuotations: customer.pendingQuotations,
+                      }}
+                      compact
+                      status={customer.status}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex-shrink-0">
+                <CustomerQuickActions
+                  onCreateEstimate={() => setEstimateDialogOpen(true)}
+                  onCreateProposal={() => setProposalDialogOpen(true)}
+                  onCreateQuotation={() => setQuotationDialogOpen(true)}
+                />
+              </div>
+            </div>
+            <div className={cn("transition-all duration-300", isSticky && "hidden")}>
+              <CustomerHeroCard
+                customer={customer}
+                metrics={{
+                  totalRevenue: customer.totalRevenue,
+                  activeProjects: customer.activeProjects,
+                  completedProjects: customer.completedProjects,
+                  pendingQuotations: customer.pendingQuotations,
+                }}
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Status Badge */}
-        <div className="flex items-center gap-3">
-          <Badge variant={getStatusVariant(customer.status as CustomerStatus)} className="text-sm px-3 py-1">
-            {customer.status}
-          </Badge>
-          <span className="text-sm text-muted-foreground">Customer since {customer.customerSince.toLocaleDateString()}</span>
-        </div>
+        {/* Add spacer when header is sticky */}
+        {isSticky && <div className="h-20" />}
 
-        {/* Tabs */}
+        {/* Tabs with Counts */}
         <div className="border-b" role="tablist" aria-label="Customer details tabs">
           <div className="flex gap-1 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
             {tabs.map((tab) => (
@@ -289,13 +509,18 @@ export default function CustomerDetailPage() {
                 aria-selected={activeTab === tab.id}
                 aria-controls={`panel-${tab.id}`}
                 tabIndex={activeTab === tab.id ? 0 : -1}
-                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {tab.label}
+                {tab.count !== null && (
+                  <Badge variant="secondary" className="text-xs px-1.5 py-0.5 h-5">
+                    {tab.count}
+                  </Badge>
+                )}
               </button>
             ))}
           </div>
@@ -303,64 +528,81 @@ export default function CustomerDetailPage() {
 
         {/* Tab Content */}
         {activeTab === 'overview' && (
-          <div className="space-y-6" role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
-            {/* KPI Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {detailKPIs.map((kpi) => (
-                <ClickableKPICard key={kpi.title} {...kpi} />
-              ))}
-            </div>
+          <div className="space-y-4" role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
+            {/* Recent Activity Timeline (Compact) */}
+            {filteredActivities && filteredActivities.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Recent Activity</CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveTab('timeline')}
+                    >
+                      View All
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <CustomerActivityTimeline
+                    activities={filteredActivities.slice(0, 5)}
+                    onFilterChange={handleTimelineFilter}
+                    currentFilter={timelineFilter}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
-            {/* Customer Summary & Health Score */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <CustomerSummary
-                  customer={customer}
-                  lastActivity={lastActivity}
-                />
-              </div>
-              <CustomerHealthScore
-                score={healthScore}
-                trend="stable"
-                lastUpdated={lastActivity}
-              />
-            </div>
-
-            {/* Profile Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Business Details Grid (Compact) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Contact Information */}
               <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-base">Contact Information</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className={cn(componentTextSizes.cardHeader.title, 'font-medium')}>Contact Details</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center gap-3 text-sm">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{customer.customerName}</span>
+                <CardContent className="space-y-2">
+                  <div className="flex items-start gap-3 text-sm">
+                    <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground">Primary</p>
+                      <p className="font-medium">{customer.mobile}</p>
+                      {customer.alternateMobile && (
+                        <p className="text-xs text-muted-foreground mt-1">Alt: {customer.alternateMobile}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Building className="h-4 w-4 text-muted-foreground" />
-                    <span>{customer.companyName}</span>
+                  <div className="flex items-start gap-3 text-sm">
+                    <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <p className="font-medium break-all">{customer.email}</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span>{customer.mobile}</span>
-                    {customer.alternateMobile && <span className="text-muted-foreground">| {customer.alternateMobile}</span>}
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span>{customer.email}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>{customer.address}, {customer.city}, {customer.state} {customer.pincode}</span>
+                  <div className="flex items-start gap-3 text-sm">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground">Address</p>
+                      <p className="font-medium">{customer.address}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {customer.city}, {customer.state} {customer.pincode}
+                      </p>
+                    </div>
                   </div>
                   {customer.website && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <Globe className="h-4 w-4 text-muted-foreground" />
-                      <a href={customer.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                        {customer.website}
-                      </a>
+                    <div className="flex items-start gap-3 text-sm">
+                      <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-xs text-muted-foreground">Website</p>
+                        <a
+                          href={customer.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline font-medium"
+                        >
+                          {customer.website}
+                        </a>
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -368,44 +610,89 @@ export default function CustomerDetailPage() {
 
               {/* Business Information */}
               <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-base">Business Information</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className={cn(componentTextSizes.cardHeader.title, 'font-medium')}>Business Details</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center gap-3 text-sm">
-                    <Hash className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground w-24">GST:</span>
-                    <span className="font-mono">{customer.gstNumber || '-'}</span>
+                <CardContent className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Industry</span>
+                    <span className="font-medium">{customer.industry}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <CreditCard className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground w-24">PAN:</span>
-                    <span className="font-mono">{customer.panNumber || '-'}</span>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Business Type</span>
+                    <span className="font-medium">{customer.businessType}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Building className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground w-24">Industry:</span>
-                    <span>{customer.industry}</span>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Lead Source</span>
+                    <span className="font-medium">{customer.leadSource}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Building className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground w-24">Business Type:</span>
-                    <span>{customer.businessType}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Zap className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground w-24">Source:</span>
-                    <span>{customer.leadSource}</span>
+                  {customer.gstNumber && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">GST Number</span>
+                      <span className="font-mono text-xs font-medium">{customer.gstNumber}</span>
+                    </div>
+                  )}
+                  {customer.panNumber && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">PAN Number</span>
+                      <span className="font-mono text-xs font-medium">{customer.panNumber}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Customer Since</span>
+                    <span className="font-medium">{customer.customerSince.toLocaleDateString()}</span>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
+            {/* Originating Lead (Compact) */}
+            {originatingLead && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className={cn(componentTextSizes.cardHeader.title, 'font-medium')}>Originating Lead</CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(`/dashboard/leads/${originatingLead.id}`)}
+                    >
+                      View Lead
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Lead ID</p>
+                      <p className="font-mono font-medium">{originatingLead.leadId}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Location</p>
+                      <p className="font-medium">{originatingLead.city}, {originatingLead.state}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Created</p>
+                      <p className="font-medium">
+                        {originatingLead.createdDate ? new Date(originatingLead.createdDate).toLocaleDateString() : '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Status</p>
+                      <Badge variant={originatingLead.status === 'Converted' ? 'success' : 'secondary'}>
+                        {originatingLead.status}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Notes */}
             {customer.notes && (
               <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-base">Notes</CardTitle>
+                <CardHeader className="pb-3">
+                  <CardTitle className={cn(componentTextSizes.cardHeader.title, 'font-medium')}>Notes</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">{customer.notes}</p>
@@ -416,145 +703,153 @@ export default function CustomerDetailPage() {
         )}
 
         {activeTab === 'projects' && (
-          <div className="space-y-6" role="tabpanel" id="panel-projects" aria-labelledby="tab-projects">
+          <div className="space-y-4" role="tabpanel" id="panel-projects" aria-labelledby="tab-projects">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Linked Projects</h3>
+              <h3 className={cn(componentTextSizes.cardHeader.title, 'font-semibold')}>Linked Projects</h3>
               <Button size="sm" onClick={handleCreateProject}>
                 <FolderKanban className="h-4 w-4 mr-2" />
                 Create Project
               </Button>
             </div>
 
-            {/* Project Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Project Summary Cards (Compact) */}
+            <div className="grid grid-cols-3 gap-3">
               <Card>
-                <CardContent className="p-4">
+                <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Active Projects</p>
-                      <p className="text-2xl font-bold text-blue-600">
+                      <p className="text-xs text-muted-foreground">Active</p>
+                      <p className="text-xl font-bold text-blue-600">
                         {projects.filter((p: any) => p.status === 'Design' || p.status === 'BOQ' || p.status === 'Procurement' || p.status === 'Fabrication' || p.status === 'Installation').length}
                       </p>
                     </div>
-                    <FolderKanban className="h-8 w-8 text-blue-600" />
+                    <FolderKanban className="h-6 w-6 text-blue-600" />
                   </div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-4">
+                <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Completed</p>
-                      <p className="text-2xl font-bold text-green-600">
+                      <p className="text-xs text-muted-foreground">Completed</p>
+                      <p className="text-xl font-bold text-green-600">
                         {projects.filter((p: any) => p.status === 'Completion' || p.status === 'After Sales').length}
                       </p>
                     </div>
-                    <CheckCircle className="h-8 w-8 text-green-600" />
+                    <CheckCircle className="h-6 w-6 text-green-600" />
                   </div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-4">
+                <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">On Hold</p>
-                      <p className="text-2xl font-bold text-amber-600">
+                      <p className="text-xs text-muted-foreground">On Hold</p>
+                      <p className="text-xl font-bold text-amber-600">
                         {projects.filter((p: any) => p.status === 'On Hold').length}
                       </p>
                     </div>
-                    <Zap className="h-8 w-8 text-amber-600" />
+                    <Zap className="h-6 w-6 text-amber-600" />
                   </div>
                 </CardContent>
               </Card>
             </div>
 
             {/* Projects Table */}
-            <DataTable 
-              columns={projectColumns} 
-              data={projects} 
-              emptyMessage="No projects linked to this customer yet"
-              onRowClick={handleProjectRowClick}
-            />
+            <Card>
+              <CardContent className="p-0">
+                <DataTable 
+                  columns={projectColumns} 
+                  data={projects} 
+                  emptyMessage="No projects linked to this customer yet"
+                  onRowClick={handleProjectRowClick}
+                />
+              </CardContent>
+            </Card>
           </div>
         )}
 
         {activeTab === 'documents' && (
-          <div className="space-y-6" role="tabpanel" id="panel-documents" aria-labelledby="tab-documents">
+          <div className="space-y-4" role="tabpanel" id="panel-documents" aria-labelledby="tab-documents">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Documents</h3>
+              <h3 className="text-base font-semibold">Documents</h3>
               <Button size="sm" onClick={handleCreateDocument}>
                 <FileText className="h-4 w-4 mr-2" />
                 Create Document
               </Button>
             </div>
 
-            {/* Document Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            {/* Document Summary Cards (Compact) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <Card>
-                <CardContent className="p-4">
+                <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Total</p>
-                      <p className="text-2xl font-bold">{documents.length}</p>
+                      <p className="text-xs text-muted-foreground">Total</p>
+                      <p className="text-xl font-bold">{documents.length}</p>
                     </div>
-                    <FileText className="h-8 w-8 text-blue-600" />
+                    <FileText className="h-6 w-6 text-blue-600" />
                   </div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-4">
+                <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Draft</p>
-                      <p className="text-2xl font-bold text-gray-600">
+                      <p className="text-xs text-muted-foreground">Draft</p>
+                      <p className="text-xl font-bold text-gray-600">
                         {documents.filter((d: any) => d.status === 'Draft').length}
                       </p>
                     </div>
-                    <FileText className="h-8 w-8 text-gray-600" />
+                    <FileText className="h-6 w-6 text-gray-600" />
                   </div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-4">
+                <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Sent</p>
-                      <p className="text-2xl font-bold text-blue-600">
+                      <p className="text-xs text-muted-foreground">Sent</p>
+                      <p className="text-xl font-bold text-blue-600">
                         {documents.filter((d: any) => d.status === 'Sent').length}
                       </p>
                     </div>
-                    <Mail className="h-8 w-8 text-blue-600" />
+                    <Mail className="h-6 w-6 text-blue-600" />
                   </div>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="p-4">
+                <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Accepted</p>
-                      <p className="text-2xl font-bold text-green-600">
+                      <p className="text-xs text-muted-foreground">Accepted</p>
+                      <p className="text-xl font-bold text-green-600">
                         {documents.filter((d: any) => d.status === 'Accepted').length}
                       </p>
                     </div>
-                    <CheckCircle className="h-8 w-8 text-green-600" />
+                    <CheckCircle className="h-6 w-6 text-green-600" />
                   </div>
                 </CardContent>
               </Card>
             </div>
 
             {/* Documents Table */}
-            <DataTable 
-              columns={documentColumns} 
-              data={documents} 
-              emptyMessage="No documents for this customer yet"
-              onRowClick={(row) => router.push(`/dashboard/documents/quotations/${(row as any).id}`)}
-            />
+            <Card>
+              <CardContent className="p-0">
+                <DataTable 
+                  columns={documentColumns} 
+                  data={documents} 
+                  emptyMessage="No documents for this customer yet"
+                  onRowClick={(row) => router.push(`/dashboard/documents/quotations/${(row as any).id}`)}
+                />
+              </CardContent>
+            </Card>
           </div>
         )}
 
         {activeTab === 'communication' && (
           <div className="space-y-4" role="tabpanel" id="panel-communication" aria-labelledby="tab-communication">
-            <Suspense fallback={<div className="h-64 flex items-center justify-center text-muted-foreground">Loading communication center...</div>}>
+            <Suspense fallback={<div className="h-48 flex items-center justify-center text-muted-foreground text-sm">Loading communication center...</div>}>
               <CommunicationCenter customerId={customerId} customerName={customer.customerName} />
             </Suspense>
           </div>
@@ -562,42 +857,29 @@ export default function CustomerDetailPage() {
 
         {activeTab === 'timeline' && (
           <div className="space-y-4" role="tabpanel" id="panel-timeline" aria-labelledby="tab-timeline">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Customer Journey Timeline</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-base font-semibold">Activity Timeline</h3>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleTimelineFilter('all')}>
-                  All Activities
+                <Button size="sm" variant={timelineFilter === 'all' ? 'default' : 'outline'} onClick={() => handleTimelineFilter('all')}>
+                  All
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => handleTimelineFilter('projects')}>
-                  Projects
+                <Button size="sm" variant={timelineFilter === 'today' ? 'default' : 'outline'} onClick={() => handleTimelineFilter('today')}>
+                  Today
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => handleTimelineFilter('documents')}>
-                  Documents
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => handleTimelineFilter('communication')}>
-                  Communication
+                <Button size="sm" variant={timelineFilter === 'this_week' ? 'default' : 'outline'} onClick={() => handleTimelineFilter('this_week')}>
+                  This Week
                 </Button>
               </div>
             </div>
-            <LeadActivityTimeline
-              activities={(activities ?? []).map((a) => ({
-                id: a.id,
-                leadId: a.customerId,
-                type: a.type === 'customer_created' ? 'created'
-                  : a.type === 'lead_created' ? 'created'
-                  : a.type === 'estimate_sent' ? 'document_sent'
-                  : a.type === 'quotation_sent' ? 'document_sent'
-                  : a.type === 'project_started' ? 'status_changed'
-                  : a.type === 'project_completed' ? 'converted'
-                  : a.type === 'payment_received' ? 'updated'
-                  : a.type === 'note_added' ? 'updated'
-                  : 'updated',
-                description: a.description,
-                performedBy: a.performedBy,
-                performedAt: a.performedAt,
-                metadata: {},
-              }))}
-            />
+            <Card>
+              <CardContent className="p-4">
+                <CustomerActivityTimeline
+                  activities={filteredActivities ?? []}
+                  onFilterChange={handleTimelineFilter}
+                  currentFilter={timelineFilter}
+                />
+              </CardContent>
+            </Card>
           </div>
         )}
 
@@ -653,6 +935,52 @@ export default function CustomerDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Document Creation Dialogs */}
+      <Dialog open={estimateDialogOpen} onOpenChange={setEstimateDialogOpen} modal={false}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Estimate for {customer.companyName}</DialogTitle>
+          </DialogHeader>
+          <EstimateBuilder
+            lead={{
+              id: customer.id,
+              leadId: customer.id,
+              customerId: customer.id,
+              customerName: customer.customerName,
+              companyName: customer.companyName,
+            }}
+            onSave={handleEstimateSave}
+            onCancel={() => setEstimateDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={proposalDialogOpen} onOpenChange={setProposalDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Proposal for {customer.companyName}</DialogTitle>
+          </DialogHeader>
+          <ProposalBuilder
+            estimate={null}
+            onSave={handleProposalSave}
+            onCancel={() => setProposalDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={quotationDialogOpen} onOpenChange={setQuotationDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Quotation for {customer.companyName}</DialogTitle>
+          </DialogHeader>
+          <QuotationBuilder
+            proposal={null}
+            onSave={handleQuotationSave}
+            onCancel={() => setQuotationDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

@@ -15,10 +15,11 @@ import {
   CreateQuotationDto,
   MaterialSelection,
 } from '../types/peb-commercial';
+import { useCustomerAutofill } from '../hooks/useCustomerAutofill';
 import { ItemPicker } from './ItemPicker';
 
 interface QuotationBuilderProps {
-  proposal: Proposal;
+  proposal?: Proposal | null;
   quotation?: Quotation;
   onSave: (quotation: CreateQuotationDto) => void;
   onCancel: () => void;
@@ -30,8 +31,11 @@ export function QuotationBuilder({
   onSave,
   onCancel,
 }: QuotationBuilderProps) {
+  // Smart Autofill - fetch customer data and last quotation
+  const autofillData = useCustomerAutofill(proposal?.customerId || '');
+
   const [materialSelections, setMaterialSelections] = useState<MaterialSelection[]>(
-    quotation?.materialSelections || proposal.materialSelections || []
+    quotation?.materialSelections || proposal?.materialSelections || []
   );
   
   const [serviceCosts, setServiceCosts] = useState({
@@ -84,7 +88,7 @@ export function QuotationBuilder({
 
   const handleSave = () => {
     const quotationDto: CreateQuotationDto = {
-      proposalId: proposal.id,
+      proposalId: proposal?.id || '',
       validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       paymentTerms,
       deliveryTerms: '4-6 weeks from order confirmation',
@@ -127,7 +131,7 @@ export function QuotationBuilder({
         <div>
           <h2 className="text-xl sm:text-2xl font-bold">Quotation Builder</h2>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            From Proposal: {proposal.proposalNumber} | Customer: {proposal.customerName}
+            From Proposal: {proposal?.proposalNumber || 'N/A'} | Customer: {proposal?.customerName || 'N/A'}
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">

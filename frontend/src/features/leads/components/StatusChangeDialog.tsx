@@ -98,9 +98,9 @@ export const StatusChangeDialog = memo(function StatusChangeDialog({ lead, open,
             <div className="space-y-2">
               <label className="text-sm font-medium">Select New Status</label>
               <div className="grid grid-cols-2 gap-2">
-                {statusOptions.map((status) => (
+                {statusOptions.map((status, index) => (
                   <button
-                    key={status}
+                    key={`${status}-${index}`}
                     type="button"
                     onClick={() => setSelectedStatus(status)}
                     className={`p-3 rounded-lg border-2 text-left transition-all ${

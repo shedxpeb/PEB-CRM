@@ -15,9 +15,9 @@ export function ThemeToggle() {
 
   return (
     <div className="flex items-center gap-0.5 bg-sa-border/30 rounded-lg p-0.5">
-      {themes.map(({ value, label, icon: Icon }) => (
+      {themes.map(({ value, label, icon: Icon }, index) => (
         <button
-          key={value}
+          key={`${value}-${index}`}
           onClick={() => setTheme(value)}
           title={label}
           className={cn(

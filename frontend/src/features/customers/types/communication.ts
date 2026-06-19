@@ -20,6 +20,7 @@ export interface Communication {
   recipient: string;
   recipientId: string;
   timestamp: Date;
+  projectId?: string; // Direct link to Project for hierarchy
   metadata?: {
     duration?: number; // for calls/meetings
     attachmentUrl?: string;

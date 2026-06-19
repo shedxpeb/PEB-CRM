@@ -279,10 +279,10 @@ export default function SuperAdminPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2.5">
-              {systemStatus.map((item) => {
+              {systemStatus.map((item, index) => {
                 const Icon = item.icon;
                 return (
-                  <div key={item.label} className="flex items-center justify-between">
+                  <div key={`${item.label}-${index}`} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Icon className={cn('h-3.5 w-3.5', item.color)} />
                       <span className="text-xs text-sa-text-secondary">{item.label}</span>

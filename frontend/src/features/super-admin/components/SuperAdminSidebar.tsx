@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { componentTextSizes } from '@/lib/design-system';
 
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/super-admin' },
@@ -50,7 +51,7 @@ export function SuperAdminSidebar() {
             </div>
             <div>
               <span className="font-bold text-sa-text text-sm block leading-tight">Super Admin</span>
-              <span className="text-[10px] text-sa-text-muted leading-tight">PEB CRM Console</span>
+              <span className={cn(componentTextSizes.badge, 'text-sa-text-muted leading-tight')}>PEB CRM Console</span>
             </div>
           </div>
         )}
@@ -73,13 +74,13 @@ export function SuperAdminSidebar() {
       </div>
 
       <nav className="p-3 space-y-0.5 overflow-y-auto flex-1">
-        {navItems.map((item) => {
+        {navItems.map((item, index) => {
           const Icon = item.icon;
           const active = isActive(item.path);
 
           return (
             <Link
-              key={item.path}
+              key={`${item.path}-${index}`}
               href={item.path}
               onClick={() => setMobileOpen(false)}
               className={cn(
@@ -91,7 +92,7 @@ export function SuperAdminSidebar() {
               )}
             >
               <Icon className={cn('h-[18px] w-[18px] shrink-0 transition-colors', active ? 'text-red-400' : 'text-sa-text-dim group-hover:text-sa-text-muted')} />
-              {!collapsed && <span className="text-[13px]">{item.name}</span>}
+              {!collapsed && <span className={cn(componentTextSizes.nav.item)}>{item.name}</span>}
               {active && !collapsed && (
                 <div className="ml-auto w-1.5 h-1.5 rounded-full bg-red-400" />
               )}
@@ -108,7 +109,7 @@ export function SuperAdminSidebar() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sa-text-secondary truncate">System Admin</p>
-              <p className="text-[11px] text-sa-text-muted truncate">admin@pebcrm.com</p>
+              <p className={cn(componentTextSizes.badge, 'text-sa-text-muted truncate')}>admin@pebcrm.com</p>
             </div>
           </div>
         </div>

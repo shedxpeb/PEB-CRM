@@ -3,6 +3,7 @@
 import { KPICard } from '@/components/dashboard/KPICard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardSkeleton } from '@/components/loading/CardSkeleton';
 import { useSettingsStats } from '../hooks/useSettings';
 import { SettingsLayout } from '../components/SettingsLayout';
 import { ROUTES } from '@/core/routes';
@@ -60,13 +61,17 @@ export function SettingsDashboard() {
       <div className="space-y-4 sm:space-y-6 w-full overflow-hidden">
         {/* KPI Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-          {kpiData.map((kpi, index) => (
-            <KPICard
-              key={index}
-              data={kpi}
-              onClick={() => {}}
-            />
-          ))}
+          {isLoading ? (
+            <CardSkeleton count={4} />
+          ) : (
+            kpiData.map((kpi, index) => (
+              <KPICard
+                key={`${kpi.title}-${index}`}
+                data={kpi}
+                onClick={() => {}}
+              />
+            ))
+          )}
         </div>
 
 
@@ -79,7 +84,7 @@ export function SettingsDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
               {quickActions.map((action, index) => (
                 <Button
-                  key={index}
+                  key={`${action.label}-${index}`}
                   variant="outline"
                   className="justify-start text-xs sm:text-sm"
                   onClick={() => window.location.href = action.href}

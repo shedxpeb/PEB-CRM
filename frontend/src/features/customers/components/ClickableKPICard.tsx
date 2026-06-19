@@ -65,7 +65,7 @@ export const ClickableKPICard = memo(function ClickableKPICard({
             )}
           </div>
           <div className={`p-2 rounded-lg ${color.replace('text-', 'bg-').replace('600', '100')}`}>
-            <div className={color}>{icon}</div>
+            <div className={`${color} h-4 w-4 flex items-center justify-center`}>{icon}</div>
           </div>
         </div>
       </CardContent>

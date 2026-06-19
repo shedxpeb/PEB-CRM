@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { MainLayout } from '@/layouts/MainLayout';
 import { 
   DollarSign, 
@@ -17,44 +17,82 @@ import {
   ArrowDownRight,
   Wallet,
   Building2,
-  BarChart3
+  BarChart3,
+  X,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable } from '@/components/data-table/DataTable';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
-import { useDebounce } from '@/shared/hooks/useDebounce';
-import { useFinanceStats, useInvoices, usePayments, useExpenses, useFinanceActivities } from '@/features/finance/hooks/useFinance';
+import { CardSkeleton } from '@/components/loading/CardSkeleton';
+import { EmptyState } from '@/components/states/EmptyState';
+import { useFinanceStats, useInvoices, usePayments, useExpenses, useFinanceActivities, useReceivables, usePayables } from '@/features/finance/hooks/useFinance';
 import { formatCurrency, getInvoiceStatusVariant, getPaymentStatusVariant, getExpenseStatusVariant } from '@/features/finance/constants';
 import { FinanceRowActions } from '@/features/finance/components/FinanceRowActions';
-import dynamic from 'next/dynamic';
 
-// Lazy load form components
-const InvoiceForm = dynamic(() => import('@/features/finance/components/InvoiceForm').then(mod => ({ default: mod.InvoiceForm })), { 
-  loading: () => <div className="p-4 text-center">Loading form...</div>,
-  ssr: false 
-});
-const PaymentForm = dynamic(() => import('@/features/finance/components/PaymentForm').then(mod => ({ default: mod.PaymentForm })), { 
-  loading: () => <div className="p-4 text-center">Loading form...</div>,
-  ssr: false 
-});
-const ExpenseForm = dynamic(() => import('@/features/finance/components/ExpenseForm').then(mod => ({ default: mod.ExpenseForm })), { 
-  loading: () => <div className="p-4 text-center">Loading form...</div>,
-  ssr: false 
-});
+type FinanceTab = 'dashboard' | 'invoices' | 'payments' | 'expenses' | 'receivables' | 'payables';
 
 export default function FinancePage() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'invoices' | 'payments' | 'expenses' | 'receivables' | 'payables'>('dashboard');
+  const [activeTab, setActiveTab] = useState<FinanceTab>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearch = useDebounce(searchQuery, 300);
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [actionType, setActionType] = useState<'edit' | 'delete' | 'send' | 'approve' | null>(null);
+
+  const handleEdit = (item: any) => {
+    setSelectedItem(item);
+    setActionType('edit');
+    console.log('Edit item:', item);
+  };
+
+  const handleDelete = (item: any) => {
+    setSelectedItem(item);
+    setActionType('delete');
+    console.log('Delete item:', item);
+  };
+
+  const handleSend = (item: any) => {
+    setSelectedItem(item);
+    setActionType('send');
+    console.log('Send item:', item);
+  };
+
+  const handleApprove = (item: any) => {
+    setSelectedItem(item);
+    setActionType('approve');
+    console.log('Approve item:', item);
+  };
+
+  const closeAction = () => {
+    setSelectedItem(null);
+    setActionType(null);
+  };
   
   const { data: stats, isLoading: statsLoading } = useFinanceStats(activeTab === 'dashboard');
-  const { data: invoices, isLoading: invoicesLoading } = useInvoices(undefined, activeTab === 'invoices');
-  const { data: payments, isLoading: paymentsLoading } = usePayments(undefined, activeTab === 'payments');
-  const { data: expenses, isLoading: expensesLoading } = useExpenses(undefined, activeTab === 'expenses');
+  const { data: invoices, isLoading: invoicesLoading } = useInvoices(
+    { search: searchQuery, status: filterStatus !== 'all' ? filterStatus : undefined, page: 1, pageSize: 20 },
+    activeTab === 'invoices'
+  );
+  const { data: payments, isLoading: paymentsLoading } = usePayments(
+    { search: searchQuery, status: filterStatus !== 'all' ? filterStatus : undefined, page: 1, pageSize: 20 },
+    activeTab === 'payments'
+  );
+  const { data: expenses, isLoading: expensesLoading } = useExpenses(
+    { search: searchQuery, status: filterStatus !== 'all' ? filterStatus : undefined, page: 1, pageSize: 20 },
+    activeTab === 'expenses'
+  );
+  const { data: receivables, isLoading: receivablesLoading } = useReceivables(
+    { search: searchQuery, page: 1, pageSize: 20 }
+  );
+  const { data: payables, isLoading: payablesLoading } = usePayables(
+    { search: searchQuery, page: 1, pageSize: 20 }
+  );
   const { data: activities, isLoading: activitiesLoading } = useFinanceActivities(undefined, activeTab === 'dashboard');
 
   const kpiData = useMemo(() => stats ? [
@@ -62,56 +100,56 @@ export default function FinancePage() {
       title: 'Total Revenue',
       value: formatCurrency(stats.totalRevenue),
       change: 12.5,
-      icon: <TrendingUp className="h-6 w-6 text-green-600" />,
+      icon: <TrendingUp />,
       color: 'text-green-600',
     },
     {
       title: 'Total Expenses',
       value: formatCurrency(stats.totalExpenses),
       change: -8.2,
-      icon: <TrendingDown className="h-6 w-6 text-red-600" />,
+      icon: <TrendingDown />,
       color: 'text-red-600',
     },
     {
       title: 'Net Profit',
       value: formatCurrency(stats.netProfit),
       change: 15.3,
-      icon: <DollarSign className="h-6 w-6 text-blue-600" />,
+      icon: <DollarSign />,
       color: 'text-blue-600',
     },
     {
       title: 'Pending Receivables',
       value: formatCurrency(stats.pendingReceivables),
       change: -5.1,
-      icon: <Clock className="h-6 w-6 text-orange-600" />,
+      icon: <Clock />,
       color: 'text-orange-600',
     },
     {
       title: 'Pending Payables',
       value: formatCurrency(stats.pendingPayables),
       change: 3.2,
-      icon: <Wallet className="h-6 w-6 text-purple-600" />,
+      icon: <Wallet />,
       color: 'text-purple-600',
     },
     {
       title: 'Cash Inflow',
       value: formatCurrency(stats.cashInflow),
       change: 18.7,
-      icon: <ArrowUpRight className="h-6 w-6 text-green-600" />,
+      icon: <ArrowUpRight />,
       color: 'text-green-600',
     },
     {
       title: 'Cash Outflow',
       value: formatCurrency(stats.cashOutflow),
       change: -12.4,
-      icon: <ArrowDownRight className="h-6 w-6 text-red-600" />,
+      icon: <ArrowDownRight />,
       color: 'text-red-600',
     },
     {
       title: 'Available Cash',
       value: formatCurrency(stats.availableCashPosition),
       change: 8.9,
-      icon: <Wallet className="h-6 w-6 text-blue-600" />,
+      icon: <Wallet />,
       color: 'text-blue-600',
     },
   ] : [], [stats]);
@@ -169,6 +207,42 @@ export default function FinancePage() {
     },
   ], []);
 
+  const receivableColumns = useMemo(() => [
+    { key: 'customerName', label: 'Customer' },
+    { key: 'invoiceNumber', label: 'Invoice No', render: (val: string) => <span className="font-semibold">{val}</span> },
+    { key: 'totalAmount', label: 'Total Amount', render: (val: number) => formatCurrency(val) },
+    { key: 'paidAmount', label: 'Paid', render: (val: number) => <span className="text-green-600">{formatCurrency(val)}</span> },
+    { key: 'pendingAmount', label: 'Pending', render: (val: number) => <span className="text-orange-600">{formatCurrency(val)}</span> },
+    { 
+      key: 'agingBucket', 
+      label: 'Aging',
+      render: (val: string) => <Badge variant={val === '90+ Days' ? 'destructive' : val === '61-90 Days' ? 'secondary' : 'default'}>{val}</Badge>
+    },
+    { 
+      key: 'dueDate', 
+      label: 'Due Date',
+      render: (val: Date) => new Date(val).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    },
+  ], []);
+
+  const payableColumns = useMemo(() => [
+    { key: 'vendorName', label: 'Vendor' },
+    { key: 'billNumber', label: 'Bill No', render: (val: string) => <span className="font-semibold">{val}</span> },
+    { key: 'totalAmount', label: 'Total Amount', render: (val: number) => formatCurrency(val) },
+    { key: 'paidAmount', label: 'Paid', render: (val: number) => <span className="text-green-600">{formatCurrency(val)}</span> },
+    { key: 'pendingAmount', label: 'Pending', render: (val: number) => <span className="text-orange-600">{formatCurrency(val)}</span> },
+    { 
+      key: 'agingBucket', 
+      label: 'Aging',
+      render: (val: string) => <Badge variant={val === '90+ Days' ? 'destructive' : val === '61-90 Days' ? 'secondary' : 'default'}>{val}</Badge>
+    },
+    { 
+      key: 'dueDate', 
+      label: 'Due Date',
+      render: (val: Date) => new Date(val).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    },
+  ], []);
+
   const activityData = useMemo(() => activities?.map((activity) => ({
     id: activity.id,
     type: (activity.type === 'income_created' ? 'lead' as const : 
@@ -181,10 +255,6 @@ export default function FinancePage() {
     status: activity.type.includes('approved') ? 'completed' as const : 
             activity.type.includes('rejected') ? 'warning' as const : undefined,
   })) || [], [activities]);
-
-  const handleTabChange = useCallback((tab: 'dashboard' | 'invoices' | 'payments' | 'expenses' | 'receivables' | 'payables') => {
-    setActiveTab(tab);
-  }, []);
 
   return (
     <MainLayout title="Finance" subtitle="Overview of financial operations">
@@ -201,186 +271,253 @@ export default function FinancePage() {
           </Button>
         </div>
 
-        {/* Tabs */}
-        <div className="border-b">
-          <div className="flex items-center gap-1 p-2 overflow-x-auto w-full sm:w-auto">
-            <button
-              onClick={() => handleTabChange('dashboard')}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
-                activeTab === 'dashboard'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-muted'
-              }`}
-            >
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as FinanceTab)}>
+          <TabsList className="h-auto w-full justify-start overflow-x-auto p-1">
+            <TabsTrigger value="dashboard" className="gap-2 text-xs sm:text-sm">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
-            </button>
-            <button
-              onClick={() => handleTabChange('invoices')}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
-                activeTab === 'invoices'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-muted'
-              }`}
-            >
+            </TabsTrigger>
+            <TabsTrigger value="invoices" className="gap-2 text-xs sm:text-sm">
               <Receipt className="h-4 w-4" />
               <span className="hidden sm:inline">Invoices</span>
-            </button>
-            <button
-              onClick={() => handleTabChange('payments')}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
-                activeTab === 'payments'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-muted'
-              }`}
-            >
+            </TabsTrigger>
+            <TabsTrigger value="payments" className="gap-2 text-xs sm:text-sm">
               <CreditCard className="h-4 w-4" />
               <span className="hidden sm:inline">Payments</span>
-            </button>
-            <button
-              onClick={() => handleTabChange('expenses')}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
-                activeTab === 'expenses'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-muted'
-              }`}
-            >
+            </TabsTrigger>
+            <TabsTrigger value="expenses" className="gap-2 text-xs sm:text-sm">
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Expenses</span>
-            </button>
-            <button
-              onClick={() => handleTabChange('receivables')}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
-                activeTab === 'receivables'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-muted'
-              }`}
-            >
+            </TabsTrigger>
+            <TabsTrigger value="receivables" className="gap-2 text-xs sm:text-sm">
               <ArrowUpRight className="h-4 w-4" />
               <span className="hidden sm:inline">Receivables</span>
-            </button>
-            <button
-              onClick={() => handleTabChange('payables')}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
-                activeTab === 'payables'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-muted'
-              }`}
-            >
+            </TabsTrigger>
+            <TabsTrigger value="payables" className="gap-2 text-xs sm:text-sm">
               <ArrowDownRight className="h-4 w-4" />
               <span className="hidden sm:inline">Payables</span>
-            </button>
-          </div>
-        </div>
+            </TabsTrigger>
+          </TabsList>
 
-      {activeTab === 'dashboard' && (
-        <>
-          {/* KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-            {kpiData.map((kpi) => (
-              <KPICard
-                key={kpi.title}
-                data={kpi}
-              />
-            ))}
-          </div>
-
-          {/* Recent Activity */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <RecentActivity activities={activityData} />
-            </CardContent>
-          </Card>
-        </>
-      )}
-
-      {/* Tab Content */}
-      <Card className="min-w-0">
-        <CardContent className="p-0">
-          {/* Search */}
-          <div className="p-2 sm:p-3 space-y-2 sm:space-y-4">
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <div className="relative flex-1 w-full sm:w-auto">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <Button variant="outline" size="icon">
-                <Filter className="h-4 w-4" />
-              </Button>
+          <TabsContent value="dashboard" className="space-y-4 sm:space-y-6">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+              {statsLoading ? (
+                <CardSkeleton count={8} />
+              ) : (
+                kpiData.map((kpi) => (
+                  <KPICard
+                    key={kpi.title}
+                    data={kpi}
+                  />
+                ))
+              )}
             </div>
 
-            {/* Content */}
-            {activeTab === 'invoices' && (
-              <DataTable
-                columns={invoiceColumns}
-                data={invoices?.data || []}
-                loading={invoicesLoading}
-                rowIdKey="id"
-                rowActions={(row) => (
-                  <FinanceRowActions
-                    onEdit={() => {}}
-                    onDelete={() => {}}
-                    onSend={() => {}}
-                    onApprove={() => {}}
-                  />
-                )}
-              />
-            )}
+            {/* Recent Activity */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Recent Activity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {activitiesLoading ? <CardSkeleton /> : <RecentActivity activities={activityData} />}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            {activeTab === 'payments' && (
-              <DataTable
-                columns={paymentColumns}
-                data={payments?.data || []}
-                loading={paymentsLoading}
-                rowIdKey="id"
-                rowActions={(row) => (
-                  <FinanceRowActions
-                    onEdit={() => {}}
-                    onDelete={() => {}}
-                  />
-                )}
-              />
-            )}
+          {/* Tab Content */}
+          <Card className="min-w-0">
+            <CardContent className="p-0">
+              {/* Search */}
+              <div className="p-2 sm:p-3 space-y-2 sm:space-y-4">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <div className="relative flex-1 w-full sm:w-auto">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                      className={filterStatus !== 'all' ? 'bg-accent' : ''}
+                    >
+                      <Filter className="h-4 w-4" />
+                    </Button>
+                    {showFilterDropdown && (
+                      <div className="absolute right-0 top-full mt-2 w-48 bg-background border rounded-md shadow-lg z-10 p-2">
+                        <div className="text-xs font-medium mb-2">Filter by Status</div>
+                        <div className="space-y-1">
+                          <button
+                            onClick={() => { setFilterStatus('all'); setShowFilterDropdown(false); }}
+                            className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-accent ${filterStatus === 'all' ? 'bg-accent' : ''}`}
+                          >
+                            All Status
+                          </button>
+                          {activeTab === 'invoices' && (
+                            <>
+                              <button
+                                onClick={() => { setFilterStatus('Draft'); setShowFilterDropdown(false); }}
+                                className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-accent ${filterStatus === 'Draft' ? 'bg-accent' : ''}`}
+                              >
+                                Draft
+                              </button>
+                              <button
+                                onClick={() => { setFilterStatus('Sent'); setShowFilterDropdown(false); }}
+                                className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-accent ${filterStatus === 'Sent' ? 'bg-accent' : ''}`}
+                              >
+                                Sent
+                              </button>
+                              <button
+                                onClick={() => { setFilterStatus('Paid'); setShowFilterDropdown(false); }}
+                                className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-accent ${filterStatus === 'Paid' ? 'bg-accent' : ''}`}
+                              >
+                                Paid
+                              </button>
+                              <button
+                                onClick={() => { setFilterStatus('Overdue'); setShowFilterDropdown(false); }}
+                                className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-accent ${filterStatus === 'Overdue' ? 'bg-accent' : ''}`}
+                              >
+                                Overdue
+                              </button>
+                            </>
+                          )}
+                          {activeTab === 'payments' && (
+                            <>
+                              <button
+                                onClick={() => { setFilterStatus('Completed'); setShowFilterDropdown(false); }}
+                                className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-accent ${filterStatus === 'Completed' ? 'bg-accent' : ''}`}
+                              >
+                                Completed
+                              </button>
+                              <button
+                                onClick={() => { setFilterStatus('Pending'); setShowFilterDropdown(false); }}
+                                className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-accent ${filterStatus === 'Pending' ? 'bg-accent' : ''}`}
+                              >
+                                Pending
+                              </button>
+                            </>
+                          )}
+                          {activeTab === 'expenses' && (
+                            <>
+                              <button
+                                onClick={() => { setFilterStatus('Approved'); setShowFilterDropdown(false); }}
+                                className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-accent ${filterStatus === 'Approved' ? 'bg-accent' : ''}`}
+                              >
+                                Approved
+                              </button>
+                              <button
+                                onClick={() => { setFilterStatus('Pending'); setShowFilterDropdown(false); }}
+                                className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-accent ${filterStatus === 'Pending' ? 'bg-accent' : ''}`}
+                              >
+                                Pending
+                              </button>
+                              <button
+                                onClick={() => { setFilterStatus('Rejected'); setShowFilterDropdown(false); }}
+                                className={`w-full text-left px-2 py-1 text-sm rounded hover:bg-accent ${filterStatus === 'Rejected' ? 'bg-accent' : ''}`}
+                              >
+                                Rejected
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {(searchQuery || filterStatus !== 'all') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setSearchQuery(''); setFilterStatus('all'); }}
+                      className="text-xs"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
 
-            {activeTab === 'expenses' && (
-              <DataTable
-                columns={expenseColumns}
-                data={expenses?.data || []}
-                loading={expensesLoading}
-                rowIdKey="id"
-                rowActions={(row) => (
-                  <FinanceRowActions
-                    onEdit={() => {}}
-                    onDelete={() => {}}
+                <TabsContent value="invoices">
+                  <DataTable
+                    columns={invoiceColumns}
+                    data={invoices?.data || []}
+                    loading={invoicesLoading}
+                    rowIdKey="id"
+                    rowActions={(item) => (
+                      <FinanceRowActions
+                        onEdit={() => handleEdit(item)}
+                        onDelete={() => handleDelete(item)}
+                        onSend={() => handleSend(item)}
+                        onApprove={() => handleApprove(item)}
+                      />
+                    )}
                   />
-                )}
-              />
-            )}
+                </TabsContent>
 
-            {activeTab === 'receivables' && (
-              <div className="p-8 text-center text-muted-foreground">
-                <Building2 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                <p>Receivables management coming soon...</p>
+                <TabsContent value="payments">
+                  <DataTable
+                    columns={paymentColumns}
+                    data={payments?.data || []}
+                    loading={paymentsLoading}
+                    rowIdKey="id"
+                    rowActions={(item) => (
+                      <FinanceRowActions
+                        onEdit={() => handleEdit(item)}
+                        onDelete={() => handleDelete(item)}
+                      />
+                    )}
+                  />
+                </TabsContent>
+
+                <TabsContent value="expenses">
+                  <DataTable
+                    columns={expenseColumns}
+                    data={expenses?.data || []}
+                    loading={expensesLoading}
+                    rowIdKey="id"
+                    rowActions={(item) => (
+                      <FinanceRowActions
+                        onEdit={() => handleEdit(item)}
+                        onDelete={() => handleDelete(item)}
+                        onApprove={() => handleApprove(item)}
+                      />
+                    )}
+                  />
+                </TabsContent>
+
+                <TabsContent value="receivables">
+                  <DataTable
+                    columns={receivableColumns}
+                    data={receivables?.data || []}
+                    loading={receivablesLoading}
+                    rowIdKey="id"
+                  />
+                </TabsContent>
+
+                <TabsContent value="payables">
+                  <DataTable
+                    columns={payableColumns}
+                    data={payables?.data || []}
+                    loading={payablesLoading}
+                    rowIdKey="id"
+                  />
+                </TabsContent>
               </div>
-            )}
-
-            {activeTab === 'payables' && (
-              <div className="p-8 text-center text-muted-foreground">
-                <Building2 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                <p>Payables management coming soon...</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </Tabs>
       </div>
     </MainLayout>
   );
