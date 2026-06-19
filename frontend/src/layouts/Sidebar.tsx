@@ -12,6 +12,7 @@ import {
   CheckSquare,
   Package,
   DollarSign,
+  Calculator,
   FileText,
   Settings,
   ChevronLeft,
@@ -75,6 +76,12 @@ const navigationItems = [
     roles: ['owner', 'admin'],
   },
   {
+    title: 'Accounting',
+    href: '/dashboard/accounting',
+    icon: Calculator,
+    roles: ['owner', 'admin'],
+  },
+  {
     title: 'Documents',
     href: '/dashboard/documents',
     icon: FileText,
@@ -89,7 +96,8 @@ const navigationItems = [
 ];
 
 export const Sidebar = memo(function Sidebar({ currentPath, userRole = 'owner' }: SidebarProps) {
-  const pathname = currentPath || usePathname();
+  const nextPathname = usePathname();
+  const pathname = currentPath || nextPathname;
   const router = useRouter();
   const isOpen = useSidebarIsOpen();
   const isCollapsed = useSidebarIsCollapsed();

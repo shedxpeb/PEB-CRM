@@ -28,6 +28,8 @@ import {
   ShoppingCart,
   BarChart3,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { componentTextSizes } from '@/lib/design-system';
 
 // Lazy load chart components for better initial load performance
 const ChartCard = lazy(() => import('@/components/dashboard/ChartCard').then(mod => ({ default: mod.ChartCard })));
@@ -590,7 +592,7 @@ export default function DashboardPage() {
             ))
               ) : (
                 <div className="col-span-full text-center py-8">
-                  <p className="text-sm text-muted-foreground">No KPI data available</p>
+                  <p className={cn(componentTextSizes.table.cell, 'text-muted-foreground')}>No KPI data available</p>
                 </div>
               )}
             </div>

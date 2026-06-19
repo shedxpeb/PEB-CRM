@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Badge } from '@/components/ui/badge';
 import { createProjectSchema, CreateProjectInput } from '@/features/projects/validations';
 import { PROJECT_TYPES, PROJECT_PRIORITIES, STRUCTURE_TYPES, ROOF_TYPES, CRANE_SYSTEMS, WALL_TYPES } from '@/features/projects/constants';
@@ -99,18 +100,17 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Customer *</label>
-              <Select onValueChange={(value) => setValue('customerId', value)} defaultValue={initialData?.customerId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers?.data?.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.customerName} ({customer.companyName})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={customers?.data?.map((customer) => ({
+                  value: customer.id,
+                  label: `${customer.customerName} (${customer.companyName})`
+                })) || []}
+                value={watch('customerId') || ''}
+                onValueChange={(value) => setValue('customerId', value)}
+                placeholder="Select customer"
+                searchPlaceholder="Search customers..."
+                emptyMessage="No customer found"
+              />
               {errors.customerId && <p className="text-sm text-red-500">{errors.customerId.message}</p>}
             </div>
           </div>

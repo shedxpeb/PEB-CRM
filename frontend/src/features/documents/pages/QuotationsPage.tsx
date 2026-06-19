@@ -98,6 +98,32 @@ export function QuotationsPage() {
     window.location.href = '/dashboard/projects';
   };
 
+  const handleDuplicateQuotation = async (quotation: Quotation) => {
+    try {
+      const duplicateData: CreateQuotationDto = {
+        proposalId: quotation.proposalId,
+        customerId: quotation.customerId,
+        quotationNumber: `${quotation.quotationNumber}-COPY`,
+        validUntil: quotation.validUntil,
+        items: quotation.items,
+        subtotal: quotation.subtotal,
+        taxAmount: quotation.taxAmount,
+        totalAmount: quotation.totalAmount,
+        paymentTerms: quotation.paymentTerms,
+        termsAndConditions: quotation.termsAndConditions,
+        notes: quotation.notes,
+        status: 'Draft',
+      };
+      
+      await createQuotation(duplicateData);
+      alert('Quotation duplicated successfully!');
+      refetch();
+    } catch (err) {
+      console.error('Failed to duplicate quotation:', err);
+      alert('Failed to duplicate quotation. Please try again.');
+    }
+  };
+
   const handleBuilderSave = async (data: CreateQuotationDto) => {
     try {
       if (editingQuotation) {
@@ -193,7 +219,7 @@ export function QuotationsPage() {
                 value: stats.totalQuotations?.toString() || '0',
                 change: 0,
                 color: 'text-blue-600',
-                icon: <FileSpreadsheet className="h-4 w-4" />,
+                icon: <FileSpreadsheet />,
               }}
             />
             <KPICard
@@ -202,7 +228,7 @@ export function QuotationsPage() {
                 value: stats.draftQuotations?.toString() || '0',
                 change: 0,
                 color: 'text-gray-600',
-                icon: <Clock className="h-4 w-4" />,
+                icon: <Clock />,
               }}
             />
             <KPICard
@@ -211,7 +237,7 @@ export function QuotationsPage() {
                 value: stats.sentQuotations?.toString() || '0',
                 change: 0,
                 color: 'text-orange-600',
-                icon: <DollarSign className="h-4 w-4" />,
+                icon: <DollarSign />,
               }}
             />
             <KPICard
@@ -220,7 +246,7 @@ export function QuotationsPage() {
                 value: stats.acceptedQuotations?.toString() || '0',
                 change: 0,
                 color: 'text-green-600',
-                icon: <CheckCircle className="h-4 w-4" />,
+                icon: <CheckCircle />,
               }}
             />
             <KPICard
@@ -229,7 +255,7 @@ export function QuotationsPage() {
                 value: `₹${(stats.totalRevenuePipeline || 0).toLocaleString()}`,
                 change: 0,
                 color: 'text-purple-600',
-                icon: <TrendingUp className="h-4 w-4" />,
+                icon: <TrendingUp />,
               }}
             />
           </div>
@@ -238,9 +264,9 @@ export function QuotationsPage() {
         {/* Header Actions */}
         <div className="flex justify-between items-center">
           <div>
-            <p className="text-sm text-gray-600">Total Quotations: {quotations.length}</p>
+            <p className="text-sm text-muted-foreground">Total Quotations: {quotations.length}</p>
           </div>
-          <Button onClick={handleCreateNew}>
+          <Button onClick={handleCreateNew} className="h-9">
             <Plus className="h-4 w-4 mr-2" />
             New Quotation
           </Button>
@@ -274,6 +300,7 @@ export function QuotationsPage() {
                   onPrint={() => {}}
                   onDownload={() => {}}
                   onCopy={() => {}}
+                  onDuplicate={() => handleDuplicateQuotation(row as Quotation)}
                 />
               )}
             />

@@ -6,7 +6,9 @@ import { MODULES } from '../constants/settingsConstants';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { CardSkeleton } from '@/components/loading/CardSkeleton';
 import {
+  type LucideIcon,
   Users,
   Building,
   FolderKanban,
@@ -15,14 +17,13 @@ import {
   FileText,
   FileSpreadsheet,
   Lock,
-  Unlock,
   Eye,
   EyeOff,
   Power,
 } from 'lucide-react';
 import type { Module } from '../types';
 
-const moduleIcons: Record<string, any> = {
+const moduleIcons: Record<string, LucideIcon> = {
   leads: Users,
   customers: Building,
   projects: FolderKanban,
@@ -70,7 +71,9 @@ export function ModuleManagement() {
 
         {/* Modules Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {safeModules.map((module, index) => {
+          {isLoading ? (
+            <CardSkeleton count={6} />
+          ) : safeModules.map((module, index) => {
             const Icon = moduleIcons[module.name] || Package;
             return (
               <Card key={`${module.id}-${index}`} className={!module.isEnabled ? 'opacity-60' : ''}>

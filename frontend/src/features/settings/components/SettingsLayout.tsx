@@ -18,6 +18,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { ROUTES } from '@/core/routes';
+import { componentTextSizes } from '@/lib/design-system';
 
 interface SettingsNavItem {
   id: string;
@@ -152,7 +153,7 @@ export function SettingsLayout({ children }: SettingsLayoutProps) {
           <div className="space-y-4 sm:space-y-6">
             {Object.entries(groupedNavItems).map(([section, items]) => (
               <div key={section}>
-                <h3 className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                <h3 className={cn(componentTextSizes.kpiCard.label, 'font-semibold text-muted-foreground uppercase tracking-wider mb-2')}>
                   {SECTIONS[section as keyof typeof SECTIONS] || section}
                 </h3>
                 <nav className="space-y-1">

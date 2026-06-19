@@ -8,24 +8,27 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardSkeleton } from '@/components/loading/CardSkeleton';
+import { ErrorState } from '@/components/states/ErrorState';
 import { useProject, useProjectActivities } from '@/features/projects/hooks/useProjects';
 import { useCustomers } from '@/features/customers/hooks/useCustomers';
-import { getProjectStatusVariant, getPriorityVariant, getHealthStatusVariant } from '@/features/projects/constants';
-import { ArrowLeft, Edit, Calendar, MapPin, DollarSign, Users, Building2, FileText, AlertCircle, Link2, Package, Truck, Receipt, FileCheck, Wrench, Shield, AlertTriangle, MessageSquare, Map, CreditCard } from 'lucide-react';
+import { getProjectStatusVariant, getPriorityVariant } from '@/features/projects/constants';
+import type { Customer } from '@/features/customers/types';
+import { ArrowLeft, Edit, Calendar, DollarSign, Users, Building2, FileText, AlertCircle, Link2, Package, Truck, Receipt, FileCheck, Wrench, Shield, AlertTriangle, MessageSquare, Map, CreditCard } from 'lucide-react';
 
 // Lazy load tab components to reduce initial bundle size
 const ProjectTimeline = dynamic(() => import('@/features/projects/components/ProjectTimeline').then(mod => ({ default: mod.ProjectTimeline })), {
-  loading: () => <div className="p-8 text-center">Loading timeline...</div>,
+  loading: () => <CardSkeleton />,
   ssr: false
 });
 
 const ProjectHealthCard = dynamic(() => import('@/features/projects/components/ProjectHealthCard').then(mod => ({ default: mod.ProjectHealthCard })), {
-  loading: () => <div className="p-4 text-center">Loading health card...</div>,
+  loading: () => <CardSkeleton />,
   ssr: false
 });
 
 const MilestoneTracker = dynamic(() => import('@/features/projects/components/MilestoneTracker').then(mod => ({ default: mod.MilestoneTracker })), {
-  loading: () => <div className="p-8 text-center">Loading milestones...</div>,
+  loading: () => <CardSkeleton />,
   ssr: false
 });
 
@@ -38,17 +41,14 @@ export default function ProjectDetailPage() {
 
   // Find linked customer
   const linkedCustomer = project?.customerId && customersData?.data
-    ? customersData.data.find((c: any) => c.id === project.customerId)
+    ? customersData.data.find((customer: Customer) => customer.id === project.customerId)
     : null;
 
   if (isLoading) {
     return (
       <MainLayout title="Project Details">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center space-y-2">
-            <div className="h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-sm text-muted-foreground">Loading project details...</p>
-          </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <CardSkeleton count={6} />
         </div>
       </MainLayout>
     );
@@ -57,9 +57,13 @@ export default function ProjectDetailPage() {
   if (!project) {
     return (
       <MainLayout title="Project Details">
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Project not found</p>
-        </div>
+        <ErrorState
+          title="Project not found"
+          message="The selected project could not be loaded. It may have been removed or the link may be invalid."
+          retryLabel="Go Back"
+          onRetry={() => window.history.back()}
+          className="min-h-64"
+        />
       </MainLayout>
     );
   }
@@ -233,7 +237,7 @@ export default function ProjectDetailPage() {
               </Card>
 
               {/* Health Card */}
-              <Suspense fallback={<div className="p-4 text-center">Loading health card...</div>}>
+              <Suspense fallback={<CardSkeleton />}>
                 <ProjectHealthCard
                   healthStatus={project.healthStatus}
                   timelineHealth={project.timelineHealth}
@@ -870,7 +874,7 @@ export default function ProjectDetailPage() {
 
           {/* Milestones Tab */}
           <TabsContent value="milestones">
-            <Suspense fallback={<div className="p-8 text-center">Loading milestones...</div>}>
+            <Suspense fallback={<CardSkeleton />}>
               <MilestoneTracker milestones={project.milestones} />
             </Suspense>
           </TabsContent>
@@ -912,7 +916,7 @@ export default function ProjectDetailPage() {
 
           {/* Timeline Tab */}
           <TabsContent value="timeline">
-            <Suspense fallback={<div className="p-8 text-center">Loading timeline...</div>}>
+            <Suspense fallback={<CardSkeleton />}>
               <ProjectTimeline activities={activities || []} />
             </Suspense>
           </TabsContent>

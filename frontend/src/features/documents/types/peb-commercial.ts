@@ -116,6 +116,44 @@ export type DocumentStatus =
 
 export type ApprovalStatus = 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
 
+// ─── Enhanced Status Engine ───────────────────────────────────────────────────────
+
+/**
+ * Comprehensive Status Types for Each Document Type
+ * Provides granular status tracking throughout the commercial lifecycle
+ */
+
+export type EstimateStatus =
+  | 'Draft'           // Initial creation, not yet ready
+  | 'Ready'           // Prepared and ready to send
+  | 'Sent'            // Sent to customer
+  | 'Viewed'          // Customer has opened it
+  | 'Approved'        // Approved internally
+  | 'Rejected'        // Rejected by customer or internally
+  | 'Expired'         // Past valid date
+  | 'Converted'       // Converted to Proposal
+  | 'Cancelled';      // Cancelled by user
+
+export type ProposalStatus =
+  | 'Draft'           // Initial creation
+  | 'Sent'            // Sent to customer
+  | 'Viewed'          // Customer has opened it
+  | 'Under Review'    // Customer is reviewing
+  | 'Approved'        // Approved by customer
+  | 'Rejected'        // Rejected by customer
+  | 'Converted'       // Converted to Quotation
+  | 'Expired';        // Past valid date
+
+export type QuotationStatus =
+  | 'Draft'           // Initial creation
+  | 'Sent'            // Sent to customer
+  | 'Viewed'          // Customer has opened it
+  | 'Negotiation'     // Under negotiation
+  | 'Accepted'        // Accepted by customer
+  | 'Rejected'        // Rejected by customer
+  | 'Expired'         // Past valid date
+  | 'Converted';      // Converted to Project
+
 // ─── Estimate Types ───────────────────────────────────────────────────────────────
 
 /**

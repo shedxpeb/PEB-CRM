@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowDownRight, ArrowUpRight, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { componentTextSizes } from '@/lib/design-system';
 
 export interface KpiPeriodData {
   value: string;
@@ -82,7 +83,7 @@ export const ModernKPICard = memo(function ModernKPICard({
           <div className={cn('flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl ring-1', a.bg, a.fg, a.ring)}>
             <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
-          <div className="inline-flex rounded-full border border-border bg-muted/40 p-0.5 text-[10px] font-medium">
+          <div className={cn('inline-flex rounded-full border border-border bg-muted/40 p-0.5', componentTextSizes.kpiCard.label, 'font-medium')}>
             {(['monthly', 'yearly'] as const).map((p) => (
               <button
                 key={p}
@@ -100,13 +101,14 @@ export const ModernKPICard = memo(function ModernKPICard({
           </div>
         </div>
         <div className="mt-3 sm:mt-4">
-          <div className="text-[10px] sm:text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+          <div className={cn(componentTextSizes.kpiCard.label, 'font-medium uppercase tracking-wide text-muted-foreground')}>{label}</div>
           <div className="mt-1 flex items-baseline gap-2">
-            <div className="text-lg sm:text-2xl font-semibold tracking-tight text-foreground">{data.value}</div>
+            <div className={cn(componentTextSizes.kpiCard.value, 'font-semibold tracking-tight text-foreground')}>{data.value}</div>
             {data.delta && (
               <span
                 className={cn(
-                  'inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                  'inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5',
+                  componentTextSizes.kpiCard.change, 'font-medium',
                   data.trend === 'down'
                     ? 'bg-rose-50 text-rose-700'
                     : 'bg-emerald-50 text-emerald-700',
@@ -117,7 +119,7 @@ export const ModernKPICard = memo(function ModernKPICard({
               </span>
             )}
           </div>
-          {data.hint && <div className="mt-1.5 text-[10px] sm:text-xs text-muted-foreground">{data.hint}</div>}
+          {data.hint && <div className={cn('mt-1.5', componentTextSizes.kpiCard.hint, 'text-muted-foreground')}>{data.hint}</div>}
         </div>
       </CardContent>
     </Card>

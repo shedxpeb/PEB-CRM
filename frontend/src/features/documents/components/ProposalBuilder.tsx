@@ -14,10 +14,11 @@ import {
   CreateProposalDto,
   TechnicalSpecifications,
 } from '../types/peb-commercial';
+import { useCustomerAutofill } from '../hooks/useCustomerAutofill';
 import { TechnicalSpecsForm } from './TechnicalSpecsForm';
 
 interface ProposalBuilderProps {
-  estimate: Estimate;
+  estimate?: Estimate | null;
   proposal?: Proposal;
   lead?: {
     id: string;
@@ -69,13 +70,16 @@ export function ProposalBuilder({
   onSave,
   onCancel,
 }: ProposalBuilderProps) {
+  // Smart Autofill - fetch customer data and last quotation
+  const autofillData = useCustomerAutofill(estimate?.customerId || lead?.customerId || '');
+
   const [doc, setDoc] = useState<ProposalPayload>(
     proposal ? {
       proposalNumber: proposal.proposalNumber,
       coverPage: {
         title: proposal.coverPage?.title || 'PROPOSAL',
         subtitle: proposal.coverPage?.subtitle || 'Pre-Engineered Building Solution',
-        preparedFor: proposal.coverPage?.preparedFor || estimate.customerName,
+        preparedFor: proposal.coverPage?.preparedFor || estimate?.customerName || '',
         preparedBy: proposal.coverPage?.preparedBy || 'Your Company Name',
       },
       companyProfile: proposal.companyProfile || '',
@@ -101,13 +105,13 @@ export function ProposalBuilder({
         start: new Date().toISOString(),
         end: new Date().toISOString(),
       })) || [],
-      technicalSpecifications: estimate.technicalSpecifications,
+      technicalSpecifications: estimate?.technicalSpecifications || {},
     } : {
       proposalNumber: `PROP-${Date.now()}`,
       coverPage: {
         title: 'PROPOSAL',
         subtitle: 'Pre-Engineered Building Solution',
-        preparedFor: lead?.companyName || lead?.customerName || estimate.customerName,
+        preparedFor: lead?.companyName || lead?.customerName || estimate?.customerName || '',
         preparedBy: 'Your Company Name',
       },
       companyProfile: '',
@@ -127,7 +131,7 @@ export function ProposalBuilder({
       },
       commercialSummary: '',
       timeline: [],
-      technicalSpecifications: estimate.technicalSpecifications,
+      technicalSpecifications: estimate?.technicalSpecifications || {},
     }
   );
 
@@ -139,7 +143,7 @@ export function ProposalBuilder({
 
   const handleSave = () => {
     const proposalDto: CreateProposalDto = {
-      estimateId: estimate.id,
+      estimateId: estimate?.id || '',
       coverPage: doc.coverPage,
       companyProfile: doc.companyProfile,
       includeCommercialSummary: !!doc.commercialSummary,
@@ -168,7 +172,7 @@ export function ProposalBuilder({
         <div>
           <h2 className="text-2xl font-bold">Proposal Builder</h2>
           <p className="text-muted-foreground">
-            From Estimate: {estimate.estimateNumber} | Customer: {estimate.customerName}
+            From Estimate: {estimate?.estimateNumber || 'N/A'} | Customer: {estimate?.customerName || 'N/A'}
           </p>
         </div>
         <div className="flex gap-2">

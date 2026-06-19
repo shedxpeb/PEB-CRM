@@ -25,14 +25,14 @@ export const MainLayout = memo(function MainLayout({ children, title, subtitle, 
       
       <main
         className={cn(
-          'transition-all duration-300 min-h-screen overflow-x-hidden',
+          'transition-all duration-300 min-h-screen overflow-x-hidden overflow-y-auto',
           isOpen ? (isCollapsed ? 'lg:ml-16 lg:w-[calc(100%-4rem)]' : 'lg:ml-64 lg:w-[calc(100%-16rem)]') : 'lg:ml-0 lg:w-full',
           'ml-0 w-full'
         )}
       >
         <Topbar title={title} subtitle={subtitle} showBackButton={showBackButton} onBackClick={onBackClick} />
         
-        <div className="p-3 sm:p-4 lg:p-6 w-full max-w-full overflow-hidden">
+        <div className="p-6 w-full max-w-full">
           {children}
         </div>
       </main>

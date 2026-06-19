@@ -185,7 +185,11 @@ export const KPICard = memo(function KPICard({
             )}
           </div>
           <div className={cn('h-8 w-8 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center flex-shrink-0', color.replace('text-', 'bg-').replace('-600', '-100'))}>
-            <div className={cn(color, 'h-4 w-4 sm:h-5 sm:w-5')}>{icon}</div>
+            <div className={cn(color, 'h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center')}>
+              <div className="h-3.5 w-3.5 sm:h-4.5 sm:w-4.5 flex items-center justify-center">
+                {icon}
+              </div>
+            </div>
           </div>
         </div>
         

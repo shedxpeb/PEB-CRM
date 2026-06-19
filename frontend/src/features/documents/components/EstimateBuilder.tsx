@@ -9,13 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { 
   Plus, 
   Trash2, 
   ChevronDown, 
   ChevronUp, 
-  Search,
   Save,
   X,
   Info,
@@ -39,6 +38,7 @@ import {
 import { useCustomers } from '@/features/customers/hooks/useCustomers';
 import { useProjects } from '@/features/projects/hooks/useProjects';
 import { useItemMasters } from '@/features/item-master/hooks/useItemMaster';
+import { useCustomerAutofill } from '../hooks/useCustomerAutofill';
 import { ItemMaster, ItemCategory } from '@/features/item-master/types';
 import { ItemPicker } from './ItemPicker';
 import { ScopeConfigurationEditor } from './ScopeConfigurationEditor';
@@ -72,8 +72,9 @@ export function EstimateBuilder({
   const [selectedCustomerId, setSelectedCustomerId] = useState(estimate?.customerId || lead?.customerId || '');
   const [selectedCustomerName, setSelectedCustomerName] = useState(estimate?.customerName || lead?.companyName || lead?.customerName || '');
   const [selectedProjectId, setSelectedProjectId] = useState(estimate?.projectId || '');
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [projectSearch, setProjectSearch] = useState('');
+
+  // Smart Autofill - fetch customer data and last quotation
+  const autofillData = useCustomerAutofill(selectedCustomerId);
 
   // Material Selection State
   const [materialSelections, setMaterialSelections] = useState<MaterialSelection[]>(
@@ -226,51 +227,37 @@ export function EstimateBuilder({
                 <User className="h-4 w-4" />
                 Customer *
               </Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search customer..."
-                  value={customerSearch}
-                  onChange={(e) => setCustomerSearch(e.target.value)}
-                  className="pl-10 mb-2"
-                />
-              </div>
               {customersLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground h-9">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                   Loading customers...
                 </div>
               ) : customers.length === 0 ? (
-                <div className="text-sm text-muted-foreground">
+                <div className="text-sm text-muted-foreground h-9 flex items-center">
                   No customers available. Please add customers first.
                 </div>
               ) : (
-                <Select value={selectedCustomerId} onValueChange={(value) => {
+              <Combobox
+                options={customers.map((c: any) => ({
+                  value: c.id,
+                  label: `${c.customerName}${c.companyName ? ` (${c.companyName})` : ''}`,
+                }))}
+                value={selectedCustomerId}
+                onValueChange={(value) => {
                   setSelectedCustomerId(value);
                   const customer = customers?.find((c: any) => c.id === value);
                   setSelectedCustomerName(customer?.customerName || '');
-                  // Clear validation error when user selects a customer
                   if (value) {
                     setValidationErrors(prev => {
                       const { customer, ...rest } = prev;
                       return rest;
                     });
                   }
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers?.filter((c: any) =>
-                      c.customerName?.toLowerCase().includes(customerSearch.toLowerCase()) ||
-                      c.companyName?.toLowerCase().includes(customerSearch.toLowerCase())
-                    ).map((customer: any) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.customerName} {customer.companyName ? `(${customer.companyName})` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                }}
+                placeholder="Select customer"
+                searchPlaceholder="Search customers..."
+                emptyMessage="No customer found"
+              />
               )}
               {validationErrors.customer && (
                 <p className="text-sm text-red-500 mt-1">{validationErrors.customer}</p>
@@ -281,40 +268,30 @@ export function EstimateBuilder({
                 <Building2 className="h-4 w-4" />
                 Project (Optional)
               </Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search project..."
-                  value={projectSearch}
-                  onChange={(e) => setProjectSearch(e.target.value)}
-                  className="pl-10 mb-2"
-                />
-              </div>
               {projectsLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground h-9">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                   Loading projects...
                 </div>
               ) : projects.length === 0 ? (
-                <div className="text-sm text-muted-foreground">
-                  No projects available. Please add projects first.
+                <div className="text-sm text-muted-foreground h-9 flex items-center">
+                  No projects available.
                 </div>
               ) : (
-                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects?.filter((p: any) =>
-                      p.projectName?.toLowerCase().includes(projectSearch.toLowerCase()) ||
-                      p.customerName?.toLowerCase().includes(projectSearch.toLowerCase())
-                    ).map((project: any) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.projectName} {project.customerName ? `- ${project.customerName}` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <Combobox
+                options={[
+                  { value: '', label: 'None' },
+                  ...projects.map((p: any) => ({
+                    value: p.id,
+                    label: `${p.projectName}${p.customerName ? ` - ${p.customerName}` : ''}`,
+                  }))
+                ]}
+                value={selectedProjectId}
+                onValueChange={setSelectedProjectId}
+                placeholder="Select project (optional)"
+                searchPlaceholder="Search projects..."
+                emptyMessage="No project found"
+              />
               )}
             </div>
           </div>

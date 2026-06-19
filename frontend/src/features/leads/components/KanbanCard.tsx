@@ -5,6 +5,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Lead } from '@/types/leads';
 import { MapPin, Calendar, TrendingUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { componentTextSizes } from '@/lib/design-system';
 
 interface KanbanCardProps {
   lead: Lead;
@@ -53,19 +55,19 @@ export const KanbanCard = memo(function KanbanCard({ lead, onDragStart, onDragEn
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
-            <p className="text-[10px] text-muted-foreground font-mono">
+            <p className={cn(componentTextSizes.table.monospace, 'text-muted-foreground')}>
               LEAD-{lead.leadId}
             </p>
-            <h3 className="font-semibold text-xs mt-0.5 line-clamp-2">
+            <h3 className={cn('font-semibold mt-0.5 line-clamp-2', componentTextSizes.table.cell)}>
               {lead.customerName}
             </h3>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
+            <p className={cn(componentTextSizes.table.monospace, 'text-muted-foreground mt-0.5')}>
               {lead.companyName}
             </p>
           </div>
           <Badge
             variant="outline"
-            className={`text-[10px] font-semibold px-1.5 py-0 ${getPriorityColor(lead.priority)}`}
+            className={cn(componentTextSizes.badge, 'font-semibold px-1.5 py-0', getPriorityColor(lead.priority))}
           >
             {lead.priority}
           </Badge>
@@ -73,16 +75,16 @@ export const KanbanCard = memo(function KanbanCard({ lead, onDragStart, onDragEn
 
         {/* Project Info */}
         <div className="space-y-1">
-          <div className="flex items-center justify-between text-[10px]">
+          <div className={cn('flex items-center justify-between', componentTextSizes.table.monospace)}>
             <span className="text-muted-foreground">Project Type:</span>
             <span className="font-medium">{lead.projectType}</span>
           </div>
-          <div className="flex items-center justify-between text-[10px]">
+          <div className={cn('flex items-center justify-between', componentTextSizes.table.monospace)}>
             <span className="text-muted-foreground">Structure:</span>
             <span className="font-medium">{lead.structureType}</span>
           </div>
           {lead.width && lead.length && (
-            <div className="flex items-center justify-between text-[10px]">
+            <div className={cn('flex items-center justify-between', componentTextSizes.table.monospace)}>
               <span className="text-muted-foreground">Area:</span>
               <span className="font-medium">{(lead.width * lead.length).toLocaleString()} sqm</span>
             </div>
@@ -90,7 +92,7 @@ export const KanbanCard = memo(function KanbanCard({ lead, onDragStart, onDragEn
         </div>
 
         {/* Location */}
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+        <div className={cn('flex items-center gap-1.5 text-muted-foreground', componentTextSizes.table.monospace)}>
           <MapPin className="h-2.5 w-2.5" />
           <span>{lead.city}, {lead.state}</span>
         </div>
@@ -98,11 +100,11 @@ export const KanbanCard = memo(function KanbanCard({ lead, onDragStart, onDragEn
         {/* Score & Value */}
         <div className="space-y-1.5 pt-1.5 border-t">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-[10px]">
+            <div className={cn('flex items-center gap-1.5', componentTextSizes.table.monospace)}>
               <TrendingUp className="h-2.5 w-2.5 text-muted-foreground" />
               <span className="text-muted-foreground">Score:</span>
             </div>
-            <span className="text-[10px] font-semibold text-orange-600">
+            <span className={cn('font-semibold text-orange-600', componentTextSizes.table.monospace)}>
               {(lead as Lead & { score?: number }).score || 0} pts
             </span>
           </div>
@@ -116,7 +118,7 @@ export const KanbanCard = memo(function KanbanCard({ lead, onDragStart, onDragEn
 
         {/* Footer */}
         <div className="flex items-center justify-between pt-1.5 border-t">
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <div className={cn('flex items-center gap-1.5 text-muted-foreground', componentTextSizes.table.monospace)}>
             <Calendar className="h-2.5 w-2.5" />
             <span>
               {lead.nextFollowUpDate
@@ -129,7 +131,7 @@ export const KanbanCard = memo(function KanbanCard({ lead, onDragStart, onDragEn
           </div>
           <div className="flex items-center gap-1">
             <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
-            <span className="text-[10px] text-muted-foreground">
+            <span className={cn('text-muted-foreground', componentTextSizes.table.monospace)}>
               {lead.assignedEmployee || 'Unassigned'}
             </span>
           </div>

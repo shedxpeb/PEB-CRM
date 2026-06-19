@@ -619,6 +619,7 @@ export interface FinanceStats {
  * Finance Filters
  */
 export interface FinanceFilters {
+  search?: string;
   dateFrom?: Date;
   dateTo?: Date;
   customerId?: string;

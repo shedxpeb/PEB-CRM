@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { AdminTable, AdminTableColumn, AdminTableFilter } from './AdminTable';
 import { Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { componentTextSizes } from '@/lib/design-system';
 
 export interface CompanyRecord {
   id: string;
@@ -25,7 +26,7 @@ const columns: AdminTableColumn<CompanyRecord>[] = [
     <span className="text-xs text-sa-text-secondary">{v}</span>
   )},
   { key: 'activeProjects', label: 'Active Projects', sortable: true, render: (v) => (
-    <Badge variant="secondary" className="text-[10px]">{v}</Badge>
+    <Badge variant="secondary" className={componentTextSizes.badge}>{v}</Badge>
   )},
   { key: 'storageUsage', label: 'Storage', sortable: true, render: (v, row) => (
     <div className="flex items-center gap-2">
@@ -38,11 +39,11 @@ const columns: AdminTableColumn<CompanyRecord>[] = [
           style={{ width: `${row.storagePct}%` }}
         />
       </div>
-      <span className="text-[10px] text-sa-text-muted">{v}</span>
+      <span className={cn(componentTextSizes.badge, 'text-sa-text-muted')}>{v}</span>
     </div>
   )},
   { key: 'subscription', label: 'Plan', sortable: true, render: (v) => (
-    <Badge variant={v === 'Enterprise' ? 'success' : v === 'Professional' ? 'secondary' : 'warning'} className="text-[10px]">
+    <Badge variant={v === 'Enterprise' ? 'success' : v === 'Professional' ? 'secondary' : 'warning'} className={componentTextSizes.badge}>
       {v}
     </Badge>
   )},
@@ -78,8 +79,8 @@ export function CompanyMonitoring({ companies }: CompanyMonitoringProps) {
             Company Monitoring
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-[10px]">{totalEmployees} employees</Badge>
-            <Badge variant="secondary" className="text-[10px]">{totalProjects} projects</Badge>
+            <Badge variant="secondary" className={componentTextSizes.badge}>{totalEmployees} employees</Badge>
+            <Badge variant="secondary" className={componentTextSizes.badge}>{totalProjects} projects</Badge>
           </div>
         </div>
       </CardHeader>

@@ -5,10 +5,14 @@ import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/layouts/MainLayout';
 import { DataTable, Column } from '@/components/data-table/DataTable';
 import { KPICard } from '@/components/dashboard/KPICard';
+import { StandardPageLayout } from '@/components/layout/StandardPageLayout';
+import { FilterBar, FilterConfig } from '@/components/layout/FilterBar';
 const CustomerForm = lazy(() => import('@/features/customers/components/CustomerForm').then(m => ({ default: m.CustomerForm })));
 const CustomerRowActions = lazy(() => import('@/features/customers/components/CustomerRowActions').then(m => ({ default: m.CustomerRowActions })));
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Select,
@@ -115,12 +119,52 @@ export default function CustomersPage() {
     { title: 'Total Customers', value: String(filteredStats.total), change: 12.5, icon: <Users className="h-6 w-6 text-blue-600" />, color: 'text-blue-600' },
     { title: 'Active Customers', value: String(filteredStats.active), change: 8.2, icon: <UserCheck className="h-6 w-6 text-green-600" />, color: 'text-green-600' },
     { title: 'New This Month', value: String(filteredStats.newThisMonth), change: 15.3, icon: <UserPlus className="h-6 w-6 text-purple-600" />, color: 'text-purple-600' },
-    { title: 'Active Projects', value: String(filteredStats.activeProjects), change: 5.7, icon: <FolderKanban className="h-6 w-6 text-orange-600" />, color: 'text-orange-600' },
-    { title: 'Completed Projects', value: String(filteredStats.completedProjects), change: 3.2, icon: <CheckCircle className="h-6 w-6 text-emerald-600" />, color: 'text-emerald-600' },
     { title: 'Total Revenue', value: `₹${(filteredStats.totalRevenue / 10000000).toFixed(1)}Cr`, change: 18.9, icon: <DollarSign className="h-6 w-6 text-green-700" />, color: 'text-green-700' },
-    { title: 'Pending Quotations', value: String(filteredStats.pendingQuotations), change: -4.5, icon: <FileText className="h-6 w-6 text-amber-600" />, color: 'text-amber-600' },
-    { title: 'Pending Followups', value: String(filteredStats.pendingFollowups), change: -2.1, icon: <Clock className="h-6 w-6 text-red-500" />, color: 'text-red-500' },
   ], [filteredStats]);
+
+  // Filter configuration for FilterBar
+  const filterConfigs: FilterConfig[] = useMemo(() => [
+    {
+      key: 'status',
+      label: 'Status',
+      value: statusFilter,
+      onChange: (value: string) => setStatusFilter(value as CustomerStatus | 'all'),
+      options: [{ value: 'all', label: 'All Status' }, ...CUSTOMER_STATUSES.map(s => ({ value: s.value, label: s.label }))],
+    },
+    {
+      key: 'city',
+      label: 'City',
+      value: cityFilter,
+      onChange: setCityFilter,
+      options: [
+        { value: 'all', label: 'All Cities' },
+        ...Array.from(new Set(allCustomersResponse?.data?.map(c => c.city) || []))
+          .filter(Boolean)
+          .sort()
+          .map(city => ({ value: city, label: city }))
+      ],
+    },
+    {
+      key: 'state',
+      label: 'State',
+      value: stateFilter,
+      onChange: setStateFilter,
+      options: [
+        { value: 'all', label: 'All States' },
+        ...Array.from(new Set(allCustomersResponse?.data?.map(c => c.state) || []))
+          .filter(Boolean)
+          .sort()
+          .map(state => ({ value: state, label: state }))
+      ],
+    },
+  ], [statusFilter, cityFilter, stateFilter, allCustomersResponse?.data]);
+
+  const handleClearFilters = useCallback(() => {
+    setStatusFilter('all');
+    setCityFilter('all');
+    setStateFilter('all');
+    setSearchQuery('');
+  }, []);
 
   // Memoized table columns
   const columns: Column<Customer>[] = useMemo(() => [
@@ -325,83 +369,37 @@ export default function CustomersPage() {
   }
 
   return (
-    <MainLayout title="Customers" subtitle="Manage your customer database">
-      <div className="space-y-4 sm:space-y-6 w-full overflow-hidden">
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-          {kpiData.map((kpi) => (
-            <KPICard key={kpi.title} data={kpi} />
-          ))}
+    <MainLayout>
+      <StandardPageLayout
+        title="Customers"
+        subtitle="Manage your customer database"
+        headerActions={
+          <Button onClick={() => setIsCreateDialogOpen(true)} className="h-9">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Customer
+          </Button>
+        }
+        kpiCards={
+          <>
+            <KPICard data={kpiData[0]} />
+            <KPICard data={kpiData[1]} />
+            <KPICard data={kpiData[2]} />
+            <KPICard data={kpiData[3]} />
+          </>
+        }
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search customers..."
+        filters={filterConfigs}
+        onClearFilters={handleClearFilters}
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <Button variant="outline" onClick={handleExport} className="gap-1.5 text-xs">
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </Button>
         </div>
 
-        {/* Action Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 min-w-0">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-base sm:text-lg font-semibold">All Customers</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground">{customers.length} total customers</p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            {/* Filters */}
-            <div className="flex gap-2 w-full sm:w-auto">
-              <Select value={statusFilter} onValueChange={(v: CustomerStatus | 'all') => setStatusFilter(v)}>
-                <SelectTrigger className="w-full sm:w-[140px] h-8 sm:h-9 text-xs">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  {CUSTOMER_STATUSES.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={cityFilter} onValueChange={setCityFilter}>
-                <SelectTrigger className="w-full sm:w-[140px] h-8 sm:h-9 text-xs">
-                  <SelectValue placeholder="City" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Cities</SelectItem>
-                  {Array.from(new Set(allCustomersResponse?.data?.map(c => c.city) || [])).filter(Boolean).sort().map((city) => (
-                    <SelectItem key={city} value={city}>{city}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={stateFilter} onValueChange={setStateFilter}>
-                <SelectTrigger className="w-full sm:w-[140px] h-8 sm:h-9 text-xs">
-                  <SelectValue placeholder="State" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All States</SelectItem>
-                  {Array.from(new Set(allCustomersResponse?.data?.map(c => c.state) || [])).filter(Boolean).sort().map((state) => (
-                    <SelectItem key={state} value={state}>{state}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {/* Search and Actions */}
-            <div className="flex gap-2 w-full sm:w-auto">
-              <div className="relative flex-1 sm:flex-none">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search customers..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-4 py-2 w-full sm:w-64 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <Button variant="outline" size="sm" onClick={handleExport} className="flex-1 sm:flex-none">
-                <Download className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Export</span>
-              </Button>
-              <Button size="sm" onClick={() => setIsCreateDialogOpen(true)} className="flex-1 sm:flex-none">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Customer
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Data Table */}
         <DataTable
           columns={columns}
           data={customers}
@@ -421,53 +419,53 @@ export default function CustomersPage() {
             />
           )}
         />
-        </div>
+      </StandardPageLayout>
 
-        {/* Create Customer Dialog */}
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Customer</DialogTitle>
-            </DialogHeader>
+      {/* Create Customer Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Customer</DialogTitle>
+          </DialogHeader>
+          <Suspense fallback={<div className="flex items-center justify-center h-32">Loading form...</div>}>
+            <CustomerForm
+              onSubmit={handleCreateCustomer}
+              onCancel={() => {
+                setIsCreateDialogOpen(false);
+                setFormError(null);
+              }}
+              isLoading={createMutation.isPending}
+              error={formError}
+              isEditMode={false}
+            />
+          </Suspense>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Customer Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Customer</DialogTitle>
+          </DialogHeader>
+          {selectedCustomer && (
             <Suspense fallback={<div className="flex items-center justify-center h-32">Loading form...</div>}>
               <CustomerForm
-                onSubmit={handleCreateCustomer}
+                initialData={selectedCustomer}
+                onSubmit={handleEditCustomer}
                 onCancel={() => {
-                  setIsCreateDialogOpen(false);
+                  setIsEditDialogOpen(false);
+                  setSelectedCustomer(null);
                   setFormError(null);
                 }}
-                isLoading={createMutation.isPending}
+                isLoading={updateMutation.isPending}
                 error={formError}
-                isEditMode={false}
+                isEditMode={true}
               />
             </Suspense>
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Customer Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Customer</DialogTitle>
-            </DialogHeader>
-            {selectedCustomer && (
-              <Suspense fallback={<div className="flex items-center justify-center h-32">Loading form...</div>}>
-                <CustomerForm
-                  initialData={selectedCustomer}
-                  onSubmit={handleEditCustomer}
-                  onCancel={() => {
-                    setIsEditDialogOpen(false);
-                    setSelectedCustomer(null);
-                    setFormError(null);
-                  }}
-                  isLoading={updateMutation.isPending}
-                  error={formError}
-                  isEditMode={true}
-                />
-              </Suspense>
-            )}
-          </DialogContent>
-        </Dialog>
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

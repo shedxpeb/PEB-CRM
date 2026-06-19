@@ -7,6 +7,7 @@ import {
   Building2, UserPlus, UserCheck, Shield, FileText, FolderKanban,
   Calculator, Package, Database, Settings, LogIn, Zap,
 } from 'lucide-react';
+import { componentTextSizes } from '@/lib/design-system';
 
 export interface ActivityItem {
   id: string;
@@ -69,7 +70,7 @@ export function LiveActivityFeed({ activities }: LiveActivityFeedProps) {
             </div>
             Live Activity
           </CardTitle>
-          <Badge variant="secondary" className="text-[10px]">{activities.length} events</Badge>
+          <Badge variant="secondary" className={componentTextSizes.badge}>{activities.length} events</Badge>
         </div>
       </CardHeader>
       <CardContent>
@@ -92,16 +93,16 @@ export function LiveActivityFeed({ activities }: LiveActivityFeedProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm text-sa-text-secondary font-medium">{item.userName}</span>
-                      <span className="text-[11px] text-sa-text-muted">of</span>
-                      <span className="text-[11px] text-sa-text-muted">{item.companyName}</span>
+                      <span className={cn(componentTextSizes.badge, 'text-sa-text-muted')}>of</span>
+                      <span className={cn(componentTextSizes.badge, 'text-sa-text-muted')}>{item.companyName}</span>
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <Icon className="h-3 w-3 text-sa-text-muted" />
                       <span className="text-xs text-sa-text-muted">{item.action}</span>
-                      <span className="text-[10px] text-sa-text-dim">· {item.module}</span>
+                      <span className={cn(componentTextSizes.badge, 'text-sa-text-dim')}>· {item.module}</span>
                     </div>
                   </div>
-                  <span className="text-[11px] text-sa-text-muted shrink-0 mt-0.5">{item.time}</span>
+                  <span className={cn(componentTextSizes.badge, 'text-sa-text-muted shrink-0 mt-0.5')}>{item.time}</span>
                 </div>
               );
             })

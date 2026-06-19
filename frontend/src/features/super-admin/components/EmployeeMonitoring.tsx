@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AdminTable, AdminTableColumn, AdminTableFilter } from './AdminTable';
 import { Users } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { componentTextSizes } from '@/lib/design-system';
 
 export interface EmployeeRecord {
   id: string;
@@ -21,7 +23,7 @@ const columns: AdminTableColumn<EmployeeRecord>[] = [
   { key: 'name', label: 'Employee', sortable: true },
   { key: 'company', label: 'Company', sortable: true },
   { key: 'role', label: 'Role', sortable: true, render: (v) => (
-    <Badge variant="secondary" className="text-[10px]">{v}</Badge>
+    <Badge variant="secondary" className={componentTextSizes.badge}>{v}</Badge>
   )},
   { key: 'lastLogin', label: 'Last Login', sortable: true },
   { key: 'todayActivityCount', label: 'Today Activity', sortable: true, render: (v) => (
@@ -35,12 +37,12 @@ const columns: AdminTableColumn<EmployeeRecord>[] = [
     return (
       <div className="flex items-center gap-1.5">
         <span className="text-xs text-green-400">{v}</span>
-        <span className="text-[10px] text-sa-text-muted">({pct}%)</span>
+        <span className={cn(componentTextSizes.badge, 'text-sa-text-muted')}>({pct}%)</span>
       </div>
     );
   }},
   { key: 'status', label: 'Status', sortable: true, render: (v) => (
-    <Badge variant={v === 'Online' ? 'success' : v === 'Away' ? 'warning' : 'secondary'} className="text-[10px]">
+    <Badge variant={v === 'Online' ? 'success' : v === 'Away' ? 'warning' : 'secondary'} className={componentTextSizes.badge}>
       {v}
     </Badge>
   )},
@@ -85,8 +87,8 @@ export function EmployeeMonitoring({ employees }: EmployeeMonitoringProps) {
             Employee Monitoring
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge variant="success" className="text-[10px]">{onlineCount} Online</Badge>
-            <Badge variant="secondary" className="text-[10px]">{totalActivity} activities today</Badge>
+            <Badge variant="success" className={componentTextSizes.badge}>{onlineCount} Online</Badge>
+            <Badge variant="secondary" className={componentTextSizes.badge}>{totalActivity} activities today</Badge>
           </div>
         </div>
       </CardHeader>

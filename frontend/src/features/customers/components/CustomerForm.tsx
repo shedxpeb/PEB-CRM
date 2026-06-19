@@ -14,7 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Customer } from '@/features/customers/types';
 import { INDUSTRIES, BUSINESS_TYPES, CUSTOMER_SOURCES, CUSTOMER_STATUSES } from '@/features/customers/constants';
 import { createCustomerSchema } from '@/features/customers/validations';
-import { X, AlertCircle, Search, Info, Lock } from 'lucide-react';
+import { X, AlertCircle, Info, Lock } from 'lucide-react';
+import { Combobox } from '@/components/ui/combobox';
 import { useLeads } from '@/features/leads/hooks/useLeads';
 import { Lead } from '@/features/leads/types';
 
@@ -36,7 +37,6 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
   const availableLeads = leads.filter((lead: Lead) => lead.status !== 'Converted');
 
   const [selectedLeadId, setSelectedLeadId] = useState<string>(initialData?.leadId || '');
-  const [leadSearchQuery, setLeadSearchQuery] = useState<string>('');
   const [showAutoFillNotice, setShowAutoFillNotice] = useState<boolean>(false);
 
   // Determine if this customer is linked to a lead (in edit mode or after lead selection)
@@ -107,21 +107,9 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
   // Clear lead selection
   const handleClearLead = () => {
     setSelectedLeadId('');
-    setLeadSearchQuery('');
     setShowAutoFillNotice(false);
     setFormData((prev) => ({ ...prev, leadId: undefined }));
   };
-
-  // Filter leads based on search query
-  const filteredLeads = availableLeads.filter((lead: Lead) => {
-    const searchLower = leadSearchQuery.toLowerCase();
-    return (
-      lead.customerName.toLowerCase().includes(searchLower) ||
-      lead.companyName.toLowerCase().includes(searchLower) ||
-      lead.city.toLowerCase().includes(searchLower) ||
-      lead.mobile.includes(searchLower)
-    );
-  });
 
   const validateForm = () => {
     try {
@@ -167,68 +155,17 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Select Lead</label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => document.getElementById('lead-dropdown')?.classList.toggle('hidden')}
-                  className="w-full flex items-center justify-between px-3 py-2 border rounded-md bg-background hover:bg-muted"
-                >
-                  <span className="text-sm text-muted-foreground">
-                    {selectedLeadId
-                      ? `${availableLeads.find((l: Lead) => l.id === selectedLeadId)?.customerName} - ${availableLeads.find((l: Lead) => l.id === selectedLeadId)?.companyName}`
-                      : 'Select a lead to convert...'}
-                  </span>
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                </button>
-                
-                <div
-                  id="lead-dropdown"
-                  className="hidden absolute z-50 w-full mt-1 bg-background border rounded-md shadow-lg max-h-64 overflow-y-auto"
-                >
-                  <div className="p-2 border-b">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="text"
-                        placeholder="Search leads..."
-                        value={leadSearchQuery}
-                        onChange={(e) => setLeadSearchQuery(e.target.value)}
-                        className="pl-9"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </div>
-                  {filteredLeads.length > 0 ? (
-                    filteredLeads.map((lead: Lead) => (
-                      <div
-                        key={lead.id}
-                        onClick={() => {
-                          handleLeadSelect(lead.id);
-                          document.getElementById('lead-dropdown')?.classList.add('hidden');
-                        }}
-                        className={`p-3 cursor-pointer hover:bg-muted border-b last:border-b-0 ${
-                          selectedLeadId === lead.id ? 'bg-muted' : ''
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-sm">{lead.customerName}</p>
-                            <p className="text-xs text-muted-foreground">{lead.companyName}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs text-muted-foreground">{lead.city}</p>
-                            <p className="text-xs text-muted-foreground">{lead.mobile}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-3 text-sm text-muted-foreground text-center">
-                      {leadSearchQuery ? 'No leads found matching your search.' : 'No available leads to convert.'}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <Combobox
+                options={availableLeads.map((lead: Lead) => ({
+                  value: lead.id,
+                  label: `${lead.customerName} - ${lead.companyName} (${lead.city})`
+                }))}
+                value={selectedLeadId}
+                onValueChange={handleLeadSelect}
+                placeholder="Select a lead to convert..."
+                searchPlaceholder="Search leads..."
+                emptyMessage="No available leads to convert"
+              />
             </div>
 
             {selectedLeadId && (
