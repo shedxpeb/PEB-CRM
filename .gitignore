@@ -25,10 +25,8 @@ frontend/build/
 backend/dist/
 
 # Package files
-frontend/package.json
-frontend/package-lock.json
-backend/package.json
-backend/package-lock.json
+# frontend/package-lock.json
+# backend/package-lock.json
 
 # IDE
 .vscode/
