@@ -6,29 +6,23 @@ import { MainLayout } from '@/layouts/MainLayout';
 import { DataTable, Column } from '@/components/data-table/DataTable';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { StandardPageLayout } from '@/components/layout/StandardPageLayout';
-import { FilterBar, FilterConfig } from '@/components/layout/FilterBar';
+import { FilterConfig } from '@/components/layout/FilterBar';
+import { CustomerViewDrawer } from '@/features/customers/components/CustomerViewDrawer';
+import { getCustomerCustomFieldValue } from '@/features/customers/components/CustomerCustomFields';
 const CustomerForm = lazy(() => import('@/features/customers/components/CustomerForm').then(m => ({ default: m.CustomerForm })));
 const CustomerRowActions = lazy(() => import('@/features/customers/components/CustomerRowActions').then(m => ({ default: m.CustomerRowActions })));
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Customer, CustomerStatus } from '@/features/customers';
-import { getStatusVariant, CUSTOMER_STATUSES } from '@/features/customers/constants';
+import { getStatusVariant } from '@/features/customers/constants';
 import {
   useCustomers,
-  useCustomersStats,
   useCreateCustomer,
   useUpdateCustomer,
   useDeleteCustomer,
+  useCustomerActivities,
+  useCustomerConfiguration,
 } from '@/features/customers/hooks/useCustomers';
 import { useUpdateLead } from '@/features/leads/hooks/useLeads';
 import { customersApi } from '@/features/customers';
@@ -38,18 +32,14 @@ import {
   Users,
   UserCheck,
   UserPlus,
-  FolderKanban,
-  CheckCircle,
   DollarSign,
-  FileText,
-  Clock,
   Plus,
   Download,
-  Search,
 } from 'lucide-react';
 
 export default function CustomersPage() {
   const router = useRouter();
+  const customerConfig = useCustomerConfiguration();
 
   // Search and filter state with debounce
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,20 +53,35 @@ export default function CustomersPage() {
   // React Query hooks - single source of truth for server data
   // Fetch all customers once without filters, then filter client-side
   const { data: allCustomersResponse, isLoading, error } = useCustomers({ page: 1, pageSize: 1000 });
-  const { data: stats } = useCustomersStats();
 
-  // Client-side filtering
+  const customerFilterOptions = useMemo(() => {
+    const cities = new Set<string>();
+    const states = new Set<string>();
+    for (const customer of allCustomersResponse?.data ?? []) {
+      if (customer.city) cities.add(customer.city);
+      if (customer.state) states.add(customer.state);
+    }
+    return {
+      cities: [...cities].sort(),
+      states: [...states].sort(),
+    };
+  }, [allCustomersResponse?.data]);
+
   const filteredCustomers = useMemo(() => {
     if (!allCustomersResponse?.data) return [];
+    const q = debouncedSearch.toLowerCase();
     return allCustomersResponse.data.filter((customer: Customer) => {
       const matchesStatus = statusFilter === 'all' || customer.status === statusFilter;
       const matchesCity = cityFilter === 'all' || customer.city === cityFilter;
       const matchesState = stateFilter === 'all' || customer.state === stateFilter;
       const matchesSearch = !debouncedSearch ||
-        customer.customerName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        customer.companyName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        customer.email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        customer.mobile.includes(debouncedSearch);
+        customer.customerName.toLowerCase().includes(q) ||
+        customer.companyName.toLowerCase().includes(q) ||
+        customer.email?.toLowerCase().includes(q) ||
+        customer.mobile.includes(debouncedSearch) ||
+        customer.city?.toLowerCase().includes(q) ||
+        customer.gstNumber?.toLowerCase().includes(q) ||
+        customer.customerId.toString().includes(debouncedSearch);
       return matchesStatus && matchesCity && matchesState && matchesSearch;
     });
   }, [allCustomersResponse?.data, statusFilter, cityFilter, stateFilter, debouncedSearch]);
@@ -88,39 +93,50 @@ export default function CustomersPage() {
   // UI state only - no server data in useState
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [isViewDrawerOpen, setIsViewDrawerOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Extract data from query results
   const customers = filteredCustomers;
-  const statsData = stats;
 
-  // Calculate KPI stats based on filtered customers
+  const selectedCustomer = useMemo(
+    () => (selectedCustomerId ? allCustomersResponse?.data?.find((c) => c.id === selectedCustomerId) ?? null : null),
+    [allCustomersResponse?.data, selectedCustomerId]
+  );
+
+  const { data: viewedActivities } = useCustomerActivities(selectedCustomerId ?? '');
+
   const filteredStats = useMemo(() => {
-    const total = customers.length;
-    const active = customers.filter(c => c.status === 'Active').length;
-    const newThisMonth = customers.filter(c => {
-      const now = new Date();
+    const now = new Date();
+    let total = 0;
+    let active = 0;
+    let newThisMonth = 0;
+    let totalRevenue = 0;
+    for (const c of customers) {
+      total++;
+      if (c.status === 'Active') active++;
       const customerDate = new Date(c.customerSince);
-      return customerDate.getMonth() === now.getMonth() && customerDate.getFullYear() === now.getFullYear();
-    }).length;
-    const activeProjects = customers.reduce((sum, c) => sum + (c.activeProjects || 0), 0);
-    const completedProjects = customers.reduce((sum, c) => sum + ((c.totalProjects || 0) - (c.activeProjects || 0)), 0);
-    const totalRevenue = customers.reduce((sum, c) => sum + (c.totalRevenue || 0), 0);
-    const pendingQuotations = customers.reduce((sum, c) => sum + (c.pendingQuotations || 0), 0);
-    const pendingFollowups = customers.reduce((sum, c) => sum + (c.pendingFollowups || 0), 0);
-
-    return { total, active, newThisMonth, activeProjects, completedProjects, totalRevenue, pendingQuotations, pendingFollowups };
+      if (customerDate.getMonth() === now.getMonth() && customerDate.getFullYear() === now.getFullYear()) {
+        newThisMonth++;
+      }
+      totalRevenue += c.totalRevenue || 0;
+    }
+    return { total, active, newThisMonth, totalRevenue };
   }, [customers]);
 
   // Memoized KPI cards from filtered data
   const kpiData = useMemo(() => [
-    { title: 'Total Customers', value: String(filteredStats.total), change: 12.5, icon: <Users className="h-6 w-6 text-blue-600" />, color: 'text-blue-600' },
-    { title: 'Active Customers', value: String(filteredStats.active), change: 8.2, icon: <UserCheck className="h-6 w-6 text-green-600" />, color: 'text-green-600' },
-    { title: 'New This Month', value: String(filteredStats.newThisMonth), change: 15.3, icon: <UserPlus className="h-6 w-6 text-purple-600" />, color: 'text-purple-600' },
-    { title: 'Total Revenue', value: `₹${(filteredStats.totalRevenue / 10000000).toFixed(1)}Cr`, change: 18.9, icon: <DollarSign className="h-6 w-6 text-green-700" />, color: 'text-green-700' },
+    { title: 'Total Customers', value: String(filteredStats.total), change: 0, icon: <Users className="h-5 w-5 text-blue-600" />, color: 'text-blue-600' },
+    { title: 'Active Customers', value: String(filteredStats.active), change: 0, icon: <UserCheck className="h-5 w-5 text-green-600" />, color: 'text-green-600' },
+    { title: 'New This Month', value: String(filteredStats.newThisMonth), change: 0, icon: <UserPlus className="h-5 w-5 text-purple-600" />, color: 'text-purple-600' },
+    { title: 'Total Revenue', value: `₹${(filteredStats.totalRevenue / 10000000).toFixed(1)}Cr`, change: 0, icon: <DollarSign className="h-5 w-5 text-green-700" />, color: 'text-green-700' },
   ], [filteredStats]);
+
+  const tableFilterKey = useMemo(
+    () => [debouncedSearch, statusFilter, cityFilter, stateFilter].join('|'),
+    [debouncedSearch, statusFilter, cityFilter, stateFilter]
+  );
 
   // Filter configuration for FilterBar
   const filterConfigs: FilterConfig[] = useMemo(() => [
@@ -129,7 +145,7 @@ export default function CustomersPage() {
       label: 'Status',
       value: statusFilter,
       onChange: (value: string) => setStatusFilter(value as CustomerStatus | 'all'),
-      options: [{ value: 'all', label: 'All Status' }, ...CUSTOMER_STATUSES.map(s => ({ value: s.value, label: s.label }))],
+      options: [{ value: 'all', label: 'All Status' }, ...customerConfig.statuses.map((s) => ({ value: s, label: s }))],
     },
     {
       key: 'city',
@@ -138,10 +154,7 @@ export default function CustomersPage() {
       onChange: setCityFilter,
       options: [
         { value: 'all', label: 'All Cities' },
-        ...Array.from(new Set(allCustomersResponse?.data?.map(c => c.city) || []))
-          .filter(Boolean)
-          .sort()
-          .map(city => ({ value: city, label: city }))
+        ...customerFilterOptions.cities.map((city) => ({ value: city, label: city })),
       ],
     },
     {
@@ -151,13 +164,10 @@ export default function CustomersPage() {
       onChange: setStateFilter,
       options: [
         { value: 'all', label: 'All States' },
-        ...Array.from(new Set(allCustomersResponse?.data?.map(c => c.state) || []))
-          .filter(Boolean)
-          .sort()
-          .map(state => ({ value: state, label: state }))
+        ...customerFilterOptions.states.map((state) => ({ value: state, label: state })),
       ],
     },
-  ], [statusFilter, cityFilter, stateFilter, allCustomersResponse?.data]);
+  ], [statusFilter, cityFilter, stateFilter, customerFilterOptions, customerConfig.statuses]);
 
   const handleClearFilters = useCallback(() => {
     setStatusFilter('all');
@@ -167,37 +177,45 @@ export default function CustomersPage() {
   }, []);
 
   // Memoized table columns
-  const columns: Column<Customer>[] = useMemo(() => [
+  const baseColumns: Column<Customer>[] = useMemo(() => [
     {
       key: 'customerId',
       label: 'ID',
       sortable: true,
+      className: 'w-[70px]',
       render: (value) => <span className="font-mono text-xs text-muted-foreground">#{value}</span>,
     },
     {
       key: 'customerName',
       label: 'Customer Name',
       sortable: true,
+      className: 'min-w-[140px] max-w-[200px]',
       render: (_, row) => (
-        <div>
-          <p className="font-medium text-sm">{row.customerName}</p>
-          <p className="text-xs text-muted-foreground">{row.companyName}</p>
+        <div className="min-w-0">
+          <p className="font-medium text-xs truncate">{row.customerName}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{row.companyName}</p>
         </div>
       ),
     },
     {
       key: 'mobile',
       label: 'Mobile',
+      className: 'hidden md:table-cell min-w-[100px]',
+      headerClassName: 'hidden md:table-cell',
       render: (value) => <span className="text-xs">{value}</span>,
     },
     {
       key: 'email',
       label: 'Email',
-      render: (value) => <span className="text-xs truncate max-w-[150px] block">{value}</span>,
+      className: 'hidden lg:table-cell min-w-[120px] max-w-[160px]',
+      headerClassName: 'hidden lg:table-cell',
+      render: (value) => <span className="text-xs truncate block">{value}</span>,
     },
     {
       key: 'gstNumber',
       label: 'GST',
+      className: 'hidden xl:table-cell',
+      headerClassName: 'hidden xl:table-cell',
       render: (value) => (
         <span className="text-xs font-mono">{value || '-'}</span>
       ),
@@ -206,18 +224,22 @@ export default function CustomersPage() {
       key: 'city',
       label: 'City',
       sortable: true,
-      filterable: true,
+      className: 'hidden sm:table-cell',
+      headerClassName: 'hidden sm:table-cell',
     },
     {
       key: 'state',
       label: 'State',
       sortable: true,
-      filterable: true,
+      className: 'hidden lg:table-cell',
+      headerClassName: 'hidden lg:table-cell',
     },
     {
       key: 'totalProjects',
       label: 'Projects',
       sortable: true,
+      className: 'hidden xl:table-cell',
+      headerClassName: 'hidden xl:table-cell',
       render: (_, row) => (
         <span className="text-xs">
           {row.activeProjects}/{row.totalProjects}
@@ -228,6 +250,8 @@ export default function CustomersPage() {
       key: 'totalRevenue',
       label: 'Revenue',
       sortable: true,
+      className: 'hidden 2xl:table-cell',
+      headerClassName: 'hidden 2xl:table-cell',
       render: (value) => (
         <span className="text-xs font-medium">
           ₹{(value / 100000).toFixed(1)}L
@@ -238,7 +262,6 @@ export default function CustomersPage() {
       key: 'status',
       label: 'Status',
       sortable: true,
-      filterable: true,
       render: (value) => (
         <Badge variant={getStatusVariant(value as CustomerStatus)}>
           {value}
@@ -246,6 +269,28 @@ export default function CustomersPage() {
       ),
     },
   ], []);
+
+  const settingsCustomColumnDefs = useMemo(
+    () =>
+      customerConfig.customFields.map((field) => ({
+        key: field.key as keyof Customer,
+        label: field.label,
+        sortable: true,
+        className: 'min-w-[100px] max-w-[130px] hidden 2xl:table-cell',
+        headerClassName: 'hidden 2xl:table-cell',
+        render: (_: unknown, row: Customer) => (
+          <span className="text-xs truncate block">
+            {getCustomerCustomFieldValue(row, field.key)?.toString() ?? '-'}
+          </span>
+        ),
+      })),
+    [customerConfig.customFields]
+  );
+
+  const columns = useMemo(
+    () => [...baseColumns, ...settingsCustomColumnDefs],
+    [baseColumns, settingsCustomColumnDefs]
+  );
 
   // Memoized handlers using React Query mutations
   const handleCreateCustomer = useCallback((data: Partial<Customer>) => {
@@ -288,7 +333,7 @@ export default function CustomersPage() {
       {
         onSuccess: () => {
           setIsEditDialogOpen(false);
-          setSelectedCustomer(null);
+          setSelectedCustomerId(null);
           setFormError(null);
         },
         onError: (error: any) => {
@@ -305,15 +350,22 @@ export default function CustomersPage() {
   }, [deleteMutation]);
 
   const handleRowClick = useCallback((row: Customer) => {
-    router.push(ROUTES.customersDetail(row.id));
-  }, [router]);
+    setSelectedCustomerId(row.id);
+    setIsViewDrawerOpen(true);
+  }, []);
 
   const handleViewDetails = useCallback((customer: Customer) => {
     router.push(ROUTES.customersDetail(customer.id));
   }, [router]);
 
   const handleEditFromRow = useCallback((customer: Customer) => {
-    setSelectedCustomer(customer);
+    setSelectedCustomerId(customer.id);
+    setIsEditDialogOpen(true);
+  }, []);
+
+  const handleEditFromDrawer = useCallback((customer: Customer) => {
+    setIsViewDrawerOpen(false);
+    setSelectedCustomerId(customer.id);
     setIsEditDialogOpen(true);
   }, []);
 
@@ -341,7 +393,7 @@ export default function CustomersPage() {
   // Loading state - only show full loading screen on initial load
   if (isLoading && !allCustomersResponse) {
     return (
-      <MainLayout title="Customers" subtitle="Manage your customer database">
+      <MainLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center space-y-2">
             <div className="h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
@@ -355,7 +407,7 @@ export default function CustomersPage() {
   // Error state
   if (error) {
     return (
-      <MainLayout title="Customers" subtitle="Manage your customer database">
+      <MainLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center space-y-2">
             <p className="text-sm text-destructive">Failed to load customers</p>
@@ -389,20 +441,25 @@ export default function CustomersPage() {
         }
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search customers..."
+        searchPlaceholder="Search by name, company, mobile, email, city, GST, or customer code..."
         filters={filterConfigs}
         onClearFilters={handleClearFilters}
-      >
-        <div className="flex items-center gap-2 mb-4">
-          <Button variant="outline" onClick={handleExport} className="gap-1.5 text-xs">
+        filterMode="popover"
+        toolbarActions={
+          <Button variant="outline" size="sm" onClick={handleExport} className="h-9 gap-1.5 text-xs">
             <Download className="h-3.5 w-3.5" />
-            Export
+            <span className="hidden sm:inline">Export</span>
           </Button>
-        </div>
-
+        }
+        className="gap-4 sm:gap-6"
+      >
+        <div className="min-w-0">
         <DataTable
+          key={tableFilterKey}
           columns={columns}
           data={customers}
+          showToolbar={false}
+          compact
           onRowClick={handleRowClick}
           enableSelection={true}
           selectedRows={selectedRows}
@@ -419,7 +476,16 @@ export default function CustomersPage() {
             />
           )}
         />
+        </div>
       </StandardPageLayout>
+
+      <CustomerViewDrawer
+        customer={selectedCustomer}
+        open={isViewDrawerOpen}
+        onOpenChange={setIsViewDrawerOpen}
+        onEdit={handleEditFromDrawer}
+        activities={viewedActivities ?? []}
+      />
 
       {/* Create Customer Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -455,7 +521,7 @@ export default function CustomersPage() {
                 onSubmit={handleEditCustomer}
                 onCancel={() => {
                   setIsEditDialogOpen(false);
-                  setSelectedCustomer(null);
+                  setSelectedCustomerId(null);
                   setFormError(null);
                 }}
                 isLoading={updateMutation.isPending}

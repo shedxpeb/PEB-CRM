@@ -1,4 +1,4 @@
-import { Lead } from '@/types/leads';
+import { Lead, LeadActivity } from '@/types/leads';
 
 export const mockLeads: Lead[] = [
   {
@@ -194,3 +194,66 @@ export const mockLeads: Lead[] = [
     nextFollowUpDate: new Date('2026-06-08'),
   },
 ];
+
+export function getLeadActivities(leadId: string, lead?: Lead): LeadActivity[] {
+  const activities: LeadActivity[] = [
+    {
+      id: `${leadId}-created`,
+      leadId,
+      type: 'created',
+      description: 'Lead created',
+      performedBy: lead?.createdBy || 'System',
+      performedAt: lead?.createdDate ? new Date(lead.createdDate) : new Date(),
+    },
+  ];
+
+  if (lead?.assignedEmployee) {
+    activities.push({
+      id: `${leadId}-assigned`,
+      leadId,
+      type: 'assigned',
+      description: `Lead assigned to ${lead.assignedEmployee}`,
+      performedBy: 'System',
+      performedAt: lead.createdDate ? new Date(lead.createdDate) : new Date(),
+      metadata: { assignedTo: lead.assignedEmployee },
+    });
+  }
+
+  if (lead?.lastFollowUp) {
+    activities.push({
+      id: `${leadId}-followup`,
+      leadId,
+      type: 'followup',
+      description: 'Follow-up completed',
+      performedBy: lead.assignedEmployee || 'Sales Team',
+      performedAt: new Date(lead.lastFollowUp),
+    });
+  }
+
+  if (lead?.customerId) {
+    activities.push({
+      id: `${leadId}-converted`,
+      leadId,
+      type: 'converted',
+      description: 'Lead converted to customer',
+      performedBy: lead.assignedEmployee || 'Sales Team',
+      performedAt: lead.convertedDate ? new Date(lead.convertedDate) : new Date(),
+      metadata: { customerId: lead.customerId },
+    });
+  }
+
+  if (lead?.updatedAt) {
+    activities.push({
+      id: `${leadId}-updated`,
+      leadId,
+      type: 'updated',
+      description: 'Lead details updated',
+      performedBy: lead.updatedBy || lead.assignedEmployee || 'System',
+      performedAt: new Date(lead.updatedAt),
+    });
+  }
+
+  return activities.sort(
+    (a, b) => new Date(b.performedAt).getTime() - new Date(a.performedAt).getTime()
+  );
+}

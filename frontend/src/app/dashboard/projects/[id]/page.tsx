@@ -1,19 +1,23 @@
 'use client';
 
-import { Suspense } from 'react';
-import { useParams } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { MainLayout } from '@/layouts/MainLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CardSkeleton } from '@/components/loading/CardSkeleton';
 import { ErrorState } from '@/components/states/ErrorState';
-import { useProject, useProjectActivities } from '@/features/projects/hooks/useProjects';
+import { useProject, useProjectActivities, useUpdateProject, useProjectConfiguration } from '@/features/projects/hooks/useProjects';
+import { ProjectCustomFields } from '@/features/projects/components/ProjectCustomFields';
 import { useCustomers } from '@/features/customers/hooks/useCustomers';
 import { getProjectStatusVariant, getPriorityVariant } from '@/features/projects/constants';
+import { ROUTES } from '@/core/routes';
 import type { Customer } from '@/features/customers/types';
+import type { Project, UpdateProjectDto } from '@/features/projects/types';
 import { ArrowLeft, Edit, Calendar, DollarSign, Users, Building2, FileText, AlertCircle, Link2, Package, Truck, Receipt, FileCheck, Wrench, Shield, AlertTriangle, MessageSquare, Map, CreditCard } from 'lucide-react';
 
 // Lazy load tab components to reduce initial bundle size
@@ -32,12 +36,57 @@ const MilestoneTracker = dynamic(() => import('@/features/projects/components/Mi
   ssr: false
 });
 
+const ProjectForm = dynamic(
+  () => import('@/features/projects/components/ProjectForm').then((mod) => ({ default: mod.ProjectForm })),
+  { loading: () => <CardSkeleton />, ssr: false }
+);
+
+function projectToFormInitial(project: Project) {
+  const toDateInput = (d?: Date | string) => {
+    if (!d) return '';
+    return new Date(d).toISOString().split('T')[0];
+  };
+  return {
+    projectName: project.projectName,
+    customerId: project.customerId,
+    leadId: project.leadId,
+    projectType: project.projectType,
+    value: project.value,
+    budget: project.budget,
+    location: project.location,
+    city: project.city,
+    state: project.state,
+    pincode: project.pincode,
+    startDate: toDateInput(project.startDate),
+    endDate: toDateInput(project.endDate),
+    priority: project.priority,
+    projectManagerId: project.projectManagerId,
+    structureType: project.structureType,
+    width: project.width,
+    length: project.length,
+    height: project.height,
+    baySpacing: project.baySpacing,
+    roofType: project.roofType,
+    craneSystem: project.craneSystem,
+    mezzanine: project.mezzanine,
+    wallType: project.wallType,
+    insulation: project.insulation,
+    coveredArea: project.coveredArea,
+    totalWeight: project.totalWeight,
+    customFields: project.customFields ?? {},
+  };
+}
+
 export default function ProjectDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const projectId = params.id as string;
   const { data: project, isLoading } = useProject(projectId);
+  const projectConfig = useProjectConfiguration();
+  const updateMutation = useUpdateProject();
   const { data: activities } = useProjectActivities(projectId);
   const { data: customersData } = useCustomers({ page: 1, pageSize: 1000 });
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Find linked customer
   const linkedCustomer = project?.customerId && customersData?.data
@@ -46,7 +95,7 @@ export default function ProjectDetailPage() {
 
   if (isLoading) {
     return (
-      <MainLayout title="Project Details">
+      <MainLayout>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <CardSkeleton count={6} />
         </div>
@@ -56,12 +105,12 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <MainLayout title="Project Details">
+      <MainLayout>
         <ErrorState
           title="Project not found"
           message="The selected project could not be loaded. It may have been removed or the link may be invalid."
           retryLabel="Go Back"
-          onRetry={() => window.history.back()}
+          onRetry={() => router.push(ROUTES.projects)}
           className="min-h-64"
         />
       </MainLayout>
@@ -69,16 +118,23 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <MainLayout title={project.projectName} subtitle={`Project Code: ${project.projectCode}`}>
+    <MainLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+          <div className="flex items-center gap-3 min-w-0">
+            <Button variant="ghost" size="sm" onClick={() => router.push(ROUTES.projects)}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Projects
+            </Button>
+            <div className="h-4 w-px bg-border" />
+            <div className="min-w-0">
+              <h1 className="text-lg font-semibold truncate">{project.projectName}</h1>
+              <p className="text-sm text-muted-foreground truncate">{project.projectCode} · {project.customerName}</p>
+            </div>
+          </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
+            <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => setIsEditDialogOpen(true)}>
               <Edit className="h-4 w-4 mr-2" />
               Edit Project
             </Button>
@@ -92,7 +148,7 @@ export default function ProjectDetailPage() {
               variant="outline"
               size="sm"
               className="text-xs"
-              onClick={() => window.location.href = `/dashboard/customers/${linkedCustomer.id}`}
+              onClick={() => router.push(ROUTES.customersDetail(linkedCustomer.id))}
             >
               <Users className="h-3.5 w-3.5 mr-1.5" />
               View Customer
@@ -103,38 +159,67 @@ export default function ProjectDetailPage() {
               variant="outline"
               size="sm"
               className="text-xs"
-              onClick={() => window.location.href = `/dashboard/leads/${project.leadId}`}
+              onClick={() => router.push(ROUTES.leadsDetail(project.leadId!))}
             >
               <FileText className="h-3.5 w-3.5 mr-1.5" />
               View Lead
             </Button>
           )}
           {project.estimateId && (
-            <Button variant="outline" size="sm" className="text-xs">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => router.push(`${ROUTES.documentsEstimates}?ref=${project.estimateId}`)}
+            >
               <FileText className="h-3.5 w-3.5 mr-1.5" />
               View Estimate
             </Button>
           )}
           {project.proposalId && (
-            <Button variant="outline" size="sm" className="text-xs">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => router.push(`${ROUTES.documentsProposals}?ref=${project.proposalId}`)}
+            >
               <FileText className="h-3.5 w-3.5 mr-1.5" />
               View Proposal
             </Button>
           )}
           {project.quotationId && (
-            <Button variant="outline" size="sm" className="text-xs">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => router.push(`${ROUTES.documentsQuotations}?ref=${project.quotationId}`)}
+            >
               <Receipt className="h-3.5 w-3.5 mr-1.5" />
               View Quotation
             </Button>
           )}
-          <Button variant="outline" size="sm" className="text-xs">
-            <CreditCard className="h-3.5 w-3.5 mr-1.5" />
-            View Finance
-          </Button>
-          <Button variant="outline" size="sm" className="text-xs">
-            <Package className="h-3.5 w-3.5 mr-1.5" />
-            View Inventory Allocation
-          </Button>
+          {project.invoiceIds && project.invoiceIds.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => router.push(ROUTES.finance)}
+            >
+              <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+              View Finance ({project.invoiceIds.length})
+            </Button>
+          )}
+          {project.reservedItems && project.reservedItems.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => router.push(ROUTES.inventory)}
+            >
+              <Package className="h-3.5 w-3.5 mr-1.5" />
+              View Inventory
+            </Button>
+          )}
         </div>
 
         {/* Project Summary Cards */}
@@ -247,6 +332,21 @@ export default function ProjectDetailPage() {
                 />
               </Suspense>
             </div>
+
+            {projectConfig.customFields.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Custom Fields</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ProjectCustomFields
+                    mode="view"
+                    fields={projectConfig.customFields}
+                    values={project.customFields ?? {}}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
             {/* PEB Specifications */}
             <Card>
@@ -1149,6 +1249,26 @@ export default function ProjectDetailPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+          </DialogHeader>
+          <ProjectForm
+            initialData={projectToFormInitial(project)}
+            onSubmit={(data) =>
+              updateMutation.mutate(
+                { id: project.id, data: data as UpdateProjectDto },
+                { onSuccess: () => setIsEditDialogOpen(false) }
+              )
+            }
+            onCancel={() => setIsEditDialogOpen(false)}
+            isLoading={updateMutation.isPending}
+            isEditMode
+          />
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

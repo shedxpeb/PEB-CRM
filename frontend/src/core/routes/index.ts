@@ -18,10 +18,14 @@ export const ROUTES = {
   customers: '/dashboard/customers',
   customersDetail: (id: string) => `/dashboard/customers/${id}`,
   
+  items: '/dashboard/item',
+  itemsDetail: (id: string) => `/dashboard/items/${id}`,
+
   projects: '/dashboard/projects',
   projectsDetail: (id: string) => `/dashboard/projects/${id}`,
   
   inventory: '/dashboard/inventory',
+  inventoryDetail: (id: string) => `/dashboard/inventory/${id}`,
   
   finance: '/dashboard/finance',
   financeInvoice: (id: string) => `/dashboard/finance/invoices/${id}`,

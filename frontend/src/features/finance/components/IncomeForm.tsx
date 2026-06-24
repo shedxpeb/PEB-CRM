@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreateIncomeFormData } from '@/features/finance/validations';
-import { PAYMENT_METHODS, INCOME_CATEGORIES } from '@/features/finance/constants';
+import { useFinanceModuleConfiguration } from '@/features/finance/hooks/useFinanceConfiguration';
 import { useCustomers } from '@/features/customers/hooks/useCustomers';
 import { useProjects } from '@/features/projects/hooks/useProjects';
 
@@ -18,6 +18,7 @@ interface IncomeFormProps {
 }
 
 export const IncomeForm = memo(function IncomeForm({ onSubmit, onCancel, isLoading }: IncomeFormProps) {
+  const { paymentMethods, transactionCategories } = useFinanceModuleConfiguration();
   const { data: customers } = useCustomers();
   const { data: projects } = useProjects();
 
@@ -90,7 +91,7 @@ export const IncomeForm = memo(function IncomeForm({ onSubmit, onCancel, isLoadi
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {INCOME_CATEGORIES.map((category) => (
+                {transactionCategories.map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}
                   </SelectItem>
@@ -143,7 +144,7 @@ export const IncomeForm = memo(function IncomeForm({ onSubmit, onCancel, isLoadi
                   <SelectValue placeholder="Select payment method" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PAYMENT_METHODS.map((method) => (
+                  {paymentMethods.map((method) => (
                     <SelectItem key={method} value={method}>
                       {method}
                     </SelectItem>

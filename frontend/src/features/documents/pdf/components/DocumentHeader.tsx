@@ -12,7 +12,7 @@ interface DocumentHeaderProps {
   companyPhone?: string;
   companyEmail?: string;
   companyGST?: string;
-  documentType: 'Estimate' | 'Proposal' | 'Quotation';
+  documentType: 'Estimate' | 'Proposal' | 'Quotation' | 'Invoice';
   documentNumber: string;
   documentDate: Date;
   validUntil?: Date;

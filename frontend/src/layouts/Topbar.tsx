@@ -38,10 +38,14 @@ export const Topbar = memo(function Topbar({ title, subtitle, showBackButton, on
         )}
 
         <div className="min-w-0 flex-shrink-0">
-          <h1 className="text-base md:text-lg lg:text-xl font-semibold text-gray-900 truncate">{title}</h1>
-          {subtitle && (
-            <p className="text-xs text-gray-500 hidden md:block truncate">{subtitle}</p>
-          )}
+          {title ? (
+            <>
+              <h1 className="text-base md:text-lg lg:text-xl font-semibold text-gray-900 truncate">{title}</h1>
+              {subtitle && (
+                <p className="text-xs text-gray-500 hidden md:block truncate">{subtitle}</p>
+              )}
+            </>
+          ) : null}
         </div>
       </div>
 

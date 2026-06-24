@@ -229,8 +229,8 @@ export const useUpdateSystemPreferences = () => {
 
 // ─── Module Configuration Hooks ─────────────────────────────────────────────────
 
-export const useModuleConfiguration = (moduleId: string, options?: UseQueryOptions) => {
-  return useQuery({
+export const useModuleConfiguration = (moduleId: string, options?: UseQueryOptions<ModuleConfiguration>) => {
+  return useQuery<ModuleConfiguration>({
     queryKey: ['settings', 'module-config', moduleId],
     queryFn: () => settingsApi.getModuleConfiguration(moduleId),
     staleTime: 10 * 60 * 1000,

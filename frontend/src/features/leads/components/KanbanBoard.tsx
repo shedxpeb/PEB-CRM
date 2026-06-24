@@ -3,55 +3,27 @@
 import { useState, useMemo } from 'react';
 import { Lead, LeadStatus } from '@/types/leads';
 import { KanbanColumn } from './KanbanColumn';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useDebounce } from '@/shared/hooks/useDebounce';
-import { Grid3X3, LayoutList, Search, Plus } from 'lucide-react';
+import { DEFAULT_LEAD_CONFIGURATION } from '@/features/leads/hooks/useLeads';
 
 interface KanbanBoardProps {
   leads: Lead[];
+  pipelineStages?: LeadStatus[];
   onLeadUpdate: (lead: Lead) => void;
   onLeadsReorder?: (leads: Lead[]) => void;
-  onAddLead: () => void;
 }
 
-const PIPELINE_STAGES: LeadStatus[] = [
-  'New',
-  'Contacted',
-  'Design Pending',
-  'BOQ Pending',
-  'Estimate Sent',
-  'Proposal Sent',
-  'Negotiation',
-  'Approved',
-  'Converted',
-];
-
-export function KanbanBoard({ leads, onLeadUpdate, onLeadsReorder, onAddLead }: KanbanBoardProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearch = useDebounce(searchQuery, 300);
+export function KanbanBoard({ leads, pipelineStages, onLeadUpdate, onLeadsReorder }: KanbanBoardProps) {
+  const stages = (pipelineStages ?? DEFAULT_LEAD_CONFIGURATION.statuses) as LeadStatus[];
   const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-
-  // Filter leads based on search
-  const filteredLeads = useMemo(() => {
-    if (!debouncedSearch) return leads;
-    return leads.filter(
-      (lead) =>
-        lead.customerName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        lead.companyName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        lead.mobile.includes(debouncedSearch) ||
-        lead.leadId.toString().includes(debouncedSearch)
-    );
-  }, [leads, debouncedSearch]);
 
   // Group leads by status and maintain order
   const leadsByStatus = useMemo(() => {
     const grouped: Record<string, Lead[]> = {};
 
-    PIPELINE_STAGES.forEach((status) => {
-      grouped[status] = filteredLeads
+    stages.forEach((status) => {
+      grouped[status] = leads
         .filter((lead) => lead.status === status)
         .sort((a, b) => {
           // Sort by orderIndex if exists, otherwise by createdDate
@@ -62,13 +34,13 @@ export function KanbanBoard({ leads, onLeadUpdate, onLeadsReorder, onAddLead }: 
     });
 
     return grouped;
-  }, [filteredLeads]);
+  }, [leads]);
 
   // Calculate totals for each status
   const statusTotals = useMemo(() => {
     const totals: Record<string, { count: number; value: number }> = {};
 
-    PIPELINE_STAGES.forEach((status) => {
+    stages.forEach((status) => {
       const statusLeads = leadsByStatus[status] || [];
       totals[status] = {
         count: statusLeads.length,
@@ -168,38 +140,10 @@ export function KanbanBoard({ leads, onLeadUpdate, onLeadsReorder, onAddLead }: 
 
   return (
     <div className="space-y-4">
-      {/* Kanban Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold">Pipeline Kanban Board</h2>
-          <span className="text-sm text-muted-foreground">
-            {filteredLeads.length} total leads
-          </span>
-        </div>
+      <p className="text-sm text-muted-foreground">{leads.length} leads in pipeline</p>
 
-        <div className="flex items-center gap-3">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search leads..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 w-[250px]"
-            />
-          </div>
-          
-          {/* Add Lead */}
-          <Button onClick={onAddLead}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Lead
-          </Button>
-        </div>
-      </div>
-
-      {/* Kanban Board */}
       <div className="flex gap-3 overflow-x-auto pb-2">
-        {PIPELINE_STAGES.map((status, index) => (
+        {stages.map((status, index) => (
           <KanbanColumn
             key={`${status}-${index}`}
             status={status}
@@ -210,7 +154,6 @@ export function KanbanBoard({ leads, onLeadUpdate, onLeadsReorder, onAddLead }: 
             onDragOver={(e, s, idx) => handleDragOver(e, s, idx)}
             onDrop={handleDrop}
             onDragEnd={handleDragEnd}
-            onAddLead={status === 'New' ? onAddLead : undefined}
             isDraggingOver={dragOverStatus === status}
             dragOverIndex={dragOverStatus === status ? dragOverIndex : null}
           />

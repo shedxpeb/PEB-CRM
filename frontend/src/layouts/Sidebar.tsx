@@ -3,97 +3,15 @@
 import React, { memo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import {
-  LayoutDashboard,
-  Users,
-  Building,
-  Package as ItemMasterIcon,
-  FolderKanban,
-  CheckSquare,
-  Package,
-  DollarSign,
-  Calculator,
-  FileText,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSidebarIsOpen, useSidebarIsCollapsed, useSidebarToggle } from '@/store/useSidebarStore';
+import { useNavigationItems } from '@/features/settings/hooks/useNavigationItems';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
   currentPath?: string;
   userRole?: 'owner' | 'admin' | 'employee';
 }
-
-const navigationItems = [
-  {
-    title: 'Dashboard',
-    href: '/dashboard',
-    icon: LayoutDashboard,
-    roles: ['owner', 'admin', 'employee'],
-  },
-  {
-    title: 'Leads',
-    href: '/dashboard/leads',
-    icon: Users,
-    roles: ['owner', 'admin', 'employee'],
-  },
-  {
-    title: 'Customers',
-    href: '/dashboard/customers',
-    icon: Building,
-    roles: ['owner', 'admin', 'employee'],
-  },
-  {
-    title: 'Item',
-    href: '/dashboard/item',
-    icon: ItemMasterIcon,
-    roles: ['owner', 'admin', 'employee'],
-  },
-  {
-    title: 'Projects',
-    href: '/dashboard/projects',
-    icon: FolderKanban,
-    roles: ['owner', 'admin', 'employee'],
-  },
-  {
-    title: 'Task Management',
-    href: '/dashboard/task-management',
-    icon: CheckSquare,
-    roles: ['owner', 'admin', 'employee'],
-  },
-  {
-    title: 'Inventory',
-    href: '/dashboard/inventory',
-    icon: Package,
-    roles: ['owner', 'admin'],
-  },
-  {
-    title: 'Finance',
-    href: '/dashboard/finance',
-    icon: DollarSign,
-    roles: ['owner', 'admin'],
-  },
-  {
-    title: 'Accounting',
-    href: '/dashboard/accounting',
-    icon: Calculator,
-    roles: ['owner', 'admin'],
-  },
-  {
-    title: 'Documents',
-    href: '/dashboard/documents',
-    icon: FileText,
-    roles: ['owner', 'admin', 'employee'],
-  },
-  {
-    title: 'Settings',
-    href: '/settings',
-    icon: Settings,
-    roles: ['owner', 'admin'],
-  },
-];
 
 export const Sidebar = memo(function Sidebar({ currentPath, userRole = 'owner' }: SidebarProps) {
   const nextPathname = usePathname();
@@ -102,10 +20,7 @@ export const Sidebar = memo(function Sidebar({ currentPath, userRole = 'owner' }
   const isOpen = useSidebarIsOpen();
   const isCollapsed = useSidebarIsCollapsed();
   const toggleSidebar = useSidebarToggle();
-
-  const filteredItems = navigationItems.filter(item =>
-    item.roles.includes(userRole)
-  );
+  const { items: navigationItems } = useNavigationItems(userRole);
 
   return (
     <aside
@@ -116,7 +31,6 @@ export const Sidebar = memo(function Sidebar({ currentPath, userRole = 'owner' }
       )}
     >
       <div className="flex flex-col h-full">
-        {/* Logo/Header */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-border">
           <h1 className="text-xl font-bold">PEB CRM</h1>
           <button
@@ -127,13 +41,12 @@ export const Sidebar = memo(function Sidebar({ currentPath, userRole = 'owner' }
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4">
           <ul className="space-y-2">
-            {filteredItems.map((item, index) => {
+            {navigationItems.map((item, index) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
-              
+
               return (
                 <li key={`${item.href}-${index}`}>
                   <Link
@@ -155,7 +68,6 @@ export const Sidebar = memo(function Sidebar({ currentPath, userRole = 'owner' }
           </ul>
         </nav>
 
-        {/* Footer */}
         <div className="p-4 border-t border-border">
           <p className="text-sm text-muted-foreground text-center">
             © 2026 PEB CRM

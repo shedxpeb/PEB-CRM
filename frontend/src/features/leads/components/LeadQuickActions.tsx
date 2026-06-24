@@ -27,6 +27,7 @@ interface LeadQuickActionsProps {
   onSendProposal?: () => void;
   onConvertToProject?: () => void;
   isDropdown?: boolean;
+  showAddLead?: boolean;
 }
 
 export const LeadQuickActions = memo(function LeadQuickActions({
@@ -37,10 +38,11 @@ export const LeadQuickActions = memo(function LeadQuickActions({
   onSendProposal,
   onConvertToProject,
   isDropdown = false,
+  showAddLead = true,
 }: LeadQuickActionsProps) {
   const actions = [
-    { icon: Plus, label: 'Add Lead', onClick: onAddLead, variant: 'default' as const },
-    { icon: Edit, label: 'Edit', onClick: onEdit, variant: 'outline' as const },
+    ...(showAddLead ? [{ icon: Plus, label: 'Add Lead', onClick: onAddLead, variant: 'default' as const }] : []),
+    { icon: Edit, label: 'Edit', onClick: onEdit, variant: showAddLead ? ('outline' as const) : ('default' as const) },
     { icon: Phone, label: 'Add Follow-up', onClick: onAddFollowUp, variant: 'outline' as const },
     { icon: FileText, label: 'Send Estimate', onClick: onSendEstimate, variant: 'outline' as const },
     { icon: Send, label: 'Send Proposal', onClick: onSendProposal, variant: 'outline' as const },

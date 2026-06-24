@@ -29,9 +29,9 @@ export function useCustomerAutofill(customerId: string) {
       panNumber: customer.panNumber,
 
       // Pricing Intelligence
-      lastQuotationAmount: lastQuotation?.totalAmount,
+      lastQuotationAmount: lastQuotation?.grandTotal,
       lastQuotationDate: lastQuotation?.createdAt,
-      preferredPaymentTerms: customer.paymentTerms || '30% advance, 60% before dispatch, 10% on erection',
+      preferredPaymentTerms: (customer as { paymentTerms?: string }).paymentTerms || '30% advance, 60% before dispatch, 10% on erection',
     };
   }, [customer, quotations]);
 }

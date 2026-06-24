@@ -1,46 +1,174 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/layouts/MainLayout';
-import { DataTable } from '@/components/data-table/DataTable';
+import { DataTable, Column } from '@/components/data-table/DataTable';
 import { KPICard } from '@/components/dashboard/KPICard';
-import { DocumentViewDialog } from '@/features/documents/components/DocumentViewDialog';
+import { StandardPageLayout } from '@/components/layout/StandardPageLayout';
+import { FilterConfig } from '@/components/layout/FilterBar';
+import { DocumentViewDrawer } from '@/features/documents/components/DocumentViewDrawer';
 import { EstimateBuilder } from '@/features/documents/components/EstimateBuilder';
-import { useEstimates, useEstimateStats } from '@/features/documents/hooks';
-import { Estimate, CreateEstimateDto } from '@/features/documents/types/peb-commercial';
+import { DocumentRowActions } from '@/features/documents/components/DocumentRowActions';
+import { useEstimates } from '@/features/documents/hooks';
+import { useDocumentConfiguration } from '@/features/documents/hooks/useDocuments';
+import { useDocumentPdfActions } from '@/features/documents/hooks/useDocumentPdfActions';
+import { Estimate, CreateEstimateDto, UpdateEstimateDto } from '@/features/documents/types/peb-commercial';
 import { DOCUMENT_STATUS_BADGE_VARIANTS } from '@/features/documents/constants';
+import { getDetailRoute, normalizeEstimate } from '@/features/documents/utils/documentHelpers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DocumentRowActions } from '@/features/documents/components/DocumentRowActions';
-import { FileText, Plus, ArrowRight, DollarSign, Clock, CheckCircle } from 'lucide-react';
+import { ROUTES } from '@/core/routes';
+import { useDebounce } from '@/shared/hooks/useDebounce';
+import { FileText, Plus, Clock, CheckCircle } from 'lucide-react';
 
 export function EstimatesPage() {
-  const { data: estimatesResponse, loading, error, createEstimate, updateEstimate, deleteEstimate, refetch } = useEstimates({ page: 1, pageSize: 50 });
-  const { data: stats } = useEstimateStats();
-  
-  const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isBuilderDialogOpen, setIsBuilderDialogOpen] = useState(false);
-  const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
+  const { documentStatuses } = useDocumentConfiguration();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const shouldCreate = searchParams.get('create') === 'true';
 
+  const { data: estimatesResponse, loading, createEstimate, updateEstimate, deleteEstimate, refetch } = useEstimates({ page: 1, pageSize: 1000 });
+  const { previewPdf, downloadPdf, PdfPreviewDialog } = useDocumentPdfActions();
   const estimates = estimatesResponse || [];
 
-  const handleViewEstimate = (estimate: Estimate) => {
-    setSelectedEstimate(estimate);
-    setIsViewDialogOpen(true);
-  };
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [customerFilter, setCustomerFilter] = useState<string>('all');
+  const [projectFilter, setProjectFilter] = useState<string>('all');
+  const [createdByFilter, setCreatedByFilter] = useState<string>('all');
 
-  const handleEditEstimate = (estimate: Estimate) => {
-    setEditingEstimate(estimate);
+  const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null);
+  const [isViewDrawerOpen, setIsViewDrawerOpen] = useState(false);
+  const [isBuilderDialogOpen, setIsBuilderDialogOpen] = useState(false);
+  const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
+  const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
+
+  useEffect(() => {
+    if (shouldCreate) {
+      setEditingEstimate(null);
+      setIsBuilderDialogOpen(true);
+    }
+  }, [shouldCreate]);
+
+  const filterOptions = useMemo(() => {
+    const customers = new Set<string>();
+    const projects = new Set<string>();
+    const creators = new Set<string>();
+    for (const est of estimates) {
+      if (est.customerName) customers.add(est.customerName);
+      if (est.projectName) projects.add(est.projectName);
+      const creator = est.salesExecutive ?? (est as Estimate & { createdBy?: string }).createdBy;
+      if (creator) creators.add(creator);
+    }
+    return { customers: [...customers].sort(), projects: [...projects].sort(), creators: [...creators].sort() };
+  }, [estimates]);
+
+  const filteredEstimates = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
+    return estimates.filter((est) => {
+      const creator = est.salesExecutive ?? (est as Estimate & { createdBy?: string }).createdBy ?? '';
+      const matchesStatus = statusFilter === 'all' || est.status === statusFilter;
+      const matchesCustomer = customerFilter === 'all' || est.customerName === customerFilter;
+      const matchesProject = projectFilter === 'all' || est.projectName === projectFilter;
+      const matchesCreator = createdByFilter === 'all' || creator === createdByFilter;
+      const matchesSearch =
+        !debouncedSearch ||
+        est.estimateNumber.toLowerCase().includes(q) ||
+        est.customerName.toLowerCase().includes(q) ||
+        (est.projectName?.toLowerCase().includes(q) ?? false) ||
+        est.status.toLowerCase().includes(q) ||
+        creator.toLowerCase().includes(q);
+      return matchesStatus && matchesCustomer && matchesProject && matchesCreator && matchesSearch;
+    });
+  }, [estimates, debouncedSearch, statusFilter, customerFilter, projectFilter, createdByFilter]);
+
+  const selectedEstimate = useMemo(
+    () => (selectedEstimateId ? estimates.find((e) => e.id === selectedEstimateId) ?? null : null),
+    [estimates, selectedEstimateId]
+  );
+
+  const filteredStats = useMemo(() => {
+    let draft = 0;
+    let sent = 0;
+    let converted = 0;
+    for (const est of filteredEstimates) {
+      if (est.status === 'Draft') draft++;
+      if (est.status === 'Sent') sent++;
+      if (est.status === 'Converted') converted++;
+    }
+    return { total: filteredEstimates.length, draft, sent, converted };
+  }, [filteredEstimates]);
+
+  const kpiData = useMemo(
+    () => [
+      { title: 'Total Estimates', value: String(filteredStats.total), change: 0, icon: <FileText className="h-5 w-5 text-blue-600" />, color: 'text-blue-600' },
+      { title: 'Draft', value: String(filteredStats.draft), change: 0, icon: <Clock className="h-5 w-5 text-gray-600" />, color: 'text-gray-600' },
+      { title: 'Sent', value: String(filteredStats.sent), change: 0, icon: <FileText className="h-5 w-5 text-orange-600" />, color: 'text-orange-600' },
+      { title: 'Converted', value: String(filteredStats.converted), change: 0, icon: <CheckCircle className="h-5 w-5 text-green-600" />, color: 'text-green-600' },
+    ],
+    [filteredStats]
+  );
+
+  const tableFilterKey = useMemo(
+    () => [debouncedSearch, statusFilter, customerFilter, projectFilter, createdByFilter].join('|'),
+    [debouncedSearch, statusFilter, customerFilter, projectFilter, createdByFilter]
+  );
+
+  const filterConfigs: FilterConfig[] = useMemo(
+    () => [
+      { key: 'status', label: 'Status', value: statusFilter, onChange: setStatusFilter, options: [{ value: 'all', label: 'All Status' }, ...documentStatuses.map((s) => ({ value: s, label: s }))] },
+      { key: 'customer', label: 'Customer', value: customerFilter, onChange: setCustomerFilter, options: [{ value: 'all', label: 'All Customers' }, ...filterOptions.customers.map((c) => ({ value: c, label: c }))] },
+      { key: 'project', label: 'Project', value: projectFilter, onChange: setProjectFilter, options: [{ value: 'all', label: 'All Projects' }, ...filterOptions.projects.map((p) => ({ value: p, label: p }))] },
+      { key: 'createdBy', label: 'Created By', value: createdByFilter, onChange: setCreatedByFilter, options: [{ value: 'all', label: 'All Users' }, ...filterOptions.creators.map((c) => ({ value: c, label: c }))] },
+    ],
+    [statusFilter, customerFilter, projectFilter, createdByFilter, filterOptions]
+  );
+
+  const handleClearFilters = useCallback(() => {
+    setStatusFilter('all');
+    setCustomerFilter('all');
+    setProjectFilter('all');
+    setCreatedByFilter('all');
+    setSearchQuery('');
+  }, []);
+
+  const columns: Column<Estimate>[] = useMemo(
+    () => [
+      { key: 'estimateNumber', label: 'Estimate #', sortable: true, render: (v) => <span className="font-mono text-xs">{v}</span> },
+      { key: 'customerName', label: 'Customer', sortable: true, className: 'min-w-[120px]', render: (v, row) => (
+        <div className="min-w-0">
+          <p className="text-xs font-medium truncate">{v}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{row.projectName || '-'}</p>
+        </div>
+      )},
+      { key: 'totalAmount', label: 'Amount', sortable: true, render: (v) => <span className="text-xs font-medium">{v ? `₹${Number(v).toLocaleString()}` : '-'}</span> },
+      { key: 'status', label: 'Status', sortable: true, render: (v) => <Badge variant={DOCUMENT_STATUS_BADGE_VARIANTS[v as keyof typeof DOCUMENT_STATUS_BADGE_VARIANTS] ?? 'secondary'} className="text-[10px]">{v}</Badge> },
+      { key: 'createdAt', label: 'Created', sortable: true, className: 'hidden md:table-cell', headerClassName: 'hidden md:table-cell', render: (v) => <span className="text-xs text-muted-foreground">{v ? new Date(v).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '-'}</span> },
+    ],
+    []
+  );
+
+  const handleRowClick = useCallback((est: Estimate) => {
+    setSelectedEstimateId(est.id);
+    setIsViewDrawerOpen(true);
+  }, []);
+
+  const handleViewDetails = useCallback((est: Estimate) => {
+    router.push(getDetailRoute(normalizeEstimate(est)));
+  }, [router]);
+
+  const handleEditEstimate = useCallback((est: Estimate) => {
+    setEditingEstimate(est);
     setIsBuilderDialogOpen(true);
-  };
+  }, []);
 
-  const handleDeleteEstimate = async (estimate: Estimate) => {
-    if (confirm(`Are you sure you want to delete ${estimate.estimateNumber}?`)) {
+  const handleDeleteEstimate = async (est: Estimate) => {
+    if (confirm(`Are you sure you want to delete ${est.estimateNumber}?`)) {
       try {
-        await deleteEstimate(estimate.id);
+        await deleteEstimate(est.id);
         refetch();
       } catch (err) {
         console.error('Failed to delete estimate:', err);
@@ -48,229 +176,121 @@ export function EstimatesPage() {
     }
   };
 
-  const handleSendEstimate = (estimate: Estimate) => {
-    // Implement send functionality
-  };
-
   const handleConvertToProposal = (estimate: Estimate) => {
-    // Navigate to proposal creation with estimate data
-    // Store estimate data in sessionStorage for the proposal builder to use
     sessionStorage.setItem('convertFromEstimate', JSON.stringify(estimate));
-    
-    // Navigate to proposals page
-    window.location.href = '/dashboard/documents/proposals';
+    router.push(ROUTES.documentsProposals);
   };
 
   const handleDuplicateEstimate = async (estimate: Estimate) => {
     try {
       const duplicateData: CreateEstimateDto = {
-        leadId: estimate.leadId,
         customerId: estimate.customerId,
-        estimateNumber: `${estimate.estimateNumber}-COPY`,
-        validUntil: estimate.validUntil,
-        items: estimate.items,
-        subtotal: estimate.subtotal,
-        taxAmount: estimate.taxAmount,
-        totalAmount: estimate.totalAmount,
-        paymentTerms: estimate.paymentTerms,
-        termsAndConditions: estimate.termsAndConditions,
+        leadId: estimate.leadId,
+        projectId: estimate.projectId,
+        includePricing: estimate.includePricing,
+        materialSelections: estimate.materialSelections.map(({ id: _id, ...rest }) => rest),
+        scopeConfiguration: estimate.scopeConfiguration,
+        technicalSpecifications: estimate.technicalSpecifications,
+        inclusions: estimate.inclusions,
+        exclusions: estimate.exclusions,
         notes: estimate.notes,
-        status: 'Draft',
+        terms: estimate.terms,
+        salesExecutive: estimate.salesExecutive,
+        validTill: estimate.validTill,
       };
-      
       await createEstimate(duplicateData);
-      alert('Estimate duplicated successfully!');
       refetch();
     } catch (err) {
       console.error('Failed to duplicate estimate:', err);
-      alert('Failed to duplicate estimate. Please try again.');
     }
   };
 
   const handleBuilderSave = async (data: CreateEstimateDto) => {
     try {
       if (editingEstimate) {
-        await updateEstimate(editingEstimate.id, data as any);
-        alert('Estimate updated successfully!');
+        await updateEstimate(editingEstimate.id, data as unknown as UpdateEstimateDto);
       } else {
         await createEstimate(data);
-        alert('Estimate created successfully!');
       }
       setIsBuilderDialogOpen(false);
       setEditingEstimate(null);
       refetch();
     } catch (err) {
       console.error('Failed to save estimate:', err);
-      alert('Failed to save estimate. Please try again.');
     }
   };
 
-  const handleCreateNew = () => {
-    setEditingEstimate(null);
-    setIsBuilderDialogOpen(true);
-  };
-
-  const columns = [
-    {
-      key: 'estimateNumber',
-      label: 'Estimate #',
-      sortable: true,
-      filterable: true,
-    },
-    {
-      key: 'customerName',
-      label: 'Customer',
-      sortable: true,
-      filterable: true,
-    },
-    {
-      key: 'projectName',
-      label: 'Project',
-      sortable: true,
-      filterable: true,
-    },
-    {
-      key: 'totalAmount',
-      label: 'Amount',
-      sortable: true,
-      render: (value: number) => value ? `₹${value.toLocaleString()}` : '-',
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      sortable: true,
-      filterable: true,
-      render: (value: string) => (
-        <Badge variant={DOCUMENT_STATUS_BADGE_VARIANTS[value as keyof typeof DOCUMENT_STATUS_BADGE_VARIANTS]}>
-          {value}
-        </Badge>
-      ),
-    },
-    {
-      key: 'createdAt',
-      label: 'Created',
-      sortable: true,
-      render: (value: Date) => value ? new Date(value).toLocaleDateString() : '-',
-    },
-  ];
-
   return (
-    <MainLayout title="Estimates" subtitle="Manage estimate documents">
-      <div className="space-y-6">
-        {/* Stats Cards */}
-        {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-            <KPICard
-              data={{
-                title: 'Total Estimates',
-                value: stats.totalEstimates?.toString() || '0',
-                change: 0,
-                color: 'text-blue-600',
-                icon: <FileText className="h-4 w-4" />,
-              }}
-            />
-            <KPICard
-              data={{
-                title: 'Draft',
-                value: stats.draftEstimates?.toString() || '0',
-                change: 0,
-                color: 'text-gray-600',
-                icon: <Clock className="h-4 w-4" />,
-              }}
-            />
-            <KPICard
-              data={{
-                title: 'Sent',
-                value: stats.sentEstimates?.toString() || '0',
-                change: 0,
-                color: 'text-orange-600',
-                icon: <DollarSign className="h-4 w-4" />,
-              }}
-            />
-            <KPICard
-              data={{
-                title: 'Converted',
-                value: stats.convertedEstimates?.toString() || '0',
-                change: 0,
-                color: 'text-green-600',
-                icon: <CheckCircle className="h-4 w-4" />,
-              }}
-            />
-          </div>
-        )}
-
-        {/* Header Actions */}
-        <div className="flex justify-between items-center">
-          <div>
-            <p className="text-sm text-muted-foreground">Total Estimates: {estimates.length}</p>
-          </div>
-          <Button onClick={handleCreateNew} className="h-9">
+    <MainLayout>
+      <StandardPageLayout
+        title="Estimates"
+        subtitle="Manage estimate documents"
+        headerActions={
+          <Button onClick={() => { setEditingEstimate(null); setIsBuilderDialogOpen(true); }} className="h-9">
             <Plus className="h-4 w-4 mr-2" />
             New Estimate
           </Button>
-        </div>
-
-        {/* Estimates Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              All Estimates
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              data={estimates}
-              columns={columns as any}
-              loading={loading}
-              emptyMessage="No estimates found"
-              onRowClick={(row) => handleViewEstimate(row as Estimate)}
-              rowActions={(row) => (
-                <DocumentRowActions
-                  document={row as any}
-                  onView={() => handleViewEstimate(row as Estimate)}
-                  onEdit={() => handleEditEstimate(row as Estimate)}
-                  onDelete={() => handleDeleteEstimate(row as Estimate)}
-                  onSend={() => handleSendEstimate(row as Estimate)}
-                  onVersion={() => {}}
-                  onEmail={() => {}}
-                  onWhatsApp={() => {}}
-                  onPrint={() => {}}
-                  onDownload={() => {}}
-                  onCopy={() => {}}
-                  onDuplicate={() => handleDuplicateEstimate(row as Estimate)}
-                />
-              )}
+        }
+        kpiCards={kpiData.map((kpi, i) => <KPICard key={i} data={kpi} />)}
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by estimate number, customer, project, status, or created by..."
+        filters={filterConfigs}
+        onClearFilters={handleClearFilters}
+        filterMode="popover"
+        className="gap-4 sm:gap-6"
+      >
+        <DataTable
+          key={tableFilterKey}
+          columns={columns}
+          data={filteredEstimates}
+          showToolbar={false}
+          compact
+          loading={loading}
+          onRowClick={handleRowClick}
+          enableSelection
+          selectedRows={selectedRows}
+          onSelectionChange={setSelectedRows}
+          rowIdKey="id"
+          emptyMessage="No estimates found."
+          rowActions={(row) => (
+            <DocumentRowActions
+              document={row}
+              onView={() => handleViewDetails(row)}
+              onEdit={() => handleEditEstimate(row)}
+              onDelete={() => handleDeleteEstimate(row)}
+              onSend={() => {}}
+              onConvert={(_, target) => target === 'Proposal' && handleConvertToProposal(row)}
+              onPreviewPdf={() => previewPdf(row)}
+              onDownload={() => downloadPdf(row)}
+              onDuplicate={() => handleDuplicateEstimate(row)}
             />
-          </CardContent>
-        </Card>
-
-        {/* Estimate Builder Dialog */}
-        <Dialog open={isBuilderDialogOpen} onOpenChange={setIsBuilderDialogOpen}>
-          <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingEstimate ? `Edit Estimate ${editingEstimate.estimateNumber}` : 'Create New Estimate'}
-              </DialogTitle>
-            </DialogHeader>
-            <EstimateBuilder
-              estimate={editingEstimate || undefined}
-              onSave={handleBuilderSave}
-              onCancel={() => {
-                setIsBuilderDialogOpen(false);
-                setEditingEstimate(null);
-              }}
-            />
-          </DialogContent>
-        </Dialog>
-
-        {/* Estimate View Dialog */}
-        <DocumentViewDialog
-          document={selectedEstimate}
-          open={isViewDialogOpen}
-          onOpenChange={setIsViewDialogOpen}
+          )}
         />
-      </div>
+      </StandardPageLayout>
+
+      <Dialog open={isBuilderDialogOpen} onOpenChange={setIsBuilderDialogOpen}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingEstimate ? `Edit Estimate ${editingEstimate.estimateNumber}` : 'Create New Estimate'}</DialogTitle>
+          </DialogHeader>
+          <EstimateBuilder
+            estimate={editingEstimate || undefined}
+            onSave={handleBuilderSave}
+            onCancel={() => { setIsBuilderDialogOpen(false); setEditingEstimate(null); }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <DocumentViewDrawer
+        document={selectedEstimate}
+        open={isViewDrawerOpen}
+        onOpenChange={setIsViewDrawerOpen}
+        onPreviewPdf={previewPdf}
+        onDownloadPdf={downloadPdf}
+        onEdit={(doc) => { setIsViewDrawerOpen(false); handleEditEstimate(doc as Estimate); }}
+      />
+      {PdfPreviewDialog}
     </MainLayout>
   );
 }

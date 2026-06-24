@@ -10,22 +10,36 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Combobox } from '@/components/ui/combobox';
 import { Badge } from '@/components/ui/badge';
 import { createProjectSchema, CreateProjectInput } from '@/features/projects/validations';
-import { PROJECT_TYPES, PROJECT_PRIORITIES, STRUCTURE_TYPES, ROOF_TYPES, CRANE_SYSTEMS, WALL_TYPES } from '@/features/projects/constants';
 import { useCustomers } from '@/features/customers/hooks/useCustomers';
-import { Info, Lock } from 'lucide-react';
+import { useProjectConfiguration } from '@/features/projects/hooks/useProjects';
+import { ProjectCustomFields } from '@/features/projects/components/ProjectCustomFields';
+import { ProjectCustomFieldValues } from '@/features/projects/types';
+import { Info } from 'lucide-react';
 
 interface ProjectFormProps {
-  onSubmit: (data: Partial<CreateProjectInput>) => void;
+  onSubmit: (data: Partial<CreateProjectInput> & { customFields?: ProjectCustomFieldValues }) => void;
   onCancel: () => void;
   isLoading?: boolean;
-  initialData?: Partial<CreateProjectInput>;
+  initialData?: Partial<CreateProjectInput> & { customFields?: ProjectCustomFieldValues };
   prefillCustomerId?: string;
+  isEditMode?: boolean;
 }
 
-export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefillCustomerId }: ProjectFormProps) {
-  const { data: customers } = useCustomers();
+export function ProjectForm({
+  onSubmit,
+  onCancel,
+  isLoading,
+  initialData,
+  prefillCustomerId,
+  isEditMode = false,
+}: ProjectFormProps) {
+  const { data: customers } = useCustomers({ page: 1, pageSize: 1000 });
+  const projectConfig = useProjectConfiguration();
   const [showAutoFillNotice, setShowAutoFillNotice] = useState(false);
-  const isLinkedToCustomer = !!initialData?.customerId;
+  const [customFields, setCustomFields] = useState<ProjectCustomFieldValues>(
+    initialData?.customFields ?? {}
+  );
+  const customerReferenceId = isEditMode ? initialData?.customerId : undefined;
 
   const {
     register,
@@ -51,8 +65,9 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
 
   const customerId = watch('customerId');
 
-  // Auto-fill project fields from selected customer
+  // Auto-fill location from customer on create only (one-time snapshot — project owns its data)
   useEffect(() => {
+    if (isEditMode) return;
     if (customerId && customers?.data) {
       const selectedCustomer = customers.data.find((c) => c.id === customerId);
       if (selectedCustomer) {
@@ -69,13 +84,18 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
         return () => clearTimeout(timer);
       }
     }
-  }, [customerId, customers?.data, setValue]);
+  }, [customerId, customers?.data, setValue, isEditMode]);
 
-  const mezzanine = watch('mezzanine');
-  const insulation = watch('insulation');
+  const handleCustomFieldChange = (key: string, value: string | number | boolean) => {
+    setCustomFields((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleFormSubmit = (data: CreateProjectInput) => {
+    onSubmit({ ...data, customFields });
+  };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       {/* Auto-fill Notice */}
       {showAutoFillNotice && (
         <div className="bg-green-50 border border-green-200 rounded-md p-3 flex items-start gap-2">
@@ -89,7 +109,14 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
       {/* General Information */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">General Information</CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">General Information</CardTitle>
+            {customerReferenceId && (
+              <Badge variant="secondary" className="text-xs">
+                Customer reference only
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -123,7 +150,7 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
                   <SelectValue placeholder="Select project type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PROJECT_TYPES.map((type) => (
+                  {projectConfig.projectTypes.map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
                     </SelectItem>
@@ -139,7 +166,7 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
                   <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PROJECT_PRIORITIES.map((priority) => (
+                  {projectConfig.priorities.map((priority) => (
                     <SelectItem key={priority} value={priority}>
                       <Badge variant={priority === 'Urgent' ? 'destructive' : priority === 'High' ? 'warning' : 'default'}>
                         {priority}
@@ -180,68 +207,24 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Location *</label>
-            <div className="relative">
-              <Input {...register('location')} placeholder="Enter project location" disabled={isLinkedToCustomer} />
-              {isLinkedToCustomer && (
-                <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              )}
-            </div>
+            <Input {...register('location')} placeholder="Enter project location" />
             {errors.location && <p className="text-sm text-red-500">{errors.location.message}</p>}
-            {isLinkedToCustomer && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Info className="h-3 w-3" />
-                This value is synchronized from the linked Customer. Edit it from the Customer record.
-              </p>
-            )}
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">City *</label>
-              <div className="relative">
-                <Input {...register('city')} placeholder="City" disabled={isLinkedToCustomer} />
-                {isLinkedToCustomer && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
+              <Input {...register('city')} placeholder="City" />
               {errors.city && <p className="text-sm text-red-500">{errors.city.message}</p>}
-              {isLinkedToCustomer && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  Synchronized from Customer
-                </p>
-              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">State *</label>
-              <div className="relative">
-                <Input {...register('state')} placeholder="State" disabled={isLinkedToCustomer} />
-                {isLinkedToCustomer && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
+              <Input {...register('state')} placeholder="State" />
               {errors.state && <p className="text-sm text-red-500">{errors.state.message}</p>}
-              {isLinkedToCustomer && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  Synchronized from Customer
-                </p>
-              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Pincode</label>
-              <div className="relative">
-                <Input {...register('pincode')} placeholder="Pincode" disabled={isLinkedToCustomer} />
-                {isLinkedToCustomer && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
-              {isLinkedToCustomer && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  Synchronized from Customer
-                </p>
-              )}
+              <Input {...register('pincode')} placeholder="Pincode" />
             </div>
           </div>
 
@@ -267,7 +250,7 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
                   <SelectValue placeholder="Select structure type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {STRUCTURE_TYPES.map((type) => (
+                  {projectConfig.structureTypes.map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
                     </SelectItem>
@@ -283,7 +266,7 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
                   <SelectValue placeholder="Select roof type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROOF_TYPES.map((type) => (
+                  {projectConfig.roofTypes.map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
                     </SelectItem>
@@ -321,7 +304,7 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
                   <SelectValue placeholder="Select crane system" />
                 </SelectTrigger>
                 <SelectContent>
-                  {CRANE_SYSTEMS.map((system) => (
+                  {projectConfig.craneSystems.map((system) => (
                     <SelectItem key={system} value={system}>
                       {system}
                     </SelectItem>
@@ -337,7 +320,7 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
                   <SelectValue placeholder="Select wall type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {WALL_TYPES.map((type) => (
+                  {projectConfig.wallTypes.map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
                     </SelectItem>
@@ -369,13 +352,20 @@ export function ProjectForm({ onSubmit, onCancel, isLoading, initialData, prefil
         </CardContent>
       </Card>
 
+      <ProjectCustomFields
+        mode="form"
+        fields={projectConfig.customFields}
+        values={customFields}
+        onChange={handleCustomFieldChange}
+      />
+
       {/* Actions */}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
           Cancel
         </Button>
         <Button type="submit" disabled={isLoading}>
-          {isLoading ? 'Creating...' : 'Create Project'}
+          {isLoading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Project'}
         </Button>
       </div>
     </form>

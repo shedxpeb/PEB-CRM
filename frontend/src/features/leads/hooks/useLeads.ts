@@ -3,9 +3,44 @@
  * React Query hooks for leads - never use useState/useEffect for server data
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { leadsApi, LeadsFilters } from '@/features/leads/services/leadsApi';
 import { CreateLeadDto, UpdateLeadDto } from '@/features/leads/types';
 import { PaginationParams } from '@/shared/types/pagination';
+import { useModuleConfiguration } from '@/features/settings/hooks/useSettings';
+import { LEAD_MODULE_DEFAULTS } from '@/features/settings/utils/moduleConfigurationDefaults';
+import { pickModuleSettings } from '@/features/settings/utils/resolveModuleSettings';
+
+import { LeadCustomFieldDefinition } from '@/types/leads';
+
+export interface LeadModuleConfiguration {
+  statuses: string[];
+  priorities: string[];
+  sources: string[];
+  projectTypes: string[];
+  structureTypes: string[];
+  roofTypes: string[];
+  wallTypes: string[];
+  materialPreferences: string[];
+  customFields: LeadCustomFieldDefinition[];
+}
+
+export const DEFAULT_LEAD_CONFIGURATION: LeadModuleConfiguration = LEAD_MODULE_DEFAULTS;
+
+/**
+ * Lead workflow configuration from Settings (read-only)
+ */
+export function useLeadConfiguration(): LeadModuleConfiguration & { isLoading: boolean } {
+  const { data, isLoading } = useModuleConfiguration('leads');
+
+  return useMemo(() => {
+    const settings = pickModuleSettings(data?.settings, DEFAULT_LEAD_CONFIGURATION);
+    return {
+      ...settings,
+      isLoading,
+    };
+  }, [data, isLoading]);
+}
 
 /**
  * Fetch all leads with pagination and filters
@@ -59,8 +94,6 @@ export function useUpdateLead() {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['lead', id] });
-      // Invalidate customers cache to sync inherited fields from lead
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
   });
 }

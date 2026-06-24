@@ -109,6 +109,7 @@ export interface Lead {
 
   // Status & Tracking
   status: LeadStatus;
+  score?: number;
   createdDate: Date;
   lastFollowUp?: Date;
   nextFollowUpDate?: Date;
@@ -123,6 +124,19 @@ export interface Lead {
   // Additional fields
   pincode?: string;
   remarks?: string;
+
+  /** Settings-defined custom field values */
+  customFields?: Record<string, string | number | boolean>;
+}
+
+export type LeadCustomFieldType = 'text' | 'number' | 'select' | 'textarea' | 'boolean';
+
+export interface LeadCustomFieldDefinition {
+  key: string;
+  label: string;
+  type: LeadCustomFieldType;
+  options?: string[];
+  required?: boolean;
 }
 
 export interface LeadActivity {

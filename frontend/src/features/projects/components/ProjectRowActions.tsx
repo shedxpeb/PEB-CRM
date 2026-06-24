@@ -1,16 +1,8 @@
 'use client';
 
 import React from 'react';
-import { MoreHorizontal, Eye, Edit, Trash2, Play, FileText, Package, Users, Calendar, CheckCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { EntityRowActionsMenu } from '@/components/row-actions';
+import { Eye, Edit, Trash2, FileText, Package, Users, CheckCircle } from 'lucide-react';
 import { Project } from '@/features/projects/types';
 
 interface ProjectRowActionsProps {
@@ -37,60 +29,70 @@ export const ProjectRowActions = React.memo(function ProjectRowActions({
   onMarkComplete,
 }: ProjectRowActionsProps) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => onView(project)}>
-          <Eye className="h-4 w-4 mr-2" />
-          View Details
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onEdit(project)}>
-          <Edit className="h-4 w-4 mr-2" />
-          Edit Project
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        {project.status === 'Approved' && onStartDesign && (
-          <DropdownMenuItem onClick={() => onStartDesign(project)}>
-            <FileText className="h-4 w-4 mr-2" />
-            Start Design
-          </DropdownMenuItem>
-        )}
-        {project.status === 'Design' && onCreateBOQ && (
-          <DropdownMenuItem onClick={() => onCreateBOQ(project)}>
-            <FileText className="h-4 w-4 mr-2" />
-            Create BOQ
-          </DropdownMenuItem>
-        )}
-        {(project.status === 'BOQ' || project.status === 'Procurement') && onReserveInventory && (
-          <DropdownMenuItem onClick={() => onReserveInventory(project)}>
-            <Package className="h-4 w-4 mr-2" />
-            Reserve Inventory
-          </DropdownMenuItem>
-        )}
-        {onAssignTeam && (
-          <DropdownMenuItem onClick={() => onAssignTeam(project)}>
-            <Users className="h-4 w-4 mr-2" />
-            Assign Team
-          </DropdownMenuItem>
-        )}
-        {project.status === 'Installation' && onMarkComplete && (
-          <DropdownMenuItem onClick={() => onMarkComplete(project)}>
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Mark Complete
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => onDelete(project)} className="text-red-600">
-          <Trash2 className="h-4 w-4 mr-2" />
-          Delete Project
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <EntityRowActionsMenu
+      sections={{
+        view: [
+          {
+            key: 'view',
+            label: 'View Details',
+            icon: Eye,
+            onClick: () => onView(project),
+          },
+        ],
+        edit: [
+          {
+            key: 'edit',
+            label: 'Edit Project',
+            icon: Edit,
+            onClick: () => onEdit(project),
+          },
+        ],
+        workflow: [
+          {
+            key: 'start-design',
+            label: 'Start Design',
+            icon: FileText,
+            onClick: () => onStartDesign?.(project),
+            hidden: !(project.status === 'Approved' && onStartDesign),
+          },
+          {
+            key: 'create-boq',
+            label: 'Create BOQ',
+            icon: FileText,
+            onClick: () => onCreateBOQ?.(project),
+            hidden: !(project.status === 'Design' && onCreateBOQ),
+          },
+          {
+            key: 'reserve-inventory',
+            label: 'Reserve Inventory',
+            icon: Package,
+            onClick: () => onReserveInventory?.(project),
+            hidden: !((project.status === 'BOQ' || project.status === 'Procurement') && onReserveInventory),
+          },
+          {
+            key: 'assign-team',
+            label: 'Assign Team',
+            icon: Users,
+            onClick: () => onAssignTeam?.(project),
+            hidden: !onAssignTeam,
+          },
+          {
+            key: 'mark-complete',
+            label: 'Mark Complete',
+            icon: CheckCircle,
+            onClick: () => onMarkComplete?.(project),
+            hidden: !(project.status === 'Installation' && onMarkComplete),
+          },
+        ],
+        danger: [
+          {
+            key: 'delete',
+            label: 'Delete Project',
+            icon: Trash2,
+            onClick: () => onDelete(project),
+          },
+        ],
+      }}
+    />
   );
 });

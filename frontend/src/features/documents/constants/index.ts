@@ -142,6 +142,7 @@ export const DOCUMENT_NUMBERING_PREFIXES: Record<DocumentType, string> = {
   Estimate: 'EST',
   Proposal: 'PRO',
   Quotation: 'QUO',
+  Invoice: 'INV',
 };
 
 // ─── Activity Type Icons ─────────────────────────────────────────────────────────

@@ -64,6 +64,18 @@ export type WallType = 'Sandwich Panel' | 'Single Skin' | 'Brick Wall' | 'Curtai
 
 export type HealthStatus = 'Healthy' | 'At Risk' | 'Critical';
 
+export type ProjectCustomFieldType = 'text' | 'number' | 'boolean' | 'select' | 'textarea';
+
+export interface ProjectCustomFieldDefinition {
+  key: string;
+  label: string;
+  type: ProjectCustomFieldType;
+  required?: boolean;
+  options?: string[];
+}
+
+export type ProjectCustomFieldValues = Record<string, string | number | boolean | undefined>;
+
 /**
  * Project interface - the central project record
  * Referenced by: Design, BOQ, Inventory, Procurement, Fabrication, Dispatch, Installation, Finance
@@ -146,6 +158,9 @@ export interface Project {
   quotationId?: string; // Links to Quotation
   invoiceIds?: string[]; // List of invoice IDs for this project
   inventoryReservationIds?: string[]; // List of inventory reservation IDs
+
+  // Settings-driven custom fields
+  customFields?: ProjectCustomFieldValues;
 
   // Timestamps
   createdAt?: Date;
@@ -292,6 +307,7 @@ export interface CreateProjectDto {
   insulation?: boolean;
   coveredArea?: number;
   totalWeight?: number;
+  customFields?: ProjectCustomFieldValues;
 }
 
 /**
@@ -333,6 +349,7 @@ export interface UpdateProjectDto {
   fabricationCost?: number;
   installationCost?: number;
   profitMargin?: number;
+  customFields?: ProjectCustomFieldValues;
 }
 
 /**

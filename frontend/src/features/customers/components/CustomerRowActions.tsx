@@ -1,20 +1,10 @@
 'use client';
 
-import { useState, memo } from 'react';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-} from '@/components/ui/dropdown-menu';
+import { memo } from 'react';
+import { EntityRowActionsMenu } from '@/components/row-actions';
 import { Customer, CustomerStatus } from '@/features/customers/types';
+import { useCustomerConfiguration } from '@/features/customers/hooks/useCustomers';
 import {
-  MoreVertical,
   Edit,
   Eye,
   FolderKanban,
@@ -39,6 +29,7 @@ interface CustomerRowActionsProps {
   onSendWhatsApp?: (customer: Customer) => void;
   onSendEmail?: (customer: Customer) => void;
   onScheduleMeeting?: (customer: Customer) => void;
+  onLogCall?: (customer: Customer) => void;
   onStatusChange?: (customer: Customer, status: CustomerStatus) => void;
 }
 
@@ -53,113 +44,106 @@ export const CustomerRowActions = memo(function CustomerRowActions({
   onSendWhatsApp,
   onSendEmail,
   onScheduleMeeting,
+  onLogCall,
   onStatusChange,
 }: CustomerRowActionsProps) {
-  const [open, setOpen] = useState(false);
-
-  const handleStatusChange = (status: CustomerStatus) => {
-    onStatusChange?.(customer, status);
-    setOpen(false);
-  };
-
-  const statuses: CustomerStatus[] = ['Active', 'Inactive', 'Prospect', 'Converted', 'Churned'];
+  const { statuses } = useCustomerConfiguration();
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <MoreVertical className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        {/* View & Edit */}
-        <DropdownMenuItem onClick={() => onViewDetails?.(customer)}>
-          <Eye className="h-4 w-4 mr-2" />
-          View Details
-        </DropdownMenuItem>
-
-        <DropdownMenuItem onClick={() => onEdit(customer)}>
-          <Edit className="h-4 w-4 mr-2" />
-          Edit Customer
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        {/* Related Data */}
-        <DropdownMenuItem onClick={() => onViewProjects?.(customer)}>
-          <FolderKanban className="h-4 w-4 mr-2" />
-          View Projects
-        </DropdownMenuItem>
-
-        <DropdownMenuItem onClick={() => onViewDocuments?.(customer)}>
-          <FileText className="h-4 w-4 mr-2" />
-          View Documents
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        {/* Status */}
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <GitBranch className="h-4 w-4 mr-2" />
-            Change Status
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            {statuses.map((status) => (
-              <DropdownMenuItem
-                key={status}
-                onClick={() => handleStatusChange(status)}
-                className={customer.status === status ? 'bg-muted' : ''}
-              >
-                {customer.status === status && <CheckCircle className="h-4 w-4 mr-2" />}
-                {status}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-
-        <DropdownMenuSeparator />
-
-        {/* Actions */}
-        <DropdownMenuItem onClick={() => onCreateProject?.(customer)}>
-          <FolderKanban className="h-4 w-4 mr-2" />
-          Create Project
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        {/* Communication */}
-        <DropdownMenuItem onClick={() => onSendWhatsApp?.(customer)}>
-          <MessageSquare className="h-4 w-4 mr-2" />
-          Send WhatsApp
-        </DropdownMenuItem>
-
-        <DropdownMenuItem onClick={() => onSendEmail?.(customer)}>
-          <Mail className="h-4 w-4 mr-2" />
-          Send Email
-        </DropdownMenuItem>
-
-        <DropdownMenuItem onClick={() => onScheduleMeeting?.(customer)}>
-          <Calendar className="h-4 w-4 mr-2" />
-          Schedule Meeting
-        </DropdownMenuItem>
-
-        <DropdownMenuItem onClick={() => onEdit(customer)}>
-          <Phone className="h-4 w-4 mr-2" />
-          Log Call
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        {/* Delete */}
-        <DropdownMenuItem
-          onClick={() => onDelete(customer)}
-          className="text-destructive focus:text-destructive"
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          Delete Customer
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <EntityRowActionsMenu
+      sections={{
+        view: [
+          {
+            key: 'view',
+            label: 'View Details',
+            icon: Eye,
+            onClick: () => onViewDetails?.(customer),
+            hidden: !onViewDetails,
+          },
+        ],
+        edit: [
+          {
+            key: 'edit',
+            label: 'Edit Customer',
+            icon: Edit,
+            onClick: () => onEdit(customer),
+          },
+        ],
+        communication: [
+          {
+            key: 'whatsapp',
+            label: 'Send WhatsApp',
+            icon: MessageSquare,
+            onClick: () => onSendWhatsApp?.(customer),
+            hidden: !onSendWhatsApp,
+          },
+          {
+            key: 'email',
+            label: 'Send Email',
+            icon: Mail,
+            onClick: () => onSendEmail?.(customer),
+            hidden: !onSendEmail,
+          },
+          {
+            key: 'meeting',
+            label: 'Schedule Meeting',
+            icon: Calendar,
+            onClick: () => onScheduleMeeting?.(customer),
+            hidden: !onScheduleMeeting,
+          },
+          {
+            key: 'call',
+            label: 'Log Call',
+            icon: Phone,
+            onClick: () => (onLogCall ? onLogCall(customer) : onEdit(customer)),
+          },
+        ],
+        workflow: [
+          {
+            key: 'change-status',
+            label: 'Change Status',
+            icon: GitBranch,
+            items: statuses.map((status) => ({
+              key: `status-${status}`,
+              label: status,
+              icon: customer.status === status ? CheckCircle : GitBranch,
+              onClick: () => onStatusChange?.(customer, status as CustomerStatus),
+            })),
+            hidden: !onStatusChange,
+          },
+          {
+            key: 'create-project',
+            label: 'Create Project',
+            icon: FolderKanban,
+            onClick: () => onCreateProject?.(customer),
+            hidden: !onCreateProject,
+          },
+        ],
+        utility: [
+          {
+            key: 'view-projects',
+            label: 'View Projects',
+            icon: FolderKanban,
+            onClick: () => onViewProjects?.(customer),
+            hidden: !onViewProjects,
+          },
+          {
+            key: 'view-documents',
+            label: 'View Documents',
+            icon: FileText,
+            onClick: () => onViewDocuments?.(customer),
+            hidden: !onViewDocuments,
+          },
+        ],
+        danger: [
+          {
+            key: 'delete',
+            label: 'Delete Customer',
+            icon: Trash2,
+            onClick: () => onDelete(customer),
+          },
+        ],
+      }}
+    />
   );
 });

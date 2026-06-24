@@ -5,7 +5,7 @@
  * Supports full commercial lifecycle from Lead to Invoice
  */
 
-export type DocumentType = 'Estimate' | 'Proposal' | 'Quotation';
+export type DocumentType = 'Estimate' | 'Proposal' | 'Quotation' | 'Invoice';
 
 export type DocumentStatus =
   | 'Draft'
@@ -97,6 +97,9 @@ export interface Document {
   rejectedAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
+  createdBy?: string;
+
+  customFields?: Record<string, string | number | boolean | undefined>;
 }
 
 export interface DocumentLineItem {
@@ -278,7 +281,10 @@ export interface DocumentStats {
   totalEstimates: number;
   totalProposals: number;
   totalQuotations: number;
+  totalInvoices: number;
+  totalDocuments: number;
   draftDocuments: number;
+  approvedDocuments: number;
   sentDocuments: number;
   viewedDocuments: number;
   acceptedDocuments: number;
@@ -300,8 +306,11 @@ export interface DocumentFilters {
   documentType?: DocumentType;
   status?: DocumentStatus;
   customerId?: string;
-  leadId?: string;
+  customerName?: string;
   projectId?: string;
+  projectName?: string;
+  createdBy?: string;
+  leadId?: string;
   dateFrom?: Date;
   dateTo?: Date;
   amountFrom?: number;

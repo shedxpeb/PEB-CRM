@@ -452,9 +452,9 @@ const MOCK_ACTIVITIES: FinanceActivity[] = [
 ];
 
 const MOCK_STATS: FinanceStats = {
-  totalRevenue: 9440000,
+  totalInvoiced: 9440000,
+  totalReceived: 3540000,
   totalExpenses: 4130000,
-  netProfit: 5310000,
   pendingReceivables: 5900000,
   pendingPayables: 1770000,
   monthlyRevenue: 9440000,
@@ -466,6 +466,15 @@ const MOCK_STATS: FinanceStats = {
   gstLiability: 270000,
   availableCashPosition: 30000000,
   projectProfitability: 25,
+  // Optional percentage changes
+  totalInvoicedChange: 12.5,
+  totalReceivedChange: 15.3,
+  totalExpensesChange: -8.2,
+  pendingReceivablesChange: -5.1,
+  pendingPayablesChange: 3.2,
+  cashInflowChange: 18.7,
+  cashOutflowChange: -12.4,
+  availableCashChange: 8.9,
 };
 
 /** Check if error is a connection failure (no backend) */

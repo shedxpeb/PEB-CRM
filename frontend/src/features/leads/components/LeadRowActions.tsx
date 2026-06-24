@@ -1,176 +1,135 @@
 'use client';
 
 import { useState, memo } from 'react';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { EntityRowActionsMenu } from '@/components/row-actions';
 import { Lead, LeadStatus } from '@/types/leads';
-import { 
-  MoreVertical,
+import {
   Edit,
   TrendingUp,
-  Activity,
   FileText,
   Trash2,
   CheckCircle,
   GitBranch,
   Eye,
-  Clock,
-  User
+  User,
 } from 'lucide-react';
 import { LeadTracker } from './LeadTracker';
 import { LeadLogsDialog } from './LeadLogsDialog';
 import { AddScoreDialog } from './AddScoreDialog';
-import { StatusChangeDialog } from './StatusChangeDialog';
+import { DEFAULT_LEAD_CONFIGURATION } from '@/features/leads/hooks/useLeads';
 
 interface LeadRowActionsProps {
   lead: Lead;
+  statusOptions?: LeadStatus[];
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
   onConvert: (lead: Lead) => void;
   onConvertToCustomer?: (lead: Lead) => void;
   onCreateEstimate?: (lead: Lead) => void;
-  onTrack?: (lead: Lead) => void;
-  onViewLogs?: (lead: Lead) => void;
+  onView?: (lead: Lead) => void;
   onAddScore?: (lead: Lead, score: number) => void;
   onStatusChange?: (lead: Lead, status: LeadStatus) => void;
 }
 
 export const LeadRowActions = memo(function LeadRowActions({
   lead,
+  statusOptions = DEFAULT_LEAD_CONFIGURATION.statuses as LeadStatus[],
   onEdit,
   onDelete,
   onConvert,
   onConvertToCustomer,
   onCreateEstimate,
-  onTrack,
-  onViewLogs,
+  onView,
   onAddScore,
   onStatusChange,
 }: LeadRowActionsProps) {
   const [showTracker, setShowTracker] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [showScore, setShowScore] = useState(false);
-  const [showStatusChange, setShowStatusChange] = useState(false);
-  const [open, setOpen] = useState(false);
-
-  const handleStatusChange = (status: LeadStatus) => {
-    onStatusChange?.(lead, status);
-    setOpen(false);
-  };
 
   return (
     <>
-      <DropdownMenu open={open} onOpenChange={setOpen}>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <MoreVertical className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          {/* View & Edit */}
-          <DropdownMenuItem onClick={() => onEdit(lead)}>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit Lead
-          </DropdownMenuItem>
-
-          <DropdownMenuItem onClick={() => setShowTracker(true)}>
-            <Eye className="h-4 w-4 mr-2" />
-            Track Lead
-          </DropdownMenuItem>
-
-          <DropdownMenuItem onClick={() => setShowLogs(true)}>
-            <FileText className="h-4 w-4 mr-2" />
-            View Logs
-          </DropdownMenuItem>
-
-          <DropdownMenuSeparator />
-
-          {/* Scoring */}
-          <DropdownMenuItem onClick={() => setShowScore(true)}>
-            <TrendingUp className="h-4 w-4 mr-2" />
-            Add Score
-          </DropdownMenuItem>
-
-          {/* Status Change */}
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <GitBranch className="h-4 w-4 mr-2" />
-              Change Status
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              {['New', 'Contacted', 'Design Pending', 'BOQ Pending', 'Estimate Sent', 'Proposal Sent', 'Negotiation', 'Approved', 'Rejected', 'Converted'].map((status, index) => (
-                <DropdownMenuItem
-                  key={`${status}-${index}`}
-                  onClick={() => handleStatusChange(status as LeadStatus)}
-                  className={lead.status === status ? 'bg-muted' : ''}
-                >
-                  {lead.status === status && <CheckCircle className="h-4 w-4 mr-2" />}
-                  {status}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-
-          <DropdownMenuSeparator />
-
-          {/* Actions */}
-          {onCreateEstimate && (
-            <DropdownMenuItem onClick={() => onCreateEstimate(lead)}>
-              <FileText className="h-4 w-4 mr-2" />
-              Create Estimate
-            </DropdownMenuItem>
-          )}
-
-          {onConvertToCustomer && (
-            <DropdownMenuItem onClick={() => onConvertToCustomer(lead)}>
-              <User className="h-4 w-4 mr-2" />
-              Convert to Customer
-            </DropdownMenuItem>
-          )}
-
-          <DropdownMenuItem onClick={() => onConvert(lead)}>
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Convert to Project
-          </DropdownMenuItem>
-
-          <DropdownMenuSeparator />
-
-          {/* Delete */}
-          <DropdownMenuItem
-            onClick={() => onDelete(lead)}
-            className="text-destructive focus:text-destructive"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete Lead
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Lead Tracker Dialog */}
-      <LeadTracker
-        lead={lead}
-        open={showTracker}
-        onOpenChange={setShowTracker}
+      <EntityRowActionsMenu
+        sections={{
+          view: [
+            {
+              key: 'view',
+              label: 'View Details',
+              icon: Eye,
+              onClick: () => (onView ? onView(lead) : setShowTracker(true)),
+            },
+          ],
+          edit: [
+            {
+              key: 'edit',
+              label: 'Edit Lead',
+              icon: Edit,
+              onClick: () => onEdit(lead),
+            },
+          ],
+          workflow: [
+            {
+              key: 'add-score',
+              label: 'Add Score',
+              icon: TrendingUp,
+              onClick: () => setShowScore(true),
+              hidden: !onAddScore,
+            },
+            {
+              key: 'change-status',
+              label: 'Change Status',
+              icon: GitBranch,
+              items: statusOptions.map((status) => ({
+                key: `status-${status}`,
+                label: status,
+                icon: lead.status === status ? CheckCircle : GitBranch,
+                onClick: () => onStatusChange?.(lead, status),
+                hidden: !onStatusChange,
+              })),
+              hidden: !onStatusChange,
+            },
+            {
+              key: 'create-estimate',
+              label: 'Create Estimate',
+              icon: FileText,
+              onClick: () => onCreateEstimate?.(lead),
+              hidden: !onCreateEstimate,
+            },
+            {
+              key: 'convert-customer',
+              label: 'Convert to Customer',
+              icon: User,
+              onClick: () => onConvertToCustomer?.(lead),
+              hidden: !onConvertToCustomer,
+            },
+            {
+              key: 'convert-project',
+              label: 'Convert to Project',
+              icon: CheckCircle,
+              onClick: () => onConvert(lead),
+            },
+          ],
+          utility: [
+            {
+              key: 'logs',
+              label: 'View Logs',
+              icon: FileText,
+              onClick: () => setShowLogs(true),
+            },
+          ],
+          danger: [
+            {
+              key: 'delete',
+              label: 'Delete Lead',
+              icon: Trash2,
+              onClick: () => onDelete(lead),
+            },
+          ],
+        }}
       />
 
-      {/* Activity Logs Dialog */}
-      <LeadLogsDialog
-        lead={lead}
-        open={showLogs}
-        onOpenChange={setShowLogs}
-      />
-
-      {/* Add Score Dialog */}
+      <LeadTracker lead={lead} open={showTracker} onOpenChange={setShowTracker} />
+      <LeadLogsDialog lead={lead} open={showLogs} onOpenChange={setShowLogs} />
       <AddScoreDialog
         lead={lead}
         open={showScore}
@@ -178,17 +137,6 @@ export const LeadRowActions = memo(function LeadRowActions({
         onSubmit={(score: number) => {
           onAddScore?.(lead, score);
           setShowScore(false);
-        }}
-      />
-
-      {/* Status Change Dialog */}
-      <StatusChangeDialog
-        lead={lead}
-        open={showStatusChange}
-        onOpenChange={setShowStatusChange}
-        onSubmit={(status: LeadStatus) => {
-          onStatusChange?.(lead, status);
-          setShowStatusChange(false);
         }}
       />
     </>

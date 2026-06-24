@@ -12,12 +12,14 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Customer } from '@/features/customers/types';
-import { INDUSTRIES, BUSINESS_TYPES, CUSTOMER_SOURCES, CUSTOMER_STATUSES } from '@/features/customers/constants';
+import { getStatusVariant } from '@/features/customers/constants';
 import { createCustomerSchema } from '@/features/customers/validations';
-import { X, AlertCircle, Info, Lock } from 'lucide-react';
+import { X, AlertCircle, Info } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
 import { useLeads } from '@/features/leads/hooks/useLeads';
 import { Lead } from '@/features/leads/types';
+import { useCustomerConfiguration } from '@/features/customers/hooks/useCustomers';
+import { CustomerCustomFields } from '@/features/customers/components/CustomerCustomFields';
 
 interface CustomerFormProps {
   initialData?: Partial<Customer>;
@@ -29,6 +31,7 @@ interface CustomerFormProps {
 }
 
 export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, onCancel, isLoading, error, isEditMode = false }: CustomerFormProps) {
+  const customerConfig = useCustomerConfiguration();
   // Fetch leads for dropdown (only in create mode)
   const { data: leadsResponse } = useLeads({ page: 1, pageSize: 1000 });
   const leads = leadsResponse?.data || [];
@@ -39,8 +42,8 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
   const [selectedLeadId, setSelectedLeadId] = useState<string>(initialData?.leadId || '');
   const [showAutoFillNotice, setShowAutoFillNotice] = useState<boolean>(false);
 
-  // Determine if this customer is linked to a lead (in edit mode or after lead selection)
-  const isLinkedToLead = isEditMode && !!initialData?.leadId;
+  // Customer owns its data — lead link is reference-only (snapshot rule)
+  const leadReferenceId = isEditMode ? initialData?.leadId : undefined;
 
   const [formData, setFormData] = useState<Partial<Customer>>({
     customerName: '',
@@ -61,6 +64,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
     leadSource: 'Website',
     status: 'Prospect',
     notes: '',
+    customFields: initialData?.customFields ?? {},
     ...initialData,
   });
 
@@ -76,6 +80,13 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
         return newErrors;
       });
     }
+  };
+
+  const handleCustomFieldChange = (key: string, value: string | number | boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      customFields: { ...prev.customFields, [key]: value },
+    }));
   };
 
   // Auto-fill customer fields from selected lead
@@ -210,10 +221,10 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Customer Information</CardTitle>
-            {isLinkedToLead && (
+            {leadReferenceId && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
-                <Lock className="h-3 w-3" />
-                <span>Managed by Lead</span>
+                <Info className="h-3 w-3" />
+                <span>Originated from Lead (reference only)</span>
               </div>
             )}
           </div>
@@ -227,12 +238,10 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   value={formData.customerName || ''}
                   onChange={(e) => handleChange('customerName', e.target.value)}
                   placeholder="Enter customer name"
-                  disabled={isLinkedToLead}
+                 
                   className={errors.customerName ? 'border-red-500' : ''}
                 />
-                {isLinkedToLead && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                )}
+
               </div>
               {errors.customerName && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
@@ -240,12 +249,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   {errors.customerName}
                 </p>
               )}
-              {isLinkedToLead && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  This value is synchronized from the linked Lead. Edit it from the Lead record.
-                </p>
-              )}
+
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Company Name *</label>
@@ -254,12 +258,10 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   value={formData.companyName || ''}
                   onChange={(e) => handleChange('companyName', e.target.value)}
                   placeholder="Enter company name"
-                  disabled={isLinkedToLead}
+                 
                   className={errors.companyName ? 'border-red-500' : ''}
                 />
-                {isLinkedToLead && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                )}
+
               </div>
               {errors.companyName && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
@@ -267,12 +269,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   {errors.companyName}
                 </p>
               )}
-              {isLinkedToLead && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  This value is synchronized from the linked Lead. Edit it from the Lead record.
-                </p>
-              )}
+
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Mobile *</label>
@@ -281,12 +278,10 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   value={formData.mobile || ''}
                   onChange={(e) => handleChange('mobile', e.target.value)}
                   placeholder="+91 XXXXX XXXXX"
-                  disabled={isLinkedToLead}
+                 
                   className={errors.mobile ? 'border-red-500' : ''}
                 />
-                {isLinkedToLead && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                )}
+
               </div>
               {errors.mobile && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
@@ -294,12 +289,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   {errors.mobile}
                 </p>
               )}
-              {isLinkedToLead && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  This value is synchronized from the linked Lead. Edit it from the Lead record.
-                </p>
-              )}
+
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Alternate Mobile</label>
@@ -308,12 +298,10 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   value={formData.alternateMobile || ''}
                   onChange={(e) => handleChange('alternateMobile', e.target.value)}
                   placeholder="+91 XXXXX XXXXX"
-                  disabled={isLinkedToLead}
+                 
                   className={errors.alternateMobile ? 'border-red-500' : ''}
                 />
-                {isLinkedToLead && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                )}
+
               </div>
               {errors.alternateMobile && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
@@ -321,12 +309,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   {errors.alternateMobile}
                 </p>
               )}
-              {isLinkedToLead && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  This value is synchronized from the linked Lead. Edit it from the Lead record.
-                </p>
-              )}
+
             </div>
             <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-medium">Email</label>
@@ -336,12 +319,10 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   value={formData.email || ''}
                   onChange={(e) => handleChange('email', e.target.value)}
                   placeholder="Enter email address"
-                  disabled={isLinkedToLead}
+                 
                   className={errors.email ? 'border-red-500' : ''}
                 />
-                {isLinkedToLead && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                )}
+
               </div>
               {errors.email && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
@@ -349,12 +330,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   {errors.email}
                 </p>
               )}
-              {isLinkedToLead && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  This value is synchronized from the linked Lead. Edit it from the Lead record.
-                </p>
-              )}
+
             </div>
           </div>
         </CardContent>
@@ -374,12 +350,10 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   value={formData.gstNumber || ''}
                   onChange={(e) => handleChange('gstNumber', e.target.value)}
                   placeholder="22AAAAA0000A1Z5"
-                  disabled={isLinkedToLead}
+                 
                   className={errors.gstNumber ? 'border-red-500' : ''}
                 />
-                {isLinkedToLead && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                )}
+
               </div>
               {errors.gstNumber && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
@@ -387,12 +361,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   {errors.gstNumber}
                 </p>
               )}
-              {isLinkedToLead && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  This value is synchronized from the linked Lead. Edit it from the Lead record.
-                </p>
-              )}
+
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">PAN Number</label>
@@ -419,9 +388,9 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {INDUSTRIES.map((ind) => (
-                    <SelectItem key={ind.value} value={ind.value}>
-                      {ind.label}
+                  {customerConfig.industries.map((ind) => (
+                    <SelectItem key={ind} value={ind}>
+                      {ind}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -443,9 +412,9 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {BUSINESS_TYPES.map((bt) => (
-                    <SelectItem key={bt.value} value={bt.value}>
-                      {bt.label}
+                  {customerConfig.customerTypes.map((bt) => (
+                    <SelectItem key={bt} value={bt}>
+                      {bt}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -490,12 +459,10 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   value={formData.address || ''}
                   onChange={(e) => handleChange('address', e.target.value)}
                   placeholder="Enter full address"
-                  disabled={isLinkedToLead}
+                 
                   className={errors.address ? 'border-red-500' : ''}
                 />
-                {isLinkedToLead && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                )}
+
               </div>
               {errors.address && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
@@ -503,12 +470,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   {errors.address}
                 </p>
               )}
-              {isLinkedToLead && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  This value is synchronized from the linked Lead. Edit it from the Lead record.
-                </p>
-              )}
+
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">City *</label>
@@ -517,12 +479,10 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   value={formData.city || ''}
                   onChange={(e) => handleChange('city', e.target.value)}
                   placeholder="Enter city"
-                  disabled={isLinkedToLead}
+                 
                   className={errors.city ? 'border-red-500' : ''}
                 />
-                {isLinkedToLead && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                )}
+
               </div>
               {errors.city && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
@@ -530,12 +490,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   {errors.city}
                 </p>
               )}
-              {isLinkedToLead && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  This value is synchronized from the linked Lead. Edit it from the Lead record.
-                </p>
-              )}
+
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">State *</label>
@@ -544,12 +499,10 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   value={formData.state || ''}
                   onChange={(e) => handleChange('state', e.target.value)}
                   placeholder="Enter state"
-                  disabled={isLinkedToLead}
+                 
                   className={errors.state ? 'border-red-500' : ''}
                 />
-                {isLinkedToLead && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                )}
+
               </div>
               {errors.state && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
@@ -557,12 +510,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   {errors.state}
                 </p>
               )}
-              {isLinkedToLead && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  This value is synchronized from the linked Lead. Edit it from the Lead record.
-                </p>
-              )}
+
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Country</label>
@@ -586,12 +534,10 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   value={formData.pincode || ''}
                   onChange={(e) => handleChange('pincode', e.target.value)}
                   placeholder="6-digit pincode"
-                  disabled={isLinkedToLead}
+                 
                   className={errors.pincode ? 'border-red-500' : ''}
                 />
-                {isLinkedToLead && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                )}
+
               </div>
               {errors.pincode && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
@@ -599,12 +545,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   {errors.pincode}
                 </p>
               )}
-              {isLinkedToLead && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  This value is synchronized from the linked Lead. Edit it from the Lead record.
-                </p>
-              )}
+
             </div>
           </div>
         </CardContent>
@@ -623,22 +564,20 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                 <Select
                   value={formData.leadSource}
                   onValueChange={(v) => handleChange('leadSource', v)}
-                  disabled={isLinkedToLead}
+                 
                 >
                   <SelectTrigger className={errors.leadSource ? 'border-red-500' : ''}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CUSTOMER_SOURCES.map((src) => (
-                      <SelectItem key={src.value} value={src.value}>
-                        {src.label}
+                    {customerConfig.sources.map((src) => (
+                      <SelectItem key={src} value={src}>
+                        {src}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {isLinkedToLead && (
-                  <Lock className="absolute right-8 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                )}
+
               </div>
               {errors.leadSource && (
                 <p className="text-xs text-red-500 flex items-center gap-1">
@@ -646,12 +585,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   {errors.leadSource}
                 </p>
               )}
-              {isLinkedToLead && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  This value is synchronized from the linked Lead. Edit it from the Lead record.
-                </p>
-              )}
+
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Status</label>
@@ -663,9 +597,9 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CUSTOMER_STATUSES.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
+                  {customerConfig.statuses.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -696,6 +630,13 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
           </div>
         </CardContent>
       </Card>
+
+      <CustomerCustomFields
+        mode="form"
+        fields={customerConfig.customFields}
+        values={formData.customFields}
+        onChange={handleCustomFieldChange}
+      />
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-3">

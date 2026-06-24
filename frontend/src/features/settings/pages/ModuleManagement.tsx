@@ -16,6 +16,7 @@ import {
   DollarSign,
   FileText,
   FileSpreadsheet,
+  Calculator,
   Lock,
   Eye,
   EyeOff,
@@ -27,8 +28,10 @@ const moduleIcons: Record<string, LucideIcon> = {
   leads: Users,
   customers: Building,
   projects: FolderKanban,
+  items: Package,
   inventory: Package,
   finance: DollarSign,
+  accounting: Calculator,
   documents: FileText,
   boq: FileSpreadsheet,
 };

@@ -4,7 +4,11 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { itemMasterApi } from '../services/itemMasterApi';
+import { useModuleConfiguration } from '@/features/settings/hooks/useSettings';
+import { ITEM_MODULE_DEFAULTS } from '@/features/settings/utils/moduleConfigurationDefaults';
+import { pickModuleSettings } from '@/features/settings/utils/resolveModuleSettings';
 import {
   ItemMaster,
   ItemVariant,
@@ -16,7 +20,30 @@ import {
   CreateItemBundleDto,
   UpdateItemBundleDto,
   ItemMasterQuery,
+  ItemCustomFieldDefinition,
 } from '../types';
+
+export interface ItemModuleConfiguration {
+  brands: string[];
+  units: string[];
+  itemTypes: string[];
+  taxTypes: string[];
+  customFields: ItemCustomFieldDefinition[];
+}
+
+export const DEFAULT_ITEM_CONFIGURATION: ItemModuleConfiguration = ITEM_MODULE_DEFAULTS;
+
+export function useItemConfiguration(): ItemModuleConfiguration & { isLoading: boolean } {
+  const { data, isLoading } = useModuleConfiguration('items');
+
+  return useMemo(() => {
+    const settings = pickModuleSettings(data?.settings, DEFAULT_ITEM_CONFIGURATION);
+    return {
+      ...settings,
+      isLoading,
+    };
+  }, [data, isLoading]);
+}
 
 // ─── Item Master Hooks ───────────────────────────────────────────────────────
 

@@ -3,9 +3,44 @@
  * React Query hooks for inventory - never use useState/useEffect for server data
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { inventoryApi } from '@/features/inventory/services/inventoryApi';
-import { InventoryFilters, CreateInventoryItemDto, UpdateInventoryItemDto, CreateWarehouseDto, CreateSupplierDto, CreateCategoryDto, CreateStockMovementDto } from '@/features/inventory/types';
+import {
+  InventoryFilters,
+  CreateInventoryItemDto,
+  UpdateInventoryItemDto,
+  CreateWarehouseDto,
+  CreateSupplierDto,
+  CreateCategoryDto,
+  CreateStockMovementDto,
+  InventoryCustomFieldDefinition,
+} from '@/features/inventory/types';
 import { PaginationParams } from '@/shared/types/pagination';
+import { useModuleConfiguration } from '@/features/settings/hooks/useSettings';
+import { INVENTORY_MODULE_DEFAULTS } from '@/features/settings/utils/moduleConfigurationDefaults';
+import { pickModuleSettings } from '@/features/settings/utils/resolveModuleSettings';
+
+export interface InventoryModuleConfiguration {
+  warehouses: string[];
+  stockStatuses: string[];
+  movementTypes: string[];
+  units: string[];
+  customFields: InventoryCustomFieldDefinition[];
+}
+
+export const DEFAULT_INVENTORY_CONFIGURATION: InventoryModuleConfiguration = INVENTORY_MODULE_DEFAULTS;
+
+export function useInventoryConfiguration(): InventoryModuleConfiguration & { isLoading: boolean } {
+  const { data, isLoading } = useModuleConfiguration('inventory');
+
+  return useMemo(() => {
+    const settings = pickModuleSettings(data?.settings, DEFAULT_INVENTORY_CONFIGURATION);
+    return {
+      ...settings,
+      isLoading,
+    };
+  }, [data, isLoading]);
+}
 
 // ─── Items ──────────────────────────────────────────────────────────────────
 

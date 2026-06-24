@@ -23,16 +23,21 @@ import {
   LeadPriority,
   LeadStatus,
 } from '@/types/leads';
-import { X, Upload } from 'lucide-react';
+import { X, Upload, AlertTriangle } from 'lucide-react';
+import { DEFAULT_LEAD_CONFIGURATION, LeadModuleConfiguration } from '@/features/leads/hooks/useLeads';
+import { LeadCustomFields } from '@/features/leads/components/LeadCustomFields';
 
 interface LeadFormProps {
   initialData?: Partial<Lead>;
+  existingLeads?: Lead[];
+  configuration?: LeadModuleConfiguration & { isLoading?: boolean };
   onSubmit: (data: Partial<Lead>) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
 
-export function LeadForm({ initialData, onSubmit, onCancel, isLoading }: LeadFormProps) {
+export function LeadForm({ initialData, existingLeads = [], configuration, onSubmit, onCancel, isLoading }: LeadFormProps) {
+  const config = configuration ?? DEFAULT_LEAD_CONFIGURATION;
   const [formData, setFormData] = useState<Partial<Lead>>({
     customerName: '',
     companyName: '',
@@ -42,25 +47,60 @@ export function LeadForm({ initialData, onSubmit, onCancel, isLoading }: LeadFor
     city: '',
     state: '',
     projectTitle: '',
-    projectType: 'Factory' as ProjectType,
-    structureType: 'PEB' as StructureType,
-    source: 'Website' as LeadSource,
-    priority: 'Medium' as LeadPriority,
-    status: 'New' as LeadStatus,
+    projectType: (config.projectTypes[0] ?? 'Factory') as ProjectType,
+    structureType: (config.structureTypes[0] ?? 'PEB') as StructureType,
+    source: (config.sources[0] ?? 'Website') as LeadSource,
+    priority: (config.priorities[1] ?? 'Medium') as LeadPriority,
+    status: (config.statuses[0] ?? 'New') as LeadStatus,
+    customFields: initialData?.customFields ?? {},
     ...initialData,
   });
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleCustomFieldChange = (key: string, value: string | number | boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      customFields: { ...prev.customFields, [key]: value },
+    }));
+  };
+
+  const checkDuplicates = (data: Partial<Lead>) => {
+    const duplicates = existingLeads.filter((lead) => {
+      if (initialData?.id && lead.id === initialData.id) return false;
+      const sameMobile = data.mobile && lead.mobile === data.mobile;
+      const sameEmail = data.email && lead.email.toLowerCase() === data.email.toLowerCase();
+      return sameMobile || sameEmail;
+    });
+
+    if (duplicates.length > 0) {
+      const match = duplicates[0];
+      setDuplicateWarning(
+        `Possible duplicate: Lead #${match.leadId} (${match.customerName}) has the same ${data.mobile === match.mobile ? 'mobile' : 'email'}.`
+      );
+      return true;
+    }
+    setDuplicateWarning(null);
+    return false;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    checkDuplicates(formData);
     onSubmit(formData);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {duplicateWarning && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <span>{duplicateWarning}</span>
+        </div>
+      )}
       {/* Customer Details */}
       <Card>
         <CardHeader>
@@ -148,6 +188,14 @@ export function LeadForm({ initialData, onSubmit, onCancel, isLoading }: LeadFor
                 required
               />
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Pincode</label>
+              <Input
+                placeholder="Enter pincode"
+                value={formData.pincode || ''}
+                onChange={(e) => handleInputChange('pincode', e.target.value)}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -178,12 +226,9 @@ export function LeadForm({ initialData, onSubmit, onCancel, isLoading }: LeadFor
                   <SelectValue placeholder="Select project type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Factory">Factory</SelectItem>
-                  <SelectItem value="Warehouse">Warehouse</SelectItem>
-                  <SelectItem value="Industrial Shed">Industrial Shed</SelectItem>
-                  <SelectItem value="Commercial">Commercial</SelectItem>
-                  <SelectItem value="Residential">Residential</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  {config.projectTypes.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -208,10 +253,9 @@ export function LeadForm({ initialData, onSubmit, onCancel, isLoading }: LeadFor
                   <SelectValue placeholder="Select structure type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PEB">PEB</SelectItem>
-                  <SelectItem value="Steel Structure">Steel Structure</SelectItem>
-                  <SelectItem value="Hybrid">Hybrid</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  {config.structureTypes.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -261,10 +305,9 @@ export function LeadForm({ initialData, onSubmit, onCancel, isLoading }: LeadFor
                   <SelectValue placeholder="Select roof type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Metal Sheet">Metal Sheet</SelectItem>
-                  <SelectItem value="Deck Sheet">Deck Sheet</SelectItem>
-                  <SelectItem value="Sandwich Panel">Sandwich Panel</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  {config.roofTypes.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -317,10 +360,9 @@ export function LeadForm({ initialData, onSubmit, onCancel, isLoading }: LeadFor
                   <SelectValue placeholder="Select wall type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Metal Sheet">Metal Sheet</SelectItem>
-                  <SelectItem value="Brick Wall">Brick Wall</SelectItem>
-                  <SelectItem value="Sandwich Panel">Sandwich Panel</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  {config.wallTypes.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -349,9 +391,9 @@ export function LeadForm({ initialData, onSubmit, onCancel, isLoading }: LeadFor
                   <SelectValue placeholder="Select preference" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Standard">Standard</SelectItem>
-                  <SelectItem value="Premium">Premium</SelectItem>
-                  <SelectItem value="Economy">Economy</SelectItem>
+                  {config.materialPreferences.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -459,14 +501,9 @@ export function LeadForm({ initialData, onSubmit, onCancel, isLoading }: LeadFor
                   <SelectValue placeholder="Select source" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Website">Website</SelectItem>
-                  <SelectItem value="Referral">Referral</SelectItem>
-                  <SelectItem value="Cold Call">Cold Call</SelectItem>
-                  <SelectItem value="Email">Email</SelectItem>
-                  <SelectItem value="Social Media">Social Media</SelectItem>
-                  <SelectItem value="Trade Show">Trade Show</SelectItem>
-                  <SelectItem value="Advertisement">Advertisement</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  {config.sources.map((source) => (
+                    <SelectItem key={source} value={source}>{source}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -480,10 +517,9 @@ export function LeadForm({ initialData, onSubmit, onCancel, isLoading }: LeadFor
                   <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Low">Low</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="High">High</SelectItem>
-                  <SelectItem value="Urgent">Urgent</SelectItem>
+                  {config.priorities.map((priority) => (
+                    <SelectItem key={priority} value={priority}>{priority}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -499,13 +535,29 @@ export function LeadForm({ initialData, onSubmit, onCancel, isLoading }: LeadFor
               <label className="text-sm font-medium">Next Follow-up Date</label>
               <Input
                 type="date"
-                value={formData.nextFollowUpDate ? formData.nextFollowUpDate.toISOString().split('T')[0] : ''}
-                onChange={(e) => handleInputChange('nextFollowUpDate', new Date(e.target.value))}
+                value={formData.nextFollowUpDate ? new Date(formData.nextFollowUpDate).toISOString().split('T')[0] : ''}
+                onChange={(e) => handleInputChange('nextFollowUpDate', e.target.value ? new Date(e.target.value) : undefined)}
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-sm font-medium">Remarks</label>
+              <textarea
+                className="w-full min-h-[80px] px-3 py-2 text-sm rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                placeholder="Enter remarks"
+                value={formData.remarks || ''}
+                onChange={(e) => handleInputChange('remarks', e.target.value)}
               />
             </div>
           </div>
         </CardContent>
       </Card>
+
+      <LeadCustomFields
+        mode="form"
+        fields={config.customFields ?? []}
+        values={formData.customFields}
+        onChange={handleCustomFieldChange}
+      />
 
       {/* Actions */}
       <div className="flex justify-end gap-3">

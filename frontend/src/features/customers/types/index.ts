@@ -99,8 +99,21 @@ export interface Customer {
   notes?: string;
   attachments?: string[];
 
+  /** Settings-defined custom field values */
+  customFields?: Record<string, string | number | boolean>;
+
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export type CustomerCustomFieldType = 'text' | 'number' | 'select' | 'textarea' | 'boolean';
+
+export interface CustomerCustomFieldDefinition {
+  key: string;
+  label: string;
+  type: CustomerCustomFieldType;
+  options?: string[];
+  required?: boolean;
 }
 
 /**

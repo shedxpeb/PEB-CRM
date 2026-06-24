@@ -123,7 +123,18 @@ export interface Role {
 
 // ─── Module Types ─────────────────────────────────────────────────────────────
 
-export type ModuleName = 'leads' | 'customers' | 'projects' | 'documents' | 'inventory' | 'finance' | 'boq' | 'design' | 'automation';
+export type ModuleName =
+  | 'leads'
+  | 'customers'
+  | 'projects'
+  | 'items'
+  | 'documents'
+  | 'inventory'
+  | 'finance'
+  | 'accounting'
+  | 'boq'
+  | 'design'
+  | 'automation';
 
 export interface Module {
   id: string;

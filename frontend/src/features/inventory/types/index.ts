@@ -30,6 +30,20 @@ export type UnitType =
   | 'Kg' | 'Ton' | 'Meter' | 'SqMeter' | 'CuMeter'
   | 'Nos' | 'Box' | 'Bundle' | 'Set' | 'Liter' | 'Bag' | 'Roll';
 
+export type ItemTypeClass = 'Structural' | 'Cladding' | 'Accessory' | 'Service' | 'Other';
+
+export type InventoryCustomFieldType = 'text' | 'number' | 'boolean' | 'select' | 'textarea';
+
+export interface InventoryCustomFieldDefinition {
+  key: string;
+  label: string;
+  type: InventoryCustomFieldType;
+  required?: boolean;
+  options?: string[];
+}
+
+export type InventoryCustomFieldValues = Record<string, string | number | boolean | undefined>;
+
 /**
  * InventoryItem -- Stock Management Only
  * Referenced by: Projects, Dispatch, Finance
@@ -69,8 +83,23 @@ export interface InventoryItem {
   // Status
   status: StockStatus;
   lastUpdated: Date;
+  lastMovementDate?: Date;
   createdAt?: Date;
   updatedAt?: Date;
+
+  // Read-only Item Master references (display / navigation only)
+  category?: string;
+  brand?: string;
+  itemTypeClass?: ItemTypeClass;
+
+  // Inventory-owned operational fields
+  binLocation?: string;
+  reorderQuantity?: number;
+  incomingStock?: number;
+  outgoingStock?: number;
+  purchaseRate?: number;
+
+  customFields?: InventoryCustomFieldValues;
 }
 
 /**
@@ -209,6 +238,12 @@ export interface InventoryFilters {
   warehouse?: string;
   stockStatus?: StockStatus;
   unit?: UnitType;
+  category?: string;
+  brand?: string;
+  itemTypeClass?: ItemTypeClass;
+  lowStock?: boolean;
+  reorderRequired?: boolean;
+  search?: string;
   dateFrom?: Date;
   dateTo?: Date;
 }
@@ -241,6 +276,15 @@ export interface CreateInventoryItemDto {
   safetyStock: number;
   warehouseId: string;
   status?: StockStatus;
+  currentStock?: number;
+  reservedStock?: number;
+  issuedStock?: number;
+  incomingStock?: number;
+  outgoingStock?: number;
+  binLocation?: string;
+  reorderQuantity?: number;
+  purchaseRate?: number;
+  customFields?: InventoryCustomFieldValues;
 }
 
 export interface UpdateInventoryItemDto {
@@ -252,6 +296,15 @@ export interface UpdateInventoryItemDto {
   safetyStock?: number;
   warehouseId?: string;
   status?: StockStatus;
+  currentStock?: number;
+  reservedStock?: number;
+  issuedStock?: number;
+  incomingStock?: number;
+  outgoingStock?: number;
+  binLocation?: string;
+  reorderQuantity?: number;
+  purchaseRate?: number;
+  customFields?: InventoryCustomFieldValues;
 }
 
 export interface CreateWarehouseDto {

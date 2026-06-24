@@ -16,12 +16,15 @@ import { ChevronLeft, ChevronRight, Search, Filter, Download } from 'lucide-reac
 import { cn } from '@/lib/utils';
 import { useDebounce } from '@/shared/hooks/useDebounce';
 import { TableSkeleton } from '@/components/loading/TableSkeleton';
+import { componentTextSizes } from '@/lib/design-system';
 
 export interface Column<T = Record<string, any>> {
   key: string;
   label: string;
   sortable?: boolean;
   filterable?: boolean;
+  className?: string;
+  headerClassName?: string;
   render?: (value: any, row: T) => React.ReactNode;
 }
 
@@ -38,6 +41,10 @@ interface DataTableProps<T = Record<string, any>> {
   rowIdKey?: string;
   onExport?: () => void;
   enableExport?: boolean;
+  /** When false, hides built-in search/filter toolbar (use page-level SearchBar/FilterBar) */
+  showToolbar?: boolean;
+  /** Tighter cell padding for wide tables */
+  compact?: boolean;
 }
 
 export const DataTable = React.memo(function DataTable<T = Record<string, any>>({
@@ -53,6 +60,8 @@ export const DataTable = React.memo(function DataTable<T = Record<string, any>>(
   rowIdKey = 'id',
   onExport,
   enableExport = false,
+  showToolbar = true,
+  compact = false,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -67,25 +76,24 @@ export const DataTable = React.memo(function DataTable<T = Record<string, any>>(
   const filteredData = useMemo(() => {
     let result = [...data];
 
-    // Search filter
-    if (debouncedSearchTerm) {
-      result = result.filter((row) =>
-        columns.some((col) => {
-          const value = (row as any)[col.key];
-          return value?.toString().toLowerCase().includes(debouncedSearchTerm.toLowerCase());
-        })
-      );
+    if (showToolbar) {
+      if (debouncedSearchTerm) {
+        result = result.filter((row) =>
+          columns.some((col) => {
+            const value = (row as any)[col.key];
+            return value?.toString().toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+          })
+        );
+      }
+
+      if (filterColumn && filterValue && filterValue !== 'all') {
+        result = result.filter((row) => {
+          const value = (row as any)[filterColumn];
+          return value?.toString().toLowerCase() === filterValue.toLowerCase();
+        });
+      }
     }
 
-    // Column filter
-    if (filterColumn && filterValue && filterValue !== 'all') {
-      result = result.filter((row) => {
-        const value = (row as any)[filterColumn];
-        return value?.toString().toLowerCase() === filterValue.toLowerCase();
-      });
-    }
-
-    // Sort
     if (sortColumn) {
       result.sort((a, b) => {
         const aValue = (a as any)[sortColumn];
@@ -99,7 +107,7 @@ export const DataTable = React.memo(function DataTable<T = Record<string, any>>(
     }
 
     return result;
-  }, [data, debouncedSearchTerm, sortColumn, sortDirection, filterColumn, filterValue, columns]);
+  }, [data, showToolbar, debouncedSearchTerm, sortColumn, sortDirection, filterColumn, filterValue, columns]);
 
   // Pagination
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
@@ -156,7 +164,7 @@ export const DataTable = React.memo(function DataTable<T = Record<string, any>>(
 
   return (
     <div className="space-y-4">
-      {/* Search and Filter */}
+      {showToolbar && (
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
         <div className="relative flex-1 w-full sm:w-auto min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -216,15 +224,16 @@ export const DataTable = React.memo(function DataTable<T = Record<string, any>>(
           )}
         </div>
       </div>
+      )}
 
       {/* Table */}
       <div className="border rounded-lg overflow-hidden w-full max-w-full">
         <div className="overflow-x-auto max-h-[500px] sm:max-h-[600px] overflow-y-auto">
-          <Table className="w-full">
+          <Table className="w-full min-w-[960px]">
             <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow>
                 {enableSelection && (
-                  <TableHead className="w-[50px] min-w-[50px] sticky left-0 bg-background z-20 p-2">
+                  <TableHead className={cn('w-[44px] min-w-[44px] sticky left-0 bg-background z-20', compact ? 'p-2' : 'p-2')}>
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -243,7 +252,14 @@ export const DataTable = React.memo(function DataTable<T = Record<string, any>>(
                   </TableHead>
                 )}
                 {columns.map((col) => (
-                  <TableHead key={col.key as string}>
+                  <TableHead
+                    key={col.key as string}
+                    className={cn(
+                      compact ? 'px-2 py-2 text-xs' : undefined,
+                      col.headerClassName,
+                      col.className
+                    )}
+                  >
                     {col.sortable ? (
                       <button
                         onClick={() => handleSort(col.key as any)}
@@ -261,7 +277,11 @@ export const DataTable = React.memo(function DataTable<T = Record<string, any>>(
                     )}
                   </TableHead>
                 ))}
-                {rowActions && <TableHead className="w-[35px] sticky right-0 bg-background z-20 text-center p-0.5">Actions</TableHead>}
+                {rowActions && (
+                  <TableHead className={cn('w-[48px] min-w-[48px] sticky right-0 bg-background z-20 text-center', compact ? 'p-1' : 'p-0.5')}>
+                    Actions
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -301,7 +321,14 @@ export const DataTable = React.memo(function DataTable<T = Record<string, any>>(
                         </TableCell>
                       )}
                       {columns.map((col) => (
-                        <TableCell key={col.key as string}>
+                        <TableCell
+                          key={col.key as string}
+                          className={cn(
+                            compact ? 'px-2 py-2' : undefined,
+                            componentTextSizes.table.cell,
+                            col.className
+                          )}
+                        >
                           {col.render ? (
                             <span suppressHydrationWarning>
                               {col.render((row as any)[col.key], row)}
@@ -326,11 +353,14 @@ export const DataTable = React.memo(function DataTable<T = Record<string, any>>(
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <span className="text-xs sm:text-sm text-muted-foreground">
+          {filteredData.length} record{filteredData.length === 1 ? '' : 's'}
+        </span>
+        <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-2">
             <span className="text-xs sm:text-sm text-gray-600">Rows per page:</span>
-            <Select value={rowsPerPage.toString()} onValueChange={(v) => setRowsPerPage(Number(v))}>
+            <Select value={rowsPerPage.toString()} onValueChange={(v) => { setRowsPerPage(Number(v)); setCurrentPage(1); }}>
               <SelectTrigger className="w-[60px] sm:w-[70px] text-xs sm:text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -343,6 +373,7 @@ export const DataTable = React.memo(function DataTable<T = Record<string, any>>(
             </Select>
           </div>
 
+          {totalPages > 1 && (
           <div className="flex items-center gap-2 flex-wrap justify-center">
             <Button
               variant="outline"
@@ -383,8 +414,9 @@ export const DataTable = React.memo(function DataTable<T = Record<string, any>>(
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 });
