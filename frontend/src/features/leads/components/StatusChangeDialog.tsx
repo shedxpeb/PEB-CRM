@@ -7,15 +7,23 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Lead, LeadStatus } from '@/types/leads';
 import { GitBranch, CheckCircle, ArrowRight } from 'lucide-react';
+import { DEFAULT_LEAD_CONFIGURATION } from '@/features/leads/hooks/useLeads';
 
 interface StatusChangeDialogProps {
   lead: Lead;
+  statusOptions?: LeadStatus[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (status: LeadStatus) => void;
 }
 
-export const StatusChangeDialog = memo(function StatusChangeDialog({ lead, open, onOpenChange, onSubmit }: StatusChangeDialogProps) {
+export const StatusChangeDialog = memo(function StatusChangeDialog({
+  lead,
+  statusOptions = DEFAULT_LEAD_CONFIGURATION.statuses as LeadStatus[],
+  open,
+  onOpenChange,
+  onSubmit,
+}: StatusChangeDialogProps) {
   const [selectedStatus, setSelectedStatus] = useState<LeadStatus>(lead.status);
   const [notes, setNotes] = useState('');
 
@@ -26,19 +34,6 @@ export const StatusChangeDialog = memo(function StatusChangeDialog({ lead, open,
       setNotes('');
     }
   }, [open, lead.status]);
-
-  const statusOptions: LeadStatus[] = [
-    'New',
-    'Contacted',
-    'Design Pending',
-    'BOQ Pending',
-    'Estimate Sent',
-    'Proposal Sent',
-    'Negotiation',
-    'Approved',
-    'Rejected',
-    'Converted',
-  ];
 
   const getStatusColor = (status: LeadStatus) => {
     switch (status) {

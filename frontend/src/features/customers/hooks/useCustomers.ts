@@ -3,9 +3,36 @@
  * React Query hooks for customers - never use useState/useEffect for server data
  */
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { customersApi } from '@/features/customers/services/customersApi';
-import { CustomerFilters, CreateCustomerDto, UpdateCustomerDto, ConvertLeadToCustomerDto } from '@/features/customers/types';
+import { CustomerFilters, CreateCustomerDto, UpdateCustomerDto, ConvertLeadToCustomerDto, CustomerCustomFieldDefinition } from '@/features/customers/types';
 import { PaginationParams } from '@/shared/types/pagination';
+import { useModuleConfiguration } from '@/features/settings/hooks/useSettings';
+import { CUSTOMER_MODULE_DEFAULTS } from '@/features/settings/utils/moduleConfigurationDefaults';
+import { pickModuleSettings } from '@/features/settings/utils/resolveModuleSettings';
+
+export interface CustomerModuleConfiguration {
+  statuses: string[];
+  customerTypes: string[];
+  territories: string[];
+  sources: string[];
+  industries: string[];
+  customFields: CustomerCustomFieldDefinition[];
+}
+
+export const DEFAULT_CUSTOMER_CONFIGURATION: CustomerModuleConfiguration = CUSTOMER_MODULE_DEFAULTS;
+
+export function useCustomerConfiguration(): CustomerModuleConfiguration & { isLoading: boolean } {
+  const { data, isLoading } = useModuleConfiguration('customers');
+
+  return useMemo(() => {
+    const settings = pickModuleSettings(data?.settings, DEFAULT_CUSTOMER_CONFIGURATION);
+    return {
+      ...settings,
+      isLoading,
+    };
+  }, [data, isLoading]);
+}
 
 /**
  * Fetch all customers with pagination and filters

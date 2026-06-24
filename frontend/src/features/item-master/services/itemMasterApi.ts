@@ -16,6 +16,7 @@ import {
   ItemMasterQuery,
   ItemMasterStats,
 } from '../types';
+import { getCategoryById } from '../data/categoryMasterData';
 
 // Mock data for development (replace with actual API calls)
 const mockItemMasters: ItemMaster[] = [
@@ -44,6 +45,14 @@ const mockItemMasters: ItemMaster[] = [
     gstRate: 18,
     hsnCode: '7208',
     status: 'Active',
+    itemTypeClass: 'Structural',
+    taxType: 'CGST_SGST',
+    materialGrade: 'IS 2062 Grade A',
+    isStructural: true,
+    thickness: 6,
+    length: 6000,
+    width: 1500,
+    customFields: { coatingType: 'Galvanized', fireRating: '2hr' },
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
   },
@@ -72,6 +81,13 @@ const mockItemMasters: ItemMaster[] = [
     gstRate: 18,
     hsnCode: '7208',
     status: 'Active',
+    itemTypeClass: 'Structural',
+    taxType: 'CGST_SGST',
+    materialGrade: 'IS 2062 Grade A',
+    isStructural: true,
+    thickness: 8,
+    length: 6000,
+    width: 1500,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
   },
@@ -88,7 +104,7 @@ const mockItemMasters: ItemMaster[] = [
     description: 'Pre-painted galvalume roofing sheet',
     specification: '0.5mm thickness, 1000mm effective width',
     technicalDescription: 'Zinc coating: 150 GSM, Paint coating: 35 microns',
-    weight: 5.5, // KG per SQM
+    weight: 5.5,
     standardDimensions: {
       length: 12000,
       width: 1000,
@@ -100,6 +116,12 @@ const mockItemMasters: ItemMaster[] = [
     gstRate: 18,
     hsnCode: '7210',
     status: 'Active',
+    itemTypeClass: 'Cladding',
+    taxType: 'CGST_SGST',
+    isCladding: true,
+    thickness: 0.5,
+    length: 12000,
+    width: 1000,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
   },
@@ -201,26 +223,52 @@ export const itemMasterApi = {
     
     // Apply filters
     if (query?.filter) {
-      const { category, status, search, brand } = query.filter;
-      
-      if (category) {
+      const { category, categoryId, status, search, brand, unit, itemTypeClass, taxType } = query.filter;
+
+      if (categoryId) {
+        const masterCategory = getCategoryById(categoryId);
+        items = items.filter(item =>
+          item.itemTypeId?.startsWith(categoryId) ||
+          item.categoryId === categoryId ||
+          item.subcategoryId === categoryId ||
+          (masterCategory ? item.category === masterCategory.name : false)
+        );
+      } else if (category) {
         items = items.filter(item => item.category === category);
       }
-      
+
       if (status) {
         items = items.filter(item => item.status === status);
       }
-      
+
       if (brand) {
         items = items.filter(item => item.brand === brand);
       }
-      
+
+      if (unit) {
+        items = items.filter(item => item.unit === unit);
+      }
+
+      if (itemTypeClass) {
+        items = items.filter(item => item.itemTypeClass === itemTypeClass);
+      }
+
+      if (taxType) {
+        items = items.filter(item => item.taxType === taxType);
+      }
+
       if (search) {
         const searchLower = search.toLowerCase();
         items = items.filter(item =>
           item.itemName.toLowerCase().includes(searchLower) ||
           item.itemCode.toLowerCase().includes(searchLower) ||
-          item.description?.toLowerCase().includes(searchLower)
+          item.sku?.toLowerCase().includes(searchLower) ||
+          item.brand?.toLowerCase().includes(searchLower) ||
+          item.grade?.toLowerCase().includes(searchLower) ||
+          item.hsnCode?.toLowerCase().includes(searchLower) ||
+          item.specification?.toLowerCase().includes(searchLower) ||
+          item.description?.toLowerCase().includes(searchLower) ||
+          item.manufacturer?.toLowerCase().includes(searchLower)
         );
       }
     }

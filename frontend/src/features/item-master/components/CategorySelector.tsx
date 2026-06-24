@@ -114,6 +114,40 @@ const CategorySelector = memo(function CategorySelector({
     return matchesSearch && matchesCategory;
   });
 
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+
+    if (selectedItemName) {
+      const parts = selectedItemName.split('-');
+      const itemName = parts[parts.length - 1];
+      const itemTypeId = parts.slice(0, parts.length - 1).join('-');
+      const isValid = allItems.some(
+        item =>
+          item.itemName === itemName &&
+          item.itemTypeId === itemTypeId &&
+          item.itemTypeId.startsWith(categoryId)
+      );
+
+      if (!isValid) {
+        setSelectedItemName('');
+        setSelectedItemType('');
+        setItemSearch('');
+      }
+    }
+  };
+
+  const selectedPath = (() => {
+    if (!selectedCategory) return '';
+    const category = getCategoryById(selectedCategory);
+    if (!category) return '';
+    let path = category.name;
+    if (selectedItemType) {
+      const itemType = getCategoryById(selectedItemType);
+      if (itemType) path += ` > ${itemType.name}`;
+    }
+    return path;
+  })();
+
   return (
     <div className="space-y-3">
       {/* Category Selection */}
@@ -121,7 +155,7 @@ const CategorySelector = memo(function CategorySelector({
         <Label htmlFor="category">Category *</Label>
         <Select
           value={selectedCategory}
-          onValueChange={setSelectedCategory}
+          onValueChange={handleCategoryChange}
           onOpenChange={(open) => {
             setIsCategoryDropdownOpen(open);
             if (open && categorySearchRef.current) {
@@ -165,6 +199,9 @@ const CategorySelector = memo(function CategorySelector({
             </div>
           </SelectContent>
         </Select>
+        {selectedPath && (
+          <p className="text-xs text-muted-foreground mt-1">{selectedPath}</p>
+        )}
       </div>
 
       {/* Item Selection */}

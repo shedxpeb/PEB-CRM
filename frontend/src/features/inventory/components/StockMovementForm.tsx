@@ -12,8 +12,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StockMovement } from '@/features/inventory/types';
-import { MOVEMENT_TYPES } from '@/features/inventory/constants';
-import { useInventoryItems, useWarehouses } from '@/features/inventory/hooks/useInventory';
+import { useInventoryItems, useWarehouses, useInventoryConfiguration } from '@/features/inventory/hooks/useInventory';
 import { X } from 'lucide-react';
 
 interface StockMovementFormProps {
@@ -24,6 +23,7 @@ interface StockMovementFormProps {
 }
 
 const StockMovementForm = memo(function StockMovementForm({ initialData, onSubmit, onCancel, isLoading }: StockMovementFormProps) {
+  const { movementTypes } = useInventoryConfiguration();
   const { data: itemsResponse } = useInventoryItems();
   const { data: warehouses } = useWarehouses();
   const items = itemsResponse?.data ?? [];
@@ -83,9 +83,9 @@ const StockMovementForm = memo(function StockMovementForm({ initialData, onSubmi
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {MOVEMENT_TYPES.map((mt) => (
-                    <SelectItem key={mt.value} value={mt.value}>
-                      {mt.label}
+                  {movementTypes.map((mt) => (
+                    <SelectItem key={mt} value={mt}>
+                      {mt}
                     </SelectItem>
                   ))}
                 </SelectContent>

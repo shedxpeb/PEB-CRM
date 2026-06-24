@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreateExpenseFormData } from '@/features/finance/validations';
-import { EXPENSE_CATEGORIES } from '@/features/finance/constants';
+import { useFinanceModuleConfiguration } from '@/features/finance/hooks/useFinanceConfiguration';
 import { useVendors } from '@/features/finance/hooks/useFinance';
 import { useProjects } from '@/features/projects/hooks/useProjects';
 
@@ -15,9 +15,12 @@ interface ExpenseFormProps {
   onSubmit: (data: CreateExpenseFormData) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  mode?: 'create' | 'edit';
+  initialData?: any;
 }
 
-export const ExpenseForm = memo(function ExpenseForm({ onSubmit, onCancel, isLoading }: ExpenseFormProps) {
+export const ExpenseForm = memo(function ExpenseForm({ onSubmit, onCancel, isLoading, mode = 'create', initialData }: ExpenseFormProps) {
+  const { expenseCategories } = useFinanceModuleConfiguration();
   const { data: vendors } = useVendors();
   const { data: projects } = useProjects();
 
@@ -35,6 +38,26 @@ export const ExpenseForm = memo(function ExpenseForm({ onSubmit, onCancel, isLoa
     notes: '',
     attachments: [],
   });
+
+  // Populate form with initial data when in edit mode
+  useEffect(() => {
+    if (mode === 'edit' && initialData) {
+      setFormData({
+        vendorId: initialData.vendorId || '',
+        category: initialData.category || 'Material Purchase',
+        subCategory: initialData.subCategory || '',
+        projectId: initialData.projectId || '',
+        amount: initialData.amount || 0,
+        taxAmount: initialData.taxAmount || 0,
+        date: initialData.date ? new Date(initialData.date) : new Date(),
+        description: initialData.description || '',
+        receiptNumber: initialData.receiptNumber || '',
+        invoiceNumber: initialData.invoiceNumber || '',
+        notes: initialData.notes || '',
+        attachments: initialData.attachments || [],
+      });
+    }
+  }, [mode, initialData]);
 
   const handleChange = useCallback((field: keyof CreateExpenseFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -76,7 +99,7 @@ export const ExpenseForm = memo(function ExpenseForm({ onSubmit, onCancel, isLoa
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {EXPENSE_CATEGORIES.map((category) => (
+                  {expenseCategories.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
                     </SelectItem>

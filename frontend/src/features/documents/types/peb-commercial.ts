@@ -237,6 +237,7 @@ export interface Estimate {
   updatedAt?: Date;
   sentAt?: Date;
   viewedAt?: Date;
+  createdBy?: string;
 }
 
 /**
@@ -469,6 +470,7 @@ export interface Proposal {
   updatedAt?: Date;
   sentAt?: Date;
   viewedAt?: Date;
+  createdBy?: string;
 }
 
 /**
@@ -663,6 +665,7 @@ export interface Quotation {
   viewedAt?: Date;
   acceptedAt?: Date;
   rejectedAt?: Date;
+  createdBy?: string;
 }
 
 /**

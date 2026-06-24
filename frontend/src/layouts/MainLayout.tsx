@@ -8,14 +8,14 @@ import { cn } from '@/lib/utils';
 
 interface MainLayoutProps {
   children: ReactNode;
-  title: string;
+  title?: string;
   subtitle?: string;
   currentPath?: string;
   showBackButton?: boolean;
   onBackClick?: () => void;
 }
 
-export const MainLayout = memo(function MainLayout({ children, title, subtitle, currentPath, showBackButton, onBackClick }: MainLayoutProps) {
+export const MainLayout = memo(function MainLayout({ children, title = '', subtitle, currentPath, showBackButton, onBackClick }: MainLayoutProps) {
   const isOpen = useSidebarIsOpen();
   const isCollapsed = useSidebarIsCollapsed();
 

@@ -4,6 +4,10 @@
  */
 
 import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import { useModuleConfiguration } from '@/features/settings/hooks/useSettings';
+import { DOCUMENT_MODULE_DEFAULTS } from '@/features/settings/utils/moduleConfigurationDefaults';
+import { pickModuleSettings } from '@/features/settings/utils/resolveModuleSettings';
 import { documentsApi, templatesApi, approvalsApi, versionsApi } from '../services/documentsApi';
 import type {
   Document,
@@ -25,6 +29,36 @@ import type {
   CreateVersionDto,
 } from '../types';
 import { PaginationParams } from '@/shared/types/pagination';
+
+export interface DocumentCustomFieldDefinition {
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'boolean' | 'select' | 'textarea';
+  options?: string[];
+}
+
+export interface DocumentModuleConfiguration {
+  estimateTypes: string[];
+  proposalTypes: string[];
+  quotationTypes: string[];
+  documentStatuses: string[];
+  approvalStatuses: string[];
+  customFields: DocumentCustomFieldDefinition[];
+}
+
+export const DEFAULT_DOCUMENT_CONFIGURATION: DocumentModuleConfiguration = DOCUMENT_MODULE_DEFAULTS;
+
+export function useDocumentConfiguration(): DocumentModuleConfiguration & { isLoading: boolean } {
+  const { data, isLoading } = useModuleConfiguration('documents');
+
+  return useMemo(() => {
+    const settings = pickModuleSettings(data?.settings, DEFAULT_DOCUMENT_CONFIGURATION);
+    return {
+      ...settings,
+      isLoading,
+    };
+  }, [data, isLoading]);
+}
 
 // ─── Documents Hooks ────────────────────────────────────────────────────────────
 

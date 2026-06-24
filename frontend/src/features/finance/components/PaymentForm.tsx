@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreatePaymentFormData } from '@/features/finance/validations';
-import { PAYMENT_METHODS } from '@/features/finance/constants';
+import { useFinanceModuleConfiguration } from '@/features/finance/hooks/useFinanceConfiguration';
 import { useCustomers } from '@/features/customers/hooks/useCustomers';
 import { useProjects } from '@/features/projects/hooks/useProjects';
 
@@ -15,9 +15,12 @@ interface PaymentFormProps {
   onSubmit: (data: CreatePaymentFormData) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  mode?: 'create' | 'edit';
+  initialData?: any;
 }
 
-export const PaymentForm = memo(function PaymentForm({ onSubmit, onCancel, isLoading }: PaymentFormProps) {
+export const PaymentForm = memo(function PaymentForm({ onSubmit, onCancel, isLoading, mode = 'create', initialData }: PaymentFormProps) {
+  const { paymentMethods } = useFinanceModuleConfiguration();
   const { data: customers } = useCustomers();
   const { data: projects } = useProjects();
 
@@ -35,6 +38,26 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, onCancel, isLoa
     notes: '',
     attachments: [],
   });
+
+  // Populate form with initial data when in edit mode
+  useEffect(() => {
+    if (mode === 'edit' && initialData) {
+      setFormData({
+        type: initialData.type || 'Stage',
+        invoiceId: initialData.invoiceId || '',
+        customerId: initialData.customerId || '',
+        projectId: initialData.projectId || '',
+        amount: initialData.amount || 0,
+        taxAmount: initialData.taxAmount || 0,
+        paymentDate: initialData.paymentDate ? new Date(initialData.paymentDate) : new Date(),
+        paymentMethod: initialData.paymentMethod || 'Bank Transfer',
+        referenceNumber: initialData.referenceNumber || '',
+        transactionId: initialData.transactionId || '',
+        notes: initialData.notes || '',
+        attachments: initialData.attachments || [],
+      });
+    }
+  }, [mode, initialData]);
 
   const handleChange = useCallback((field: keyof CreatePaymentFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -155,7 +178,7 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, onCancel, isLoa
                   <SelectValue placeholder="Select payment method" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PAYMENT_METHODS.map((method, index) => (
+                  {paymentMethods.map((method, index) => (
                     <SelectItem key={`${method}-${index}`} value={method}>
                       {method}
                     </SelectItem>

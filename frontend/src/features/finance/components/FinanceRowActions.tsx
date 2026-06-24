@@ -1,14 +1,8 @@
 'use client';
 
 import { memo } from 'react';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Eye, Pencil, Trash2, Send, CheckCircle, XCircle, FileText } from 'lucide-react';
+import { EntityRowActionsMenu } from '@/components/row-actions';
+import { Eye, Pencil, Trash2, Send, CheckCircle, XCircle, FileText } from 'lucide-react';
 
 interface FinanceRowActionsProps {
   onView?: () => void;
@@ -30,56 +24,70 @@ export const FinanceRowActions = memo(function FinanceRowActions({
   onGenerateReport,
 }: FinanceRowActionsProps) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {onView && (
-          <DropdownMenuItem onClick={onView}>
-            <Eye className="h-4 w-4 mr-2" />
-            View
-          </DropdownMenuItem>
-        )}
-        {onEdit && (
-          <DropdownMenuItem onClick={onEdit}>
-            <Pencil className="h-4 w-4 mr-2" />
-            Edit
-          </DropdownMenuItem>
-        )}
-        {onSend && (
-          <DropdownMenuItem onClick={onSend}>
-            <Send className="h-4 w-4 mr-2" />
-            Send
-          </DropdownMenuItem>
-        )}
-        {onApprove && (
-          <DropdownMenuItem onClick={onApprove}>
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Approve
-          </DropdownMenuItem>
-        )}
-        {onReject && (
-          <DropdownMenuItem onClick={onReject}>
-            <XCircle className="h-4 w-4 mr-2" />
-            Reject
-          </DropdownMenuItem>
-        )}
-        {onGenerateReport && (
-          <DropdownMenuItem onClick={onGenerateReport}>
-            <FileText className="h-4 w-4 mr-2" />
-            Generate Report
-          </DropdownMenuItem>
-        )}
-        {onDelete && (
-          <DropdownMenuItem onClick={onDelete} className="text-red-600">
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
-          </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <EntityRowActionsMenu
+      sections={{
+        view: [
+          {
+            key: 'view',
+            label: 'View Details',
+            icon: Eye,
+            onClick: () => onView?.(),
+            hidden: !onView,
+          },
+        ],
+        edit: [
+          {
+            key: 'edit',
+            label: 'Edit',
+            icon: Pencil,
+            onClick: () => onEdit?.(),
+            hidden: !onEdit,
+          },
+        ],
+        exportPrint: [
+          {
+            key: 'report',
+            label: 'Generate Report',
+            icon: FileText,
+            onClick: () => onGenerateReport?.(),
+            hidden: !onGenerateReport,
+          },
+        ],
+        communication: [
+          {
+            key: 'send',
+            label: 'Send',
+            icon: Send,
+            onClick: () => onSend?.(),
+            hidden: !onSend,
+          },
+        ],
+        workflow: [
+          {
+            key: 'approve',
+            label: 'Approve',
+            icon: CheckCircle,
+            onClick: () => onApprove?.(),
+            hidden: !onApprove,
+          },
+          {
+            key: 'reject',
+            label: 'Reject',
+            icon: XCircle,
+            onClick: () => onReject?.(),
+            hidden: !onReject,
+          },
+        ],
+        danger: [
+          {
+            key: 'delete',
+            label: 'Delete',
+            icon: Trash2,
+            onClick: () => onDelete?.(),
+            hidden: !onDelete,
+          },
+        ],
+      }}
+    />
   );
 });

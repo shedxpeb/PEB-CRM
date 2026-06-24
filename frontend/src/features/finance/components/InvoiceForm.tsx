@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreateInvoiceDto, InvoiceLineItem } from '@/features/finance/types';
-import { GST_TYPES } from '@/features/finance/constants';
+import { useFinanceModuleConfiguration } from '@/features/finance/hooks/useFinanceConfiguration';
 import { useCustomers } from '@/features/customers/hooks/useCustomers';
 import { useProjects } from '@/features/projects/hooks/useProjects';
 import { Plus, Trash2 } from 'lucide-react';
@@ -16,9 +16,12 @@ interface InvoiceFormProps {
   onSubmit: (data: CreateInvoiceDto) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  mode?: 'create' | 'edit';
+  initialData?: any;
 }
 
-export const InvoiceForm = memo(function InvoiceForm({ onSubmit, onCancel, isLoading }: InvoiceFormProps) {
+export const InvoiceForm = memo(function InvoiceForm({ onSubmit, onCancel, isLoading, mode = 'create', initialData }: InvoiceFormProps) {
+  const { gstTypes } = useFinanceModuleConfiguration();
   const { data: customers } = useCustomers();
   const { data: projects } = useProjects();
 
@@ -39,6 +42,28 @@ export const InvoiceForm = memo(function InvoiceForm({ onSubmit, onCancel, isLoa
     paymentTerms: 'Net 30',
     lineItems,
   });
+
+  // Populate form with initial data when in edit mode
+  useEffect(() => {
+    if (mode === 'edit' && initialData) {
+      setFormData({
+        customerId: initialData.customerId || '',
+        projectId: initialData.projectId || '',
+        sourceType: initialData.sourceType || 'Manual',
+        sourceId: initialData.sourceId || '',
+        subtotal: initialData.subtotal || 0,
+        taxAmount: initialData.taxAmount || 0,
+        totalAmount: initialData.totalAmount || 0,
+        gstType: initialData.gstType || 'CGST',
+        dueDate: initialData.dueDate ? new Date(initialData.dueDate) : new Date(),
+        paymentTerms: initialData.paymentTerms || 'Net 30',
+        lineItems: initialData.lineItems || lineItems,
+      });
+      if (initialData.lineItems && initialData.lineItems.length > 0) {
+        setLineItems(initialData.lineItems);
+      }
+    }
+  }, [mode, initialData]);
 
   const handleChange = useCallback((field: keyof CreateInvoiceDto, value: any) => {
     setFormData((prev: CreateInvoiceDto) => ({ ...prev, [field]: value }));
@@ -242,7 +267,7 @@ export const InvoiceForm = memo(function InvoiceForm({ onSubmit, onCancel, isLoa
                   <SelectValue placeholder="Select GST type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {GST_TYPES.map((type) => (
+                  {gstTypes.map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
                     </SelectItem>

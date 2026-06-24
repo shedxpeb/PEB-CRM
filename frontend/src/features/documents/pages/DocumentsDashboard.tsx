@@ -1,621 +1,408 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/layouts/MainLayout';
+import { DataTable, Column } from '@/components/data-table/DataTable';
 import { KPICard } from '@/components/dashboard/KPICard';
-import { DataTable } from '@/components/data-table/DataTable';
-import { DocumentActivityTimeline } from '@/features/documents/components/DocumentActivityTimeline';
-import { DocumentViewDialog } from '@/features/documents/components/DocumentViewDialog';
-import { SendDocumentDialog } from '@/features/documents/components/SendDocumentDialog';
-import { useEstimates, useProposals, useQuotations, useEstimateStats, useProposalStats, useQuotationStats } from '@/features/documents/hooks';
-import { Estimate, Proposal, Quotation } from '@/features/documents/types/peb-commercial';
+import { StandardPageLayout } from '@/components/layout/StandardPageLayout';
+import { FilterConfig } from '@/components/layout/FilterBar';
+import { DocumentViewDrawer } from '@/features/documents/components/DocumentViewDrawer';
+import { DocumentRowActions } from '@/features/documents/components/DocumentRowActions';
+import { useUnifiedDocuments } from '@/features/documents/hooks/useUnifiedDocuments';
+import { useDocumentConfiguration } from '@/features/documents/hooks/useDocuments';
+import { useDocumentPdfActions } from '@/features/documents/hooks/useDocumentPdfActions';
+import { UnifiedDocument, getDetailRoute, getEditRoute } from '@/features/documents/utils/documentHelpers';
 import { DOCUMENT_STATUS_BADGE_VARIANTS } from '@/features/documents/constants';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DocumentRowActions } from '@/features/documents/components/DocumentRowActions';
 import { useDebounce } from '@/shared/hooks/useDebounce';
+import { ROUTES } from '@/core/routes';
 import {
   FileText,
   File,
   FileSpreadsheet,
+  Receipt,
   Plus,
-  TrendingUp,
-  DollarSign,
-  CheckCircle,
-  Clock,
-  ArrowUpRight,
-  ArrowDownRight,
-  Search,
   ChevronDown,
-  Edit,
+  Download,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { cn } from '@/lib/utils';
-import { componentTextSizes } from '@/lib/design-system';
+
+const DOC_TYPES = ['all', 'Estimate', 'Proposal', 'Quotation', 'Invoice'] as const;
 
 export function DocumentsDashboard() {
+  const { documentStatuses } = useDocumentConfiguration();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const customerId = searchParams.get('customerId');
   const shouldCreate = searchParams.get('create') === 'true';
 
-  // Search and filter state with debounce
+  const { allDocuments, loading, refetch } = useUnifiedDocuments();
+  const { previewPdf, downloadPdf, PdfPreviewDialog } = useDocumentPdfActions();
+
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 300);
-
-  const router = useRouter();
-  const { data: estimatesResponse, loading: estimatesLoading, refetch: refetchEstimates, deleteEstimate, updateStatus: updateEstimateStatus } = useEstimates({ page: 1, pageSize: 5 });
-  const { data: proposalsResponse, loading: proposalsLoading, refetch: refetchProposals, deleteProposal, updateStatus: updateProposalStatus } = useProposals({ page: 1, pageSize: 5 });
-  const { data: quotationsResponse, loading: quotationsLoading, refetch: refetchQuotations, deleteQuotation, updateStatus: updateQuotationStatus } = useQuotations({ page: 1, pageSize: 5 });
-  const { data: estimateStats, refetch: refetchEstimateStats } = useEstimateStats();
-  const { data: proposalStats, refetch: refetchProposalStats } = useProposalStats();
-  const { data: quotationStats, refetch: refetchQuotationStats } = useQuotationStats();
-
-  const [selectedDocument, setSelectedDocument] = useState<Estimate | Proposal | Quotation | null>(null);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isSendDialogOpen, setIsSendDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'all' | 'estimates' | 'proposals' | 'quotations'>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [customerFilter, setCustomerFilter] = useState<string>('all');
+  const [projectFilter, setProjectFilter] = useState<string>('all');
+  const [createdByFilter, setCreatedByFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('all');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [isViewDrawerOpen, setIsViewDrawerOpen] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Auto-navigate to quotations page with create mode if coming from customer page
   useEffect(() => {
     if (shouldCreate && customerId) {
-      router.push(`/dashboard/documents/quotations?customerId=${customerId}&create=true`);
+      router.push(`${ROUTES.documentsQuotations}?customerId=${customerId}&create=true`);
     }
   }, [shouldCreate, customerId, router]);
 
-  const estimates = estimatesResponse || [];
-  const proposals = proposalsResponse || [];
-  const quotations = quotationsResponse || [];
-  
-  const allDocuments = [...estimates, ...proposals, ...quotations];
-  const filteredDocuments = activeTab === 'all' 
-    ? allDocuments 
-    : activeTab === 'estimates' ? estimates 
-    : activeTab === 'proposals' ? proposals 
-    : quotations;
-
-  const handleViewDocument = (document: Estimate | Proposal | Quotation) => {
-    setSelectedDocument(document);
-    setIsViewDialogOpen(true);
-  };
-
-  const handleEditDocument = (document: any) => {
-    // Navigate to edit page based on document type
-    if (document.estimateNumber) {
-      router.push(`/dashboard/documents/estimates?id=${document.id}`);
-    } else if (document.proposalNumber) {
-      router.push(`/dashboard/documents/proposals?id=${document.id}`);
-    } else if (document.quotationNumber) {
-      router.push(`/dashboard/documents/quotations?id=${document.id}`);
+  const filterOptions = useMemo(() => {
+    const customers = new Set<string>();
+    const projects = new Set<string>();
+    const creators = new Set<string>();
+    for (const doc of allDocuments) {
+      if (doc.customerName) customers.add(doc.customerName);
+      if (doc.projectName) projects.add(doc.projectName);
+      if (doc.createdBy) creators.add(doc.createdBy);
     }
-  };
+    return {
+      customers: [...customers].sort(),
+      projects: [...projects].sort(),
+      creators: [...creators].sort(),
+    };
+  }, [allDocuments]);
 
-  const handleDeleteDocument = async (document: any) => {
-    if (confirm(`Are you sure you want to delete ${document.estimateNumber || document.proposalNumber || document.quotationNumber}?`)) {
-      try {
-        // Call the appropriate delete function based on document type
-        if (document.estimateNumber && deleteEstimate) {
-          await deleteEstimate(document.id);
-        } else if (document.proposalNumber && deleteProposal) {
-          await deleteProposal(document.id);
-        } else if (document.quotationNumber && deleteQuotation) {
-          await deleteQuotation(document.id);
-        }
-        // Refetch all data to update UI
-        await Promise.all([
-          refetchEstimates?.(),
-          refetchProposals?.(),
-          refetchQuotations?.(),
-          refetchEstimateStats?.(),
-          refetchProposalStats?.(),
-          refetchQuotationStats?.(),
-        ]);
-      } catch (error) {
-        console.error('Delete failed:', error);
-        alert('Failed to delete document');
-      }
+  const filteredDocuments = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
+    return allDocuments.filter((doc) => {
+      const matchesType = typeFilter === 'all' || doc.documentType === typeFilter;
+      const matchesStatus = statusFilter === 'all' || doc.status === statusFilter;
+      const matchesCustomer = customerFilter === 'all' || doc.customerName === customerFilter;
+      const matchesProject = projectFilter === 'all' || doc.projectName === projectFilter;
+      const matchesCreator = createdByFilter === 'all' || doc.createdBy === createdByFilter;
+      const docDate = doc.createdAt ? new Date(doc.createdAt) : null;
+      const now = new Date();
+      const matchesDate =
+        dateFilter === 'all' ||
+        (dateFilter === 'this_month' && docDate && docDate.getMonth() === now.getMonth() && docDate.getFullYear() === now.getFullYear()) ||
+        (dateFilter === 'last_30' && docDate && now.getTime() - docDate.getTime() <= 30 * 24 * 60 * 60 * 1000);
+      const matchesSearch =
+        !debouncedSearch ||
+        doc.documentNumber.toLowerCase().includes(q) ||
+        doc.customerName.toLowerCase().includes(q) ||
+        (doc.projectName?.toLowerCase().includes(q) ?? false) ||
+        doc.status.toLowerCase().includes(q) ||
+        doc.documentType.toLowerCase().includes(q) ||
+        (doc.createdBy?.toLowerCase().includes(q) ?? false);
+      return matchesType && matchesStatus && matchesCustomer && matchesProject && matchesCreator && matchesDate && matchesSearch;
+    });
+  }, [allDocuments, debouncedSearch, typeFilter, statusFilter, customerFilter, projectFilter, createdByFilter, dateFilter]);
+
+  const selectedDocument = useMemo(
+    () => (selectedDocId ? allDocuments.find((d) => d.id === selectedDocId) ?? null : null),
+    [allDocuments, selectedDocId]
+  );
+
+  const filteredStats = useMemo(() => {
+    let estimates = 0;
+    let proposals = 0;
+    let quotations = 0;
+    let invoices = 0;
+    let draft = 0;
+    let approved = 0;
+    let sent = 0;
+    for (const doc of filteredDocuments) {
+      if (doc.documentType === 'Estimate') estimates++;
+      if (doc.documentType === 'Proposal') proposals++;
+      if (doc.documentType === 'Quotation') quotations++;
+      if (doc.documentType === 'Invoice') invoices++;
+      if (doc.status === 'Draft') draft++;
+      if (doc.status === 'Approved' || doc.status === 'Accepted') approved++;
+      if (doc.status === 'Sent') sent++;
     }
-  };
+    return { total: filteredDocuments.length, estimates, proposals, quotations, invoices, draft, approved, sent };
+  }, [filteredDocuments]);
 
-  const handleApproveDocument = async (document: any) => {
-    if (confirm(`Are you sure you want to approve ${document.estimateNumber || document.proposalNumber || document.quotationNumber}?`)) {
-      try {
-        if (document.estimateNumber && updateEstimateStatus) {
-          await updateEstimateStatus(document.id, 'Approved');
-        } else if (document.proposalNumber && updateProposalStatus) {
-          await updateProposalStatus(document.id, 'Approved');
-        } else if (document.quotationNumber && updateQuotationStatus) {
-          await updateQuotationStatus(document.id, 'Approved');
-        }
-        // Refetch all data to update UI
-        await Promise.all([
-          refetchEstimates?.(),
-          refetchProposals?.(),
-          refetchQuotations?.(),
-          refetchEstimateStats?.(),
-          refetchProposalStats?.(),
-          refetchQuotationStats?.(),
-        ]);
-      } catch (error) {
-        console.error('Approve failed:', error);
-        alert('Failed to approve document');
-      }
-    }
-  };
+  const kpiData = useMemo(
+    () => [
+      { title: 'Total Documents', value: String(filteredStats.total), change: 0, icon: <FileText className="h-5 w-5 text-blue-600" />, color: 'text-blue-600' },
+      { title: 'Estimates', value: String(filteredStats.estimates), change: 0, icon: <FileText className="h-5 w-5 text-indigo-600" />, color: 'text-indigo-600' },
+      { title: 'Proposals', value: String(filteredStats.proposals), change: 0, icon: <File className="h-5 w-5 text-purple-600" />, color: 'text-purple-600' },
+      { title: 'Quotations', value: String(filteredStats.quotations), change: 0, icon: <FileSpreadsheet className="h-5 w-5 text-green-600" />, color: 'text-green-600' },
+      { title: 'Invoices', value: String(filteredStats.invoices), change: 0, icon: <Receipt className="h-5 w-5 text-emerald-600" />, color: 'text-emerald-600' },
+      { title: 'Draft', value: String(filteredStats.draft), change: 0, icon: <FileText className="h-5 w-5 text-gray-600" />, color: 'text-gray-600' },
+      { title: 'Approved', value: String(filteredStats.approved), change: 0, icon: <FileText className="h-5 w-5 text-teal-600" />, color: 'text-teal-600' },
+      { title: 'Sent', value: String(filteredStats.sent), change: 0, icon: <FileText className="h-5 w-5 text-orange-600" />, color: 'text-orange-600' },
+    ],
+    [filteredStats]
+  );
 
-  const handleRejectDocument = async (document: any) => {
-    const reason = prompt('Please enter rejection reason:');
-    if (reason) {
-      try {
-        if (document.estimateNumber && updateEstimateStatus) {
-          await updateEstimateStatus(document.id, 'Rejected');
-        } else if (document.proposalNumber && updateProposalStatus) {
-          await updateProposalStatus(document.id, 'Rejected');
-        } else if (document.quotationNumber && updateQuotationStatus) {
-          await updateQuotationStatus(document.id, 'Rejected');
-        }
-        // Refetch all data to update UI
-        await Promise.all([
-          refetchEstimates?.(),
-          refetchProposals?.(),
-          refetchQuotations?.(),
-          refetchEstimateStats?.(),
-          refetchProposalStats?.(),
-          refetchQuotationStats?.(),
-        ]);
-      } catch (error) {
-        console.error('Reject failed:', error);
-        alert('Failed to reject document');
-      }
-    }
-  };
+  const tableFilterKey = useMemo(
+    () => [debouncedSearch, typeFilter, statusFilter, customerFilter, projectFilter, createdByFilter, dateFilter].join('|'),
+    [debouncedSearch, typeFilter, statusFilter, customerFilter, projectFilter, createdByFilter, dateFilter]
+  );
 
-  const handleCopyDocument = async (document: any) => {
-    try {
-      const newDoc = { ...document, id: undefined, estimateNumber: undefined, proposalNumber: undefined, quotationNumber: undefined, status: 'Draft', version: 1, createdAt: new Date(), updatedAt: new Date() };
-      // For now, just show alert since create functions need proper implementation
-      alert('Document copied successfully (mock)');
-      // Refetch all data to update UI
-      await Promise.all([
-        refetchEstimates?.(),
-        refetchProposals?.(),
-        refetchQuotations?.(),
-        refetchEstimateStats?.(),
-        refetchProposalStats?.(),
-        refetchQuotationStats?.(),
-      ]);
-    } catch (error) {
-      console.error('Copy failed:', error);
-      alert('Failed to copy document');
-    }
-  };
-
-  const handleSendDocument = (document: any) => {
-    // Default to email for send action
-    handleSendEmail(document);
-  };
-
-  const handleSendEmail = (document: any) => {
-    const docNumber = document.estimateNumber || document.proposalNumber || document.quotationNumber;
-    const docType = document.estimateNumber ? 'Estimate' : document.proposalNumber ? 'Proposal' : 'Quotation';
-    const customerEmail = document.customerEmail || '';
-    const subject = encodeURIComponent(`${docType} ${docNumber}`);
-    const body = encodeURIComponent(`Please find attached the ${docType} ${docNumber}.\n\nThank you.`);
-    
-    // Open email client directly
-    window.location.href = `mailto:${customerEmail}?subject=${subject}&body=${body}`;
-  };
-
-  const handleSendWhatsApp = (document: any) => {
-    const docNumber = document.estimateNumber || document.proposalNumber || document.quotationNumber;
-    const docType = document.estimateNumber ? 'Estimate' : document.proposalNumber ? 'Proposal' : 'Quotation';
-    const customerPhone = document.customerPhone || '';
-    const message = encodeURIComponent(`Please find attached the ${docType} ${docNumber}.`);
-    
-    // Open WhatsApp directly
-    window.open(`https://wa.me/${customerPhone.replace(/[^0-9]/g, '')}?text=${message}`, '_blank');
-  };
-
-  const handlePrint = (document: any) => {
-    // Open the document in a new window for printing
-    const docNumber = document.estimateNumber || document.proposalNumber || document.quotationNumber;
-    const docType = document.estimateNumber ? 'Estimate' : document.proposalNumber ? 'Proposal' : 'Quotation';
-    // For now, use browser print - in production, this would generate a print-friendly view
-    window.print();
-  };
-
-  const handleDownloadPDF = async (document: any) => {
-    try {
-      // For now, show alert - in production, this would use the PDF generation module
-      const docNumber = document.estimateNumber || document.proposalNumber || document.quotationNumber;
-      alert(`Download PDF for ${docNumber} - PDF generation will use @react-pdf/renderer module`);
-      // TODO: Implement actual PDF download using the existing PDF generation module
-      // The PDF module is already in: frontend/src/features/documents/pdf/EstimatePDF.tsx
-    } catch (error) {
-      console.error('PDF download failed:', error);
-      alert('Failed to download PDF');
-    }
-  };
-
-  const handleCreateVersion = async (document: any) => {
-    try {
-      const currentVersion = document.version || 1;
-      const newVersion = currentVersion + 1;
-      const docNumber = document.estimateNumber || document.proposalNumber || document.quotationNumber;
-      
-      // Create a new version by duplicating the document with incremented version number
-      const newDoc = {
-        ...document,
-        id: undefined,
-        version: newVersion,
-        status: 'Draft',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        // Keep the original document number but add version suffix
-        estimateNumber: document.estimateNumber ? `${document.estimateNumber}-V${newVersion}` : undefined,
-        proposalNumber: document.proposalNumber ? `${document.proposalNumber}-V${newVersion}` : undefined,
-        quotationNumber: document.quotationNumber ? `${document.quotationNumber}-V${newVersion}` : undefined,
-      };
-
-      // For now, just show alert since create functions need proper implementation
-      alert(`Created version ${newVersion} of ${docNumber} (mock)`);
-      
-      // Refetch all data to update UI
-      await Promise.all([
-        refetchEstimates?.(),
-        refetchProposals?.(),
-        refetchQuotations?.(),
-        refetchEstimateStats?.(),
-        refetchProposalStats?.(),
-        refetchQuotationStats?.(),
-      ]);
-    } catch (error) {
-      console.error('Create version failed:', error);
-      alert('Failed to create version');
-    }
-  };
-
-  const columns = [
-    {
-      key: 'documentNumber',
-      label: 'Document #',
-      sortable: true,
-      render: (_: any, row: any) => {
-        if (row.estimateNumber) return row.estimateNumber;
-        if (row.proposalNumber) return row.proposalNumber;
-        if (row.quotationNumber) return row.quotationNumber;
-        return '-';
+  const filterConfigs: FilterConfig[] = useMemo(
+    () => [
+      {
+        key: 'type',
+        label: 'Document Type',
+        value: typeFilter,
+        onChange: setTypeFilter,
+        options: [{ value: 'all', label: 'All Types' }, ...DOC_TYPES.filter((t) => t !== 'all').map((t) => ({ value: t, label: t }))],
       },
-    },
-    {
-      key: 'documentType',
-      label: 'Type',
-      sortable: true,
-      render: (_: any, row: any) => {
-        let type = 'Unknown';
-        let shortType = 'Unknown';
-        let Icon = FileText;
-        if (row.estimateNumber) { type = 'Estimate'; shortType = 'Est'; Icon = FileText; }
-        else if (row.proposalNumber) { type = 'Proposal'; shortType = 'Prop'; Icon = File; }
-        else if (row.quotationNumber) { type = 'Quotation'; shortType = 'Quot'; Icon = FileSpreadsheet; }
-        return (
-          <div className="flex items-center gap-2">
-            <Icon className="h-4 w-4" />
-            <span className="font-medium">{shortType}</span>
+      {
+        key: 'status',
+        label: 'Status',
+        value: statusFilter,
+        onChange: setStatusFilter,
+        options: [{ value: 'all', label: 'All Status' }, ...documentStatuses.map((s) => ({ value: s, label: s }))],
+      },
+      {
+        key: 'customer',
+        label: 'Customer',
+        value: customerFilter,
+        onChange: setCustomerFilter,
+        options: [{ value: 'all', label: 'All Customers' }, ...filterOptions.customers.map((c) => ({ value: c, label: c }))],
+      },
+      {
+        key: 'project',
+        label: 'Project',
+        value: projectFilter,
+        onChange: setProjectFilter,
+        options: [{ value: 'all', label: 'All Projects' }, ...filterOptions.projects.map((p) => ({ value: p, label: p }))],
+      },
+      {
+        key: 'createdBy',
+        label: 'Created By',
+        value: createdByFilter,
+        onChange: setCreatedByFilter,
+        options: [{ value: 'all', label: 'All Users' }, ...filterOptions.creators.map((c) => ({ value: c, label: c }))],
+      },
+      {
+        key: 'date',
+        label: 'Date',
+        value: dateFilter,
+        onChange: setDateFilter,
+        options: [
+          { value: 'all', label: 'All Dates' },
+          { value: 'this_month', label: 'This Month' },
+          { value: 'last_30', label: 'Last 30 Days' },
+        ],
+      },
+    ],
+    [typeFilter, statusFilter, customerFilter, projectFilter, createdByFilter, dateFilter, filterOptions]
+  );
+
+  const handleClearFilters = useCallback(() => {
+    setTypeFilter('all');
+    setStatusFilter('all');
+    setCustomerFilter('all');
+    setProjectFilter('all');
+    setCreatedByFilter('all');
+    setDateFilter('all');
+    setSearchQuery('');
+  }, []);
+
+  const columns: Column<UnifiedDocument>[] = useMemo(
+    () => [
+      { key: 'documentNumber', label: 'Document #', sortable: true, render: (v) => <span className="font-mono text-xs">{v}</span> },
+      {
+        key: 'documentType',
+        label: 'Type',
+        sortable: true,
+        render: (v) => (
+          <Badge variant="outline" className="text-[10px]">{v}</Badge>
+        ),
+      },
+      {
+        key: 'customerName',
+        label: 'Customer',
+        sortable: true,
+        className: 'min-w-[120px] max-w-[180px]',
+        render: (v, row) => (
+          <div className="min-w-0">
+            <p className="text-xs font-medium truncate">{v}</p>
+            <p className="text-[11px] text-muted-foreground truncate">{row.projectName || '-'}</p>
           </div>
-        );
+        ),
       },
-    },
-    {
-      key: 'customerName',
-      label: 'Customer',
-      sortable: true,
-    },
-    {
-      key: 'totalAmount',
-      label: 'Amount',
-      sortable: true,
-      render: (_: any, row: any) => {
-        const amount = row.grandTotal || row.totalAmount || 0;
-        return amount ? `₹${amount.toLocaleString()}` : '-';
+      {
+        key: 'totalAmount',
+        label: 'Amount',
+        sortable: true,
+        render: (v) => <span className="text-xs font-medium">{v ? `₹${Number(v).toLocaleString()}` : '-'}</span>,
       },
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      sortable: true,
-      render: (value: string) => (
-        <Badge variant={DOCUMENT_STATUS_BADGE_VARIANTS[value as keyof typeof DOCUMENT_STATUS_BADGE_VARIANTS]}>
-          {value}
-        </Badge>
+      {
+        key: 'status',
+        label: 'Status',
+        sortable: true,
+        render: (v) => (
+          <Badge variant={DOCUMENT_STATUS_BADGE_VARIANTS[v as keyof typeof DOCUMENT_STATUS_BADGE_VARIANTS] ?? 'secondary'} className="text-[10px]">
+            {v}
+          </Badge>
+        ),
+      },
+      {
+        key: 'createdBy',
+        label: 'Created By',
+        className: 'hidden lg:table-cell',
+        headerClassName: 'hidden lg:table-cell',
+        render: (v) => <span className="text-xs">{v || '-'}</span>,
+      },
+      {
+        key: 'createdAt',
+        label: 'Created',
+        sortable: true,
+        className: 'hidden md:table-cell',
+        headerClassName: 'hidden md:table-cell',
+        render: (v) => (
+          <span className="text-xs text-muted-foreground">
+            {v ? new Date(v).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '-'}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
+
+  const handleRowClick = useCallback((doc: UnifiedDocument) => {
+    setSelectedDocId(doc.id);
+    setIsViewDrawerOpen(true);
+  }, []);
+
+  const handleViewDetails = useCallback((doc: UnifiedDocument) => {
+    router.push(getDetailRoute(doc));
+  }, [router]);
+
+  const handleEdit = useCallback((doc: UnifiedDocument) => {
+    router.push(getEditRoute(doc));
+  }, [router]);
+
+  const handleExport = useCallback(() => {
+    const headers = ['Document #', 'Type', 'Customer', 'Project', 'Amount', 'Status', 'Created By'];
+    const csv = [
+      headers.join(','),
+      ...filteredDocuments.map((d) =>
+        [d.documentNumber, d.documentType, `"${d.customerName}"`, d.projectName || '', d.totalAmount, d.status, d.createdBy || ''].join(',')
       ),
-    },
-  ];
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `documents_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, [filteredDocuments]);
+
+  if (loading && !allDocuments.length) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
-    <MainLayout title="Documents" subtitle="Manage estimates, proposals, and quotations">
-      <div className="space-y-4 sm:space-y-6 w-full overflow-hidden">
-        {/* Header Actions */}
-        <div className="flex justify-end min-w-0">
-          <div className="relative" ref={dropdownRef}>
-            <Button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="w-full sm:w-auto"
-            >
+    <MainLayout>
+      <StandardPageLayout
+        title="Documents"
+        subtitle="Estimates, proposals, quotations and invoices"
+        headerActions={
+          <div className="relative">
+            <Button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="h-9">
               <Plus className="h-4 w-4 mr-2" />
               New Document
               <ChevronDown className="h-4 w-4 ml-2" />
             </Button>
-            
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border z-50">
+              <div className="absolute right-0 mt-2 w-48 bg-background rounded-md shadow-lg border z-50">
                 <div className="py-1">
-                  <button
-                    onClick={() => {
-                      router.push('/dashboard/documents/estimates?create=true');
-                      setIsDropdownOpen(false);
-                    }}
-                    className={cn('w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2', componentTextSizes.button.md)}
-                  >
-                    <FileText className="h-4 w-4" />
-                    New Estimate
+                  <button type="button" className="w-full text-left px-4 py-2 hover:bg-muted flex items-center gap-2 text-sm" onClick={() => { router.push(`${ROUTES.documentsEstimates}?create=true`); setIsDropdownOpen(false); }}>
+                    <FileText className="h-4 w-4" /> New Estimate
                   </button>
-                  <button
-                    onClick={() => {
-                      router.push('/dashboard/documents/proposals?create=true');
-                      setIsDropdownOpen(false);
-                    }}
-                    className={cn('w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2', componentTextSizes.button.md)}
-                  >
-                    <File className="h-4 w-4" />
-                    New Proposal
+                  <button type="button" className="w-full text-left px-4 py-2 hover:bg-muted flex items-center gap-2 text-sm" onClick={() => { router.push(`${ROUTES.documentsProposals}?create=true`); setIsDropdownOpen(false); }}>
+                    <File className="h-4 w-4" /> New Proposal
                   </button>
-                  <button
-                    onClick={() => {
-                      router.push('/dashboard/documents/quotations?create=true');
-                      setIsDropdownOpen(false);
-                    }}
-                    className={cn('w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2', componentTextSizes.button.md)}
-                  >
-                    <FileSpreadsheet className="h-4 w-4" />
-                    New Quotation
+                  <button type="button" className="w-full text-left px-4 py-2 hover:bg-muted flex items-center gap-2 text-sm" onClick={() => { router.push(`${ROUTES.documentsQuotations}?create=true`); setIsDropdownOpen(false); }}>
+                    <FileSpreadsheet className="h-4 w-4" /> New Quotation
                   </button>
                 </div>
               </div>
             )}
           </div>
+        }
+        kpiCards={kpiData.map((kpi, i) => <KPICard key={i} data={kpi} />)}
+        kpiGridClassName="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4"
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by document number, customer, project, status, type, or created by..."
+        filters={filterConfigs}
+        onClearFilters={handleClearFilters}
+        filterMode="popover"
+        toolbarActions={
+          <Button variant="outline" size="sm" onClick={handleExport} className="h-9 gap-1.5 text-xs">
+            <Download className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Export</span>
+          </Button>
+        }
+        className="gap-4 sm:gap-6"
+      >
+        <div className="min-w-0">
+          <DataTable
+            key={tableFilterKey}
+            columns={columns}
+            data={filteredDocuments}
+            showToolbar={false}
+            compact
+            loading={loading}
+            onRowClick={handleRowClick}
+            enableSelection
+            selectedRows={selectedRows}
+            onSelectionChange={setSelectedRows}
+            rowIdKey="id"
+            emptyMessage="No documents found. Adjust filters or create a new document."
+            rowActions={(row) => (
+              <DocumentRowActions
+                document={row.source}
+                onView={() => handleViewDetails(row)}
+                onEdit={() => handleEdit(row)}
+                onDelete={() => {}}
+                onSend={() => {}}
+                onApprove={() => {}}
+                onReject={() => {}}
+                onVersion={() => {}}
+                onEmail={() => {}}
+                onWhatsApp={() => {}}
+                onPrint={() => handleViewDetails(row)}
+                onPreviewPdf={() => previewPdf(row.source)}
+                onDownload={() => downloadPdf(row.source)}
+                onCopy={() => {}}
+              />
+            )}
+          />
         </div>
+      </StandardPageLayout>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-        <KPICard
-          data={{
-            title: 'Total Documents',
-            value: ((estimateStats?.totalEstimates || 0) + (proposalStats?.totalProposals || 0) + (quotationStats?.totalQuotations || 0)).toString(),
-            change: 12,
-            color: 'text-blue-600',
-            icon: <FileText />,
-          }}
-        />
-        <KPICard
-          data={{
-            title: 'Revenue Pipeline',
-            value: `₹${(quotationStats?.totalRevenuePipeline || 0).toLocaleString()}`,
-            change: 8,
-            color: 'text-green-600',
-            icon: <DollarSign />,
-          }}
-        />
-        <KPICard
-          data={{
-            title: 'Conversion Rate',
-            value: '0%',
-            change: 5,
-            color: 'text-purple-600',
-            icon: <TrendingUp />,
-          }}
-        />
-        <KPICard
-          data={{
-            title: 'Pending Approvals',
-            value: '0',
-            change: -2,
-            color: 'text-orange-600',
-            icon: <Clock />,
-          }}
-        />
-      </div>
-
-      {/* Document Type Breakdown */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
-        <KPICard
-          data={{
-            title: 'Estimates',
-            value: (estimateStats?.totalEstimates || 0).toString(),
-            change: 15,
-            color: 'text-blue-600',
-            icon: <FileText />,
-          }}
-        />
-        <KPICard
-          data={{
-            title: 'Proposals',
-            value: (proposalStats?.totalProposals || 0).toString(),
-            change: 10,
-            color: 'text-purple-600',
-            icon: <File />,
-          }}
-        />
-        <KPICard
-          data={{
-            title: 'Quotations',
-            value: (quotationStats?.totalQuotations || 0).toString(),
-            change: 8,
-            color: 'text-green-600',
-            icon: <FileSpreadsheet />,
-          }}
-        />
-      </div>
-
-      {/* Documents Section */}
-      <Card className="min-w-0">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <CardTitle className={cn(componentTextSizes.cardHeader.title, 'sm:text-lg')}>Documents</CardTitle>
-            <div className="relative flex-1 sm:flex-none max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search documents..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 w-full text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
-              <TabsTrigger value="all" className={componentTextSizes.tab}>All Docs</TabsTrigger>
-              <TabsTrigger value="estimates" className={componentTextSizes.tab}>Estimates</TabsTrigger>
-              <TabsTrigger value="proposals" className={componentTextSizes.tab}>Proposals</TabsTrigger>
-              <TabsTrigger value="quotations" className={componentTextSizes.tab}>Quotes</TabsTrigger>
-            </TabsList>
-            <TabsContent value="all" className="mt-4">
-              <DataTable
-                data={filteredDocuments}
-                columns={columns as any}
-                loading={estimatesLoading || proposalsLoading || quotationsLoading}
-                onRowClick={(row) => handleViewDocument(row)}
-                rowActions={(row) => (
-                  <DocumentRowActions
-                    document={row as any}
-                    onView={() => handleViewDocument(row)}
-                    onEdit={() => handleEditDocument(row)}
-                    onDelete={() => handleDeleteDocument(row)}
-                    onSend={() => handleSendDocument(row)}
-                    onApprove={() => handleApproveDocument(row)}
-                    onReject={() => handleRejectDocument(row)}
-                    onVersion={() => handleCreateVersion(row)}
-                    onEmail={() => handleSendEmail(row)}
-                    onWhatsApp={() => handleSendWhatsApp(row)}
-                    onPrint={() => handlePrint(row)}
-                    onDownload={() => handleDownloadPDF(row)}
-                    onCopy={() => handleCopyDocument(row)}
-                  />
-                )}
-              />
-            </TabsContent>
-            <TabsContent value="estimates" className="mt-4">
-              <DataTable
-                data={filteredDocuments}
-                columns={columns as any}
-                loading={estimatesLoading}
-                onRowClick={(row) => handleViewDocument(row)}
-                rowActions={(row) => (
-                  <DocumentRowActions
-                    document={row as any}
-                    onView={() => handleViewDocument(row)}
-                    onEdit={() => handleEditDocument(row)}
-                    onDelete={() => handleDeleteDocument(row)}
-                    onSend={() => handleSendDocument(row)}
-                    onApprove={() => handleApproveDocument(row)}
-                    onReject={() => handleRejectDocument(row)}
-                    onVersion={() => handleCreateVersion(row)}
-                    onEmail={() => handleSendEmail(row)}
-                    onWhatsApp={() => handleSendWhatsApp(row)}
-                    onPrint={() => handlePrint(row)}
-                    onDownload={() => handleDownloadPDF(row)}
-                    onCopy={() => handleCopyDocument(row)}
-                  />
-                )}
-              />
-            </TabsContent>
-            <TabsContent value="proposals" className="mt-4">
-              <DataTable
-                data={filteredDocuments}
-                columns={columns as any}
-                loading={proposalsLoading}
-                onRowClick={(row) => handleViewDocument(row)}
-                rowActions={(row) => (
-                  <DocumentRowActions
-                    document={row as any}
-                    onView={() => handleViewDocument(row)}
-                    onEdit={() => handleEditDocument(row)}
-                    onDelete={() => handleDeleteDocument(row)}
-                    onSend={() => handleSendDocument(row)}
-                    onApprove={() => handleApproveDocument(row)}
-                    onReject={() => handleRejectDocument(row)}
-                    onVersion={() => handleCreateVersion(row)}
-                    onEmail={() => handleSendEmail(row)}
-                    onWhatsApp={() => handleSendWhatsApp(row)}
-                    onPrint={() => handlePrint(row)}
-                    onDownload={() => handleDownloadPDF(row)}
-                    onCopy={() => handleCopyDocument(row)}
-                  />
-                )}
-              />
-            </TabsContent>
-            <TabsContent value="quotations" className="mt-4">
-              <DataTable
-                data={filteredDocuments}
-                columns={columns as any}
-                loading={quotationsLoading}
-                onRowClick={(row) => handleViewDocument(row)}
-                rowActions={(row) => (
-                  <DocumentRowActions
-                    document={row as any}
-                    onView={() => handleViewDocument(row)}
-                    onEdit={() => handleEditDocument(row)}
-                    onDelete={() => handleDeleteDocument(row)}
-                    onSend={() => handleSendDocument(row)}
-                    onApprove={() => handleApproveDocument(row)}
-                    onReject={() => handleRejectDocument(row)}
-                    onVersion={() => handleCreateVersion(row)}
-                    onEmail={() => handleSendEmail(row)}
-                    onWhatsApp={() => handleSendWhatsApp(row)}
-                    onPrint={() => handlePrint(row)}
-                    onDownload={() => handleDownloadPDF(row)}
-                    onCopy={() => handleCopyDocument(row)}
-                  />
-                )}
-              />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-
-      {/* Document View Dialog */}
-      <DocumentViewDialog
-        document={selectedDocument}
-        open={isViewDialogOpen}
-        onOpenChange={setIsViewDialogOpen}
+      <DocumentViewDrawer
+        document={selectedDocument?.source ?? null}
+        open={isViewDrawerOpen}
+        onOpenChange={setIsViewDrawerOpen}
+        onPreviewPdf={previewPdf}
+        onDownloadPdf={downloadPdf}
+        onEdit={(doc) => {
+          setIsViewDrawerOpen(false);
+          const unified = allDocuments.find((d) => d.id === (doc as { id: string }).id);
+          if (unified) handleEdit(unified);
+        }}
       />
-
-      {/* Send Document Dialog */}
-      <SendDocumentDialog
-        document={selectedDocument}
-        open={isSendDialogOpen}
-        onOpenChange={setIsSendDialogOpen}
-      />
-      </div>
+      {PdfPreviewDialog}
     </MainLayout>
   );
 }

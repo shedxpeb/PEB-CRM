@@ -7,6 +7,7 @@ import { DataTable, Column } from '@/components/data-table/DataTable';
 import { CustomerActivityTimeline } from '@/features/customers/components/CustomerActivityTimeline';
 import { CustomerQuickActions } from '@/features/customers/components/CustomerQuickActions';
 import { CustomerHeroCard } from '@/features/customers/components/CustomerHeroCard';
+import { CustomerCustomFields } from '@/features/customers/components/CustomerCustomFields';
 import { CustomerHealthScore } from '@/features/customers/components/CustomerHealthScore';
 import { CustomerSummary } from '@/features/customers/components/CustomerSummary';
 import { ClickableKPICard } from '@/features/customers/components/ClickableKPICard';
@@ -20,7 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Customer, CustomerStatus } from '@/features/customers';
 import { getStatusVariant } from '@/features/customers/constants';
-import { useCustomer, useCustomerActivities } from '@/features/customers/hooks/useCustomers';
+import { useCustomer, useCustomerActivities, useCustomerConfiguration } from '@/features/customers/hooks/useCustomers';
 import { useProjects } from '@/features/projects/hooks/useProjects';
 import { useQuotations } from '@/features/documents/hooks';
 import { useLeads } from '@/features/leads/hooks/useLeads';
@@ -65,6 +66,7 @@ export default function CustomerDetailPage() {
 
   // React Query hooks - single source of truth
   const { data: customer, isLoading, error } = useCustomer(customerId);
+  const customerConfig = useCustomerConfiguration();
   const { data: activities } = useCustomerActivities(customerId);
   const { data: projectsData } = useProjects({ page: 1, pageSize: 100, customer: customerId });
   const { data: quotationsData } = useQuotations({ customerId });
@@ -404,7 +406,7 @@ export default function CustomerDetailPage() {
   // Loading state
   if (isLoading) {
     return (
-      <MainLayout title="Loading..." subtitle="">
+      <MainLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center space-y-2">
             <div className="h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
@@ -418,7 +420,7 @@ export default function CustomerDetailPage() {
   // Error or not found state
   if (error || !customer) {
     return (
-      <MainLayout title="Customer Not Found" subtitle="">
+      <MainLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center space-y-2">
             <p className="text-sm text-destructive">Failed to load customer details</p>
@@ -433,7 +435,7 @@ export default function CustomerDetailPage() {
   }
 
   return (
-    <MainLayout title={customer.customerName} subtitle={customer.companyName}>
+    <MainLayout>
       <div className="space-y-4">
         {/* Header - contained within content area */}
         <div
@@ -645,6 +647,21 @@ export default function CustomerDetailPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {customerConfig.customFields.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className={cn(componentTextSizes.cardHeader.title, 'font-medium')}>Custom Fields</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CustomerCustomFields
+                    mode="view"
+                    fields={customerConfig.customFields}
+                    values={customer.customFields ?? {}}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
             {/* Originating Lead (Compact) */}
             {originatingLead && (

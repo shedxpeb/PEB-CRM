@@ -1,21 +1,18 @@
 'use client';
 
-import { useState, useMemo, useCallback, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { MainLayout } from '@/layouts/MainLayout';
 import { DataTable } from '@/components/data-table/DataTable';
 import { KPICard } from '@/components/dashboard/KPICard';
-import { ConsolidatedFilterBox, FilterConfig } from '@/components/layout/ConsolidatedFilterBox';
+import { StandardPageLayout } from '@/components/layout/StandardPageLayout';
+import { FilterConfig } from '@/components/layout/FilterBar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
-import { componentTextSizes } from '@/lib/design-system';
 import { useDebounce } from '@/shared/hooks/useDebounce';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { LeadViewDrawer } from '@/features/leads/components/LeadViewDrawer';
 
 // Lazy load heavy components to reduce initial bundle size
 const LeadForm = dynamic(() => import('@/features/leads/components/LeadForm').then(mod => ({ default: mod.LeadForm })), {
@@ -38,16 +35,13 @@ const LeadCalendarView = dynamic(() => import('@/features/leads/components/LeadC
   loading: () => <div className="p-8 text-center">Loading calendar...</div>,
   ssr: false
 });
-import { Lead, LeadStatus, LeadPriority } from '@/types/leads';
-import { useConvertLeadToCustomer } from '@/features/customers/hooks/useCustomers';
-import { ROUTES } from '@/core/routes';
-import { mockLeads } from '@/features/leads/data/mockLeads';
+import { Lead, LeadStatus, LeadPriority, LeadActivity } from '@/types/leads';
+import { mockLeads, getLeadActivities } from '@/features/leads/data/mockLeads';
+import { useLeadConfiguration } from '@/features/leads/hooks/useLeads';
+import { getLeadCustomFieldValue } from '@/features/leads/components/LeadCustomFields';
 import {
   Plus,
-  Search,
-  Filter,
   Download,
-  Calendar,
   RefreshCw,
   Trash2,
   CheckCircle,
@@ -55,110 +49,302 @@ import {
   FileText,
   LayoutList,
   Grid3X3,
-  Settings,
-  CalendarDays
+  CalendarDays,
+  Upload,
+  Users,
+  Sparkles,
 } from 'lucide-react';
 
-const statusOptions: LeadStatus[] = [
-  'New',
-  'Contacted',
-  'Design Pending',
-  'BOQ Pending',
-  'Estimate Sent',
-  'Proposal Sent',
-  'Negotiation',
-  'Approved',
-  'Rejected',
-  'Converted',
-];
+const statusBadge = (value: LeadStatus) => (
+  <Badge
+    variant={
+      value === 'New' ? 'info' :
+      value === 'Contacted' ? 'warning' :
+      value === 'Converted' || value === 'Approved' ? 'success' :
+      value === 'Rejected' ? 'destructive' :
+      'secondary'
+    }
+    className="text-[10px] sm:text-xs whitespace-nowrap"
+  >
+    {value}
+  </Badge>
+);
 
-const priorityOptions: LeadPriority[] = ['Low', 'Medium', 'High', 'Urgent'];
+const priorityBadge = (value: LeadPriority) => (
+  <Badge
+    variant={
+      value === 'Urgent' ? 'destructive' :
+      value === 'High' ? 'warning' :
+      value === 'Medium' ? 'info' :
+      'secondary'
+    }
+    className="text-[10px] sm:text-xs whitespace-nowrap"
+  >
+    {value}
+  </Badge>
+);
 
 // Move baseColumns outside component to prevent recreation on every render
 const baseColumns = [
-  { key: 'leadId' as const, label: 'Lead ID', sortable: true },
-  { key: 'customerName' as const, label: 'Customer Name', sortable: true },
-  { key: 'companyName' as const, label: 'Company', sortable: true },
-  { key: 'mobile' as const, label: 'Mobile' },
-  { key: 'city' as const, label: 'City / State', render: (_: any, row: Lead) => `${row.city}, ${row.state}` },
-  { key: 'projectType' as const, label: 'Project Type', filterable: true },
-  { key: 'structureType' as const, label: 'Structure Type', filterable: true },
-  { key: 'width' as const, label: 'Area (sqm)', render: (_: any, row: Lead) => `${(row.width || 0) * (row.length || 0)}` },
-  { key: 'status' as const, label: 'Status', sortable: true, render: (value: LeadStatus) => (
-    <Badge
-      variant={
-        value === 'New' ? 'info' :
-        value === 'Contacted' ? 'warning' :
-        value === 'Converted' || value === 'Approved' ? 'success' :
-        value === 'Rejected' ? 'destructive' :
-        'secondary'
-      }
-      className="text-xs"
-    >
-      {value}
-    </Badge>
-  )},
-  { key: 'converted' as const, label: 'Converted', render: (_: any, row: Lead) => (
-    <Badge
-      variant={row.customerId ? 'success' : 'secondary'}
-      className="text-xs"
-    >
-      {row.customerId ? 'Yes' : 'No'}
-    </Badge>
-  )},
-  { key: 'assignedEmployee' as const, label: 'Assigned To' },
-  { key: 'priority' as const, label: 'Priority', sortable: true, render: (value: LeadPriority) => (
-    <Badge
-      variant={
-        value === 'Urgent' ? 'destructive' :
-        value === 'High' ? 'warning' :
-        value === 'Medium' ? 'info' :
-        'secondary'
-      }
-      className="text-xs"
-    >
-      {value}
-    </Badge>
-  )},
-  { key: 'createdDate' as const, label: 'Created', sortable: true, render: (value: Date) => {
-    if (!value) return '-';
-    const date = new Date(value);
-    return date.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  }},
-  { key: 'nextFollowUpDate' as const, label: 'Next Follow-up', render: (value: Date) => {
-    if (!value) return '-';
-    const date = new Date(value);
-    return date.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  }},
+  {
+    key: 'leadId' as const,
+    label: 'ID',
+    sortable: true,
+    className: 'w-[72px] min-w-[72px]',
+    render: (value: number) => <span className="font-mono text-xs text-muted-foreground">#{value}</span>,
+  },
+  {
+    key: 'customerName' as const,
+    label: 'Customer',
+    sortable: true,
+    className: 'min-w-[140px] max-w-[180px]',
+    render: (_: string, row: Lead) => (
+      <div className="min-w-0">
+        <p className="font-medium text-sm truncate">{row.customerName}</p>
+        <p className="text-xs text-muted-foreground truncate">{row.companyName}</p>
+      </div>
+    ),
+  },
+  {
+    key: 'companyName' as const,
+    label: 'Company',
+    sortable: true,
+    className: 'min-w-[120px] max-w-[160px] hidden xl:table-cell',
+    headerClassName: 'hidden xl:table-cell',
+    render: (value: string) => <span className="text-xs truncate block">{value}</span>,
+  },
+  {
+    key: 'mobile' as const,
+    label: 'Mobile',
+    className: 'min-w-[110px] whitespace-nowrap',
+    render: (value: string) => <span className="text-xs">{value}</span>,
+  },
+  {
+    key: 'city' as const,
+    label: 'Location',
+    className: 'min-w-[120px] max-w-[150px]',
+    render: (_: unknown, row: Lead) => (
+      <span className="text-xs truncate block">{row.city}, {row.state}</span>
+    ),
+  },
+  {
+    key: 'projectType' as const,
+    label: 'Project',
+    filterable: true,
+    className: 'min-w-[100px] max-w-[130px] hidden lg:table-cell',
+    headerClassName: 'hidden lg:table-cell',
+    render: (value: string) => <span className="text-xs truncate block">{value}</span>,
+  },
+  {
+    key: 'structureType' as const,
+    label: 'Structure',
+    filterable: true,
+    className: 'min-w-[100px] max-w-[130px] hidden lg:table-cell',
+    headerClassName: 'hidden lg:table-cell',
+    render: (value: string) => <span className="text-xs truncate block">{value}</span>,
+  },
+  {
+    key: 'width' as const,
+    label: 'Area',
+    className: 'min-w-[72px] whitespace-nowrap hidden md:table-cell',
+    headerClassName: 'hidden md:table-cell',
+    render: (_: unknown, row: Lead) => (
+      <span className="text-xs tabular-nums">{(row.width || 0) * (row.length || 0)}</span>
+    ),
+  },
+  {
+    key: 'status' as const,
+    label: 'Status',
+    sortable: true,
+    className: 'min-w-[96px]',
+    render: (value: LeadStatus) => statusBadge(value),
+  },
+  {
+    key: 'converted' as const,
+    label: 'Converted',
+    className: 'min-w-[80px] hidden md:table-cell',
+    headerClassName: 'hidden md:table-cell',
+    render: (_: unknown, row: Lead) => (
+      <Badge variant={row.customerId ? 'success' : 'secondary'} className="text-[10px] sm:text-xs">
+        {row.customerId ? 'Yes' : 'No'}
+      </Badge>
+    ),
+  },
+  {
+    key: 'assignedEmployee' as const,
+    label: 'Assigned',
+    className: 'min-w-[110px] max-w-[140px] hidden xl:table-cell',
+    headerClassName: 'hidden xl:table-cell',
+    render: (value: string | undefined) => (
+      <span className="text-xs truncate block">{value || '-'}</span>
+    ),
+  },
+  {
+    key: 'priority' as const,
+    label: 'Priority',
+    sortable: true,
+    className: 'min-w-[88px]',
+    render: (value: LeadPriority) => priorityBadge(value),
+  },
+  {
+    key: 'score' as const,
+    label: 'Score',
+    sortable: true,
+    className: 'min-w-[56px] hidden sm:table-cell',
+    headerClassName: 'hidden sm:table-cell',
+    render: (value: number | undefined) => (
+      <span className="text-xs tabular-nums font-medium">{value ?? '-'}</span>
+    ),
+  },
+  {
+    key: 'createdDate' as const,
+    label: 'Created',
+    sortable: true,
+    className: 'min-w-[88px] whitespace-nowrap hidden lg:table-cell',
+    headerClassName: 'hidden lg:table-cell',
+    render: (value: Date) => {
+      if (!value) return '-';
+      return (
+        <span className="text-xs tabular-nums">
+          {new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+        </span>
+      );
+    },
+  },
+  {
+    key: 'nextFollowUpDate' as const,
+    label: 'Follow-up',
+    className: 'min-w-[88px] whitespace-nowrap hidden xl:table-cell',
+    headerClassName: 'hidden xl:table-cell',
+    render: (value: Date) => {
+      if (!value) return '-';
+      return (
+        <span className="text-xs tabular-nums">
+          {new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+        </span>
+      );
+    },
+  },
 ];
 
 export default function LeadsPage() {
-  const router = useRouter();
-  const convertLeadToCustomerMutation = useConvertLeadToCustomer();
+  const leadConfig = useLeadConfiguration();
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 300);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [cityFilter, setCityFilter] = useState<string>('all');
+  const [projectTypeFilter, setProjectTypeFilter] = useState<string>('all');
+  const [structureTypeFilter, setStructureTypeFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [assignedEmployeeFilter, setAssignedEmployeeFilter] = useState<string>('all');
   const [kpiFilterMode, setKpiFilterMode] = useState<string>('none');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isViewDrawerOpen, setIsViewDrawerOpen] = useState(false);
   const [isConvertToCustomerDialogOpen, setIsConvertToCustomerDialogOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
   const [viewMode, setViewMode] = useState<'table' | 'kanban' | 'calendar'>('table');
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
+  const [leadActivities, setLeadActivities] = useState<Record<string, LeadActivity[]>>({});
   const [customColumns, setCustomColumns] = useState<Array<{key: string, label: string}>>([]);
   const [isCustomColumnDialogOpen, setIsCustomColumnDialogOpen] = useState(false);
-  
-  // Date filters
-  const [dateRangeFilter, setDateRangeFilter] = useState<{from: Date | null, to: Date | null}>({ from: null, to: null });
   const [quickDateFilter, setQuickDateFilter] = useState<string>('all');
-  
-  // Lazy loading / pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
-  const [isLoading, setIsLoading] = useState(false);
+
+  const inProgressStatuses = useMemo(
+    () => new Set(leadConfig.statuses.filter((s) => !['New', 'Approved', 'Rejected', 'Converted'].includes(s))),
+    [leadConfig.statuses]
+  );
+
+  const leadStats = useMemo(() => {
+    let newCount = 0;
+    let inProgress = 0;
+    let converted = 0;
+    for (const lead of leads) {
+      if (lead.status === 'New') newCount++;
+      if (lead.status === 'Converted') converted++;
+      if (inProgressStatuses.has(lead.status)) inProgress++;
+    }
+    return { total: leads.length, newCount, inProgress, converted };
+  }, [leads, inProgressStatuses]);
+
+  const kpiData = useMemo(() => [
+    {
+      title: 'Total Leads',
+      value: String(leadStats.total),
+      change: 0,
+      icon: <Users className="h-5 w-5 text-blue-600" />,
+      color: 'text-blue-600',
+    },
+    {
+      title: 'New Leads',
+      value: String(leadStats.newCount),
+      change: 0,
+      icon: <Sparkles className="h-5 w-5 text-green-600" />,
+      color: 'text-green-600',
+    },
+    {
+      title: 'In Progress',
+      value: String(leadStats.inProgress),
+      change: 0,
+      icon: <RefreshCw className="h-5 w-5 text-amber-600" />,
+      color: 'text-amber-600',
+    },
+    {
+      title: 'Converted',
+      value: String(leadStats.converted),
+      change: 0,
+      icon: <CheckCircle className="h-5 w-5 text-emerald-600" />,
+      color: 'text-emerald-600',
+    },
+  ], [leadStats]);
+
+  const leadFilterOptions = useMemo(() => {
+    const cities = new Set<string>();
+    const projectTypes = new Set<string>();
+    const structureTypes = new Set<string>();
+    const sources = new Set<string>();
+    const assignedEmployees = new Set<string>();
+    for (const lead of leads) {
+      if (lead.city) cities.add(lead.city);
+      if (lead.projectType) projectTypes.add(lead.projectType);
+      if (lead.structureType) structureTypes.add(lead.structureType);
+      if (lead.source) sources.add(lead.source);
+      if (lead.assignedEmployee) assignedEmployees.add(lead.assignedEmployee);
+    }
+    return {
+      cities: [...cities].sort(),
+      projectTypes: [...projectTypes].sort(),
+      structureTypes: [...structureTypes].sort(),
+      sources: [...sources].sort(),
+      assignedEmployees: [...assignedEmployees].sort(),
+    };
+  }, [leads]);
+
+  const selectedLead = useMemo(
+    () => (selectedLeadId ? leads.find((l) => l.id === selectedLeadId) ?? null : null),
+    [leads, selectedLeadId]
+  );
+
+  const viewedLead = selectedLead;
+
+  const viewedLeadActivities = useMemo(() => {
+    if (!viewedLead) return [];
+    return leadActivities[viewedLead.id] ?? getLeadActivities(viewedLead.id, viewedLead);
+  }, [viewedLead, leadActivities]);
+
+  const appendActivity = useCallback((leadId: string, activity: Omit<LeadActivity, 'id' | 'leadId'>) => {
+    const newActivity: LeadActivity = {
+      ...activity,
+      id: `${leadId}-${Date.now()}`,
+      leadId,
+    };
+    setLeadActivities((prev) => ({
+      ...prev,
+      [leadId]: [newActivity, ...(prev[leadId] ?? getLeadActivities(leadId))],
+    }));
+  }, []);
 
   // Filter leads based on status, priority, and date filters
   const filteredLeads = useMemo(() => leads.filter(lead => {
@@ -166,14 +352,23 @@ export default function LeadsPage() {
       lead.customerName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
       lead.companyName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
       lead.mobile.includes(debouncedSearch) ||
+      lead.email.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      lead.city.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      lead.state.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      (lead.projectTitle?.toLowerCase().includes(debouncedSearch.toLowerCase()) ?? false) ||
       lead.leadId.toString().includes(debouncedSearch);
 
     let matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
     // Handle KPI filter mode for in-progress
     if (kpiFilterMode === 'in-progress') {
-      matchesStatus = ['Contacted', 'Design Pending', 'BOQ Pending', 'Estimate Sent', 'Proposal Sent', 'Negotiation'].includes(lead.status);
+      matchesStatus = inProgressStatuses.has(lead.status);
     }
     const matchesPriority = priorityFilter === 'all' || lead.priority === priorityFilter;
+    const matchesCity = cityFilter === 'all' || lead.city === cityFilter;
+    const matchesProjectType = projectTypeFilter === 'all' || lead.projectType === projectTypeFilter;
+    const matchesStructureType = structureTypeFilter === 'all' || lead.structureType === structureTypeFilter;
+    const matchesSource = sourceFilter === 'all' || lead.source === sourceFilter;
+    const matchesAssignedEmployee = assignedEmployeeFilter === 'all' || lead.assignedEmployee === assignedEmployeeFilter;
 
     // Date filtering based on quick date filter
     let matchesDate = true;
@@ -207,62 +402,84 @@ export default function LeadsPage() {
       }
     }
 
-    // Date range filtering
-    if (dateRangeFilter.from || dateRangeFilter.to) {
-      const leadDate = new Date(lead.createdDate);
-      if (dateRangeFilter.from) {
-        const fromDate = new Date(dateRangeFilter.from);
-        fromDate.setHours(0, 0, 0, 0);
-        if (leadDate < fromDate) matchesDate = false;
-      }
-      if (dateRangeFilter.to) {
-        const toDate = new Date(dateRangeFilter.to);
-        toDate.setHours(23, 59, 59, 999);
-        if (leadDate > toDate) matchesDate = false;
-      }
-    }
+    return matchesSearch && matchesStatus && matchesPriority && matchesCity &&
+      matchesProjectType && matchesStructureType && matchesSource && matchesAssignedEmployee && matchesDate;
+  }), [leads, debouncedSearch, statusFilter, priorityFilter, cityFilter, projectTypeFilter, structureTypeFilter, sourceFilter, assignedEmployeeFilter, kpiFilterMode, quickDateFilter, inProgressStatuses]);
 
-    return matchesSearch && matchesStatus && matchesPriority && matchesDate;
-  }), [leads, debouncedSearch, statusFilter, priorityFilter, kpiFilterMode, quickDateFilter, dateRangeFilter]);
+  const tableFilterKey = useMemo(
+    () =>
+      [debouncedSearch, statusFilter, priorityFilter, cityFilter, projectTypeFilter, structureTypeFilter, sourceFilter, assignedEmployeeFilter, kpiFilterMode, quickDateFilter].join('|'),
+    [debouncedSearch, statusFilter, priorityFilter, cityFilter, projectTypeFilter, structureTypeFilter, sourceFilter, assignedEmployeeFilter, kpiFilterMode, quickDateFilter]
+  );
 
   const customColumnDefs = useMemo(() => customColumns.map(col => ({
     key: col.key as any,
     label: col.label,
     sortable: true,
-    render: (value: any) => value || '-'
+    render: (value: any, row: Lead) => value ?? getLeadCustomFieldValue(row, col.key)?.toString() ?? '-'
   })), [customColumns]);
 
-  const columns = useMemo(() => [...baseColumns, ...customColumnDefs], [baseColumns, customColumnDefs]);
+  const settingsCustomColumnDefs = useMemo(() => {
+    const manualKeys = new Set(customColumns.map((c) => c.key));
+    return leadConfig.customFields
+      .filter((field) => !manualKeys.has(field.key))
+      .map((field) => ({
+        key: field.key as any,
+        label: field.label,
+        sortable: true,
+        className: 'min-w-[100px] max-w-[130px] hidden 2xl:table-cell',
+        headerClassName: 'hidden 2xl:table-cell',
+        render: (_: unknown, row: Lead) => (
+          <span className="text-xs truncate block">
+            {getLeadCustomFieldValue(row, field.key)?.toString() ?? '-'}
+          </span>
+        ),
+      }));
+  }, [leadConfig.customFields, customColumns]);
 
-  // Memoize paginated data to prevent DataTable re-renders on every state change
-  const paginatedLeads = useMemo(() => 
-    filteredLeads.slice(0, currentPage * itemsPerPage),
-    [filteredLeads, currentPage, itemsPerPage]
+  const columns = useMemo(
+    () => [...baseColumns, ...settingsCustomColumnDefs, ...customColumnDefs],
+    [settingsCustomColumnDefs, customColumnDefs]
   );
 
   const handleCreateLead = useCallback((data: Partial<Lead>) => {
+    const newLeadId = `lead-${Date.now()}`;
     setLeads(prevLeads => {
       const maxLeadId = prevLeads.length > 0 ? Math.max(...prevLeads.map(l => l.leadId)) : 0;
       const newLead: Lead = {
         ...data,
-        id: String(prevLeads.length + 1),
+        id: newLeadId,
         leadId: maxLeadId + 1,
         createdDate: new Date(),
+        createdAt: new Date(),
         status: data.status || 'New',
       } as Lead;
       return [...prevLeads, newLead];
     });
+    appendActivity(newLeadId, {
+      type: 'created',
+      description: 'Lead created',
+      performedBy: 'Current User',
+      performedAt: new Date(),
+    });
     setIsCreateDialogOpen(false);
-  }, []);
+  }, [appendActivity]);
 
   const handleEditLead = useCallback((data: Partial<Lead> | Lead) => {
-    if ('id' in data) {
+    if ('id' in data && data.id) {
+      const updatedLead = { ...data, updatedAt: new Date() } as Lead;
       setLeads((prevLeads) =>
-        prevLeads.map((l) => (l.id === data.id ? { ...l, ...data, updatedAt: new Date() } : l))
+        prevLeads.map((l) => (l.id === data.id ? { ...l, ...updatedLead } : l))
       );
+      appendActivity(data.id, {
+        type: 'updated',
+        description: 'Lead details updated',
+        performedBy: 'Current User',
+        performedAt: new Date(),
+      });
     }
     setIsEditDialogOpen(false);
-  }, []);
+  }, [appendActivity]);
 
   const handleLeadUpdate = useCallback((updatedLead: Lead) => {
     setLeads((prevLeads) => {
@@ -278,8 +495,8 @@ export default function LeadsPage() {
   }, []);
 
   const handleRowClick = useCallback((lead: Lead) => {
-    setSelectedLead(lead);
-    setIsViewDialogOpen(true);
+    setSelectedLeadId(lead.id);
+    setIsViewDrawerOpen(true);
   }, []);
 
   const handleKpiCardClick = useCallback((filter: string) => {
@@ -297,46 +514,73 @@ export default function LeadsPage() {
   }, []);
 
   const handleExport = useCallback(() => {
-    setLeads(prevLeads => {
-      // Export leads to CSV
-      const headers = ['Lead ID', 'Customer Name', 'Company', 'Mobile', 'Email', 'City', 'State', 'Project Title', 'Project Type', 'Structure Type', 'Status', 'Priority', 'Assigned To', 'Source', 'Created Date'];
-      const csvContent = [
-        headers.join(','),
-        ...prevLeads.map(lead => [
-          lead.leadId,
-          lead.customerName,
-          lead.companyName,
-          lead.mobile,
-          lead.email,
-          lead.city,
-          lead.state,
-          lead.projectTitle,
-          lead.projectType,
-          lead.structureType,
-          lead.status,
-          lead.priority,
-          lead.assignedEmployee,
-          lead.source,
-          new Date(lead.createdDate).toLocaleDateString()
-        ].join(','))
-      ].join('\n');
+    const headers = [
+      'Lead ID', 'Customer Name', 'Company', 'Mobile', 'Alternate Mobile', 'Email', 'GST Number',
+      'Address', 'City', 'State', 'Pincode', 'Project Title', 'Project Type', 'Structure Type',
+      'Width', 'Length', 'Height', 'Bay Spacing', 'Roof Type', 'Crane Required', 'Crane Capacity',
+      'Mezzanine', 'Wall Type', 'Insulation Required', 'Material Preference',
+      'Site Location', 'Site Address', 'Map Coordinates', 'Soil Notes',
+      'Customer Notes', 'Special Requirement', 'Status', 'Priority', 'Score', 'Assigned To', 'Source',
+      'Created Date', 'Next Follow-up', 'Remarks'
+    ];
+    const csvContent = [
+      headers.join(','),
+      ...leads.map(lead => [
+        lead.leadId,
+        `"${lead.customerName}"`,
+        `"${lead.companyName}"`,
+        lead.mobile,
+        lead.alternateMobile || '',
+        lead.email,
+        lead.gstNumber || '',
+        `"${(lead.address || '').replace(/"/g, '""')}"`,
+        lead.city,
+        lead.state,
+        lead.pincode || '',
+        `"${(lead.projectTitle || '').replace(/"/g, '""')}"`,
+        lead.projectType,
+        lead.structureType,
+        lead.width ?? '',
+        lead.length ?? '',
+        lead.height ?? '',
+        lead.baySpacing ?? '',
+        lead.roofType || '',
+        lead.craneRequired ?? '',
+        lead.craneCapacity ?? '',
+        lead.mezzanine ?? '',
+        lead.wallType || '',
+        lead.insulationRequired ?? '',
+        lead.materialPreference || '',
+        `"${(lead.siteLocation || '').replace(/"/g, '""')}"`,
+        `"${(lead.siteAddress || '').replace(/"/g, '""')}"`,
+        lead.mapCoordinates || '',
+        `"${(lead.soilNotes || '').replace(/"/g, '""')}"`,
+        `"${(lead.customerNotes || '').replace(/"/g, '""')}"`,
+        `"${(lead.specialRequirement || '').replace(/"/g, '""')}"`,
+        lead.status,
+        lead.priority,
+        lead.score ?? '',
+        lead.assignedEmployee || '',
+        lead.source,
+        new Date(lead.createdDate).toLocaleDateString(),
+        lead.nextFollowUpDate ? new Date(lead.nextFollowUpDate).toLocaleDateString() : '',
+        `"${(lead.remarks || '').replace(/"/g, '""')}"`,
+      ].join(','))
+    ].join('\n');
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `leads_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      return prevLeads;
-    });
-  }, []);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `leads_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [leads]);
 
   const handleImport = useCallback(() => {
-    // Create file input element
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.csv';
@@ -346,55 +590,91 @@ export default function LeadsPage() {
         const reader = new FileReader();
         reader.onload = (event) => {
           const text = event.target?.result as string;
-          const lines = text.split('\n');
-          const headers = lines[0].split(',');
-          
-          // Parse CSV data
-          const newLeads: Lead[] = [];
-          for (let i = 1; i < lines.length; i++) {
-            const values = lines[i].split(',');
-            if (values.length === headers.length) {
-              const lead: Partial<Lead> = {};
-              headers.forEach((header, index) => {
-                const key = header.trim();
-                const value = values[index]?.trim();
-                
-                // Map CSV headers to lead fields
-                if (key === 'Lead ID') lead.leadId = parseInt(value);
-                else if (key === 'Customer Name') lead.customerName = value;
-                else if (key === 'Company') lead.companyName = value;
-                else if (key === 'Mobile') lead.mobile = value;
-                else if (key === 'Email') lead.email = value;
-                else if (key === 'City') lead.city = value;
-                else if (key === 'State') lead.state = value;
-                else if (key === 'Project Title') lead.projectTitle = value;
-                else if (key === 'Project Type') lead.projectType = value as any;
-                else if (key === 'Structure Type') lead.structureType = value as any;
-                else if (key === 'Status') lead.status = value as LeadStatus;
-                else if (key === 'Priority') lead.priority = value as LeadPriority;
-                else if (key === 'Assigned To') lead.assignedEmployee = value;
-                else if (key === 'Source') lead.source = value as any;
-                else if (key === 'Width') lead.width = parseFloat(value);
-                else if (key === 'Length') lead.length = parseFloat(value);
-                else if (key === 'Height') lead.height = parseFloat(value);
-                else if (key === 'Address') lead.address = value;
-                else (lead as any)[key] = value;
-              });
-              
-              if (lead.customerName && lead.leadId) {
-                // Generate unique ID using timestamp to avoid conflicts
-                const uniqueId = `import-${Date.now()}-${newLeads.length}`;
-                newLeads.push({
-                  ...lead,
-                  id: uniqueId,
-                  createdDate: new Date(),
-                } as Lead);
-              }
-            }
+          const lines = text.split('\n').filter((line) => line.trim());
+          if (lines.length < 2) {
+            alert('Import failed: CSV file is empty or has no data rows.');
+            return;
           }
-          
-          // Add imported leads to state
-          setLeads(prevLeads => [...prevLeads, ...newLeads]);
+          const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
+          const newLeads: Lead[] = [];
+          let skipped = 0;
+
+          for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(',').map((v) => v.trim().replace(/^"|"$/g, ''));
+            const lead: Partial<Lead> = {};
+            headers.forEach((header, index) => {
+              const key = header.trim();
+              const value = values[index]?.trim();
+              if (!value) return;
+
+              if (key === 'Lead ID') lead.leadId = parseInt(value);
+              else if (key === 'Customer Name') lead.customerName = value;
+              else if (key === 'Company') lead.companyName = value;
+              else if (key === 'Mobile') lead.mobile = value;
+              else if (key === 'Alternate Mobile') lead.alternateMobile = value;
+              else if (key === 'Email') lead.email = value;
+              else if (key === 'GST Number') lead.gstNumber = value;
+              else if (key === 'Address') lead.address = value;
+              else if (key === 'City') lead.city = value;
+              else if (key === 'State') lead.state = value;
+              else if (key === 'Pincode') lead.pincode = value;
+              else if (key === 'Project Title') lead.projectTitle = value;
+              else if (key === 'Project Type') lead.projectType = value as any;
+              else if (key === 'Structure Type') lead.structureType = value as any;
+              else if (key === 'Status') lead.status = value as LeadStatus;
+              else if (key === 'Priority') lead.priority = value as LeadPriority;
+              else if (key === 'Score') lead.score = parseInt(value);
+              else if (key === 'Assigned To') lead.assignedEmployee = value;
+              else if (key === 'Source') lead.source = value as any;
+              else if (key === 'Width') lead.width = parseFloat(value);
+              else if (key === 'Length') lead.length = parseFloat(value);
+              else if (key === 'Height') lead.height = parseFloat(value);
+              else if (key === 'Bay Spacing') lead.baySpacing = parseFloat(value);
+              else if (key === 'Roof Type') lead.roofType = value as any;
+              else if (key === 'Wall Type') lead.wallType = value as any;
+              else if (key === 'Material Preference') lead.materialPreference = value as any;
+              else if (key === 'Site Location') lead.siteLocation = value;
+              else if (key === 'Site Address') lead.siteAddress = value;
+              else if (key === 'Map Coordinates') lead.mapCoordinates = value;
+              else if (key === 'Soil Notes') lead.soilNotes = value;
+              else if (key === 'Customer Notes') lead.customerNotes = value;
+              else if (key === 'Special Requirement') lead.specialRequirement = value;
+              else if (key === 'Remarks') lead.remarks = value;
+              else (lead as any)[key] = value;
+            });
+
+            if (!lead.customerName || !lead.mobile || !lead.email) {
+              skipped++;
+              continue;
+            }
+
+            const uniqueId = `import-${Date.now()}-${newLeads.length}`;
+            newLeads.push({
+              ...lead,
+              id: uniqueId,
+              leadId: lead.leadId || Date.now() + newLeads.length,
+              createdDate: new Date(),
+              status: lead.status || 'New',
+              priority: lead.priority || 'Medium',
+              source: lead.source || 'Other',
+              projectType: lead.projectType || 'Factory',
+              structureType: lead.structureType || 'PEB',
+              city: lead.city || '',
+              state: lead.state || '',
+              companyName: lead.companyName || lead.customerName,
+              email: lead.email || '',
+            } as Lead);
+          }
+
+          if (newLeads.length === 0) {
+            alert(`Import failed: No valid rows. ${skipped} row(s) skipped (missing customer name, mobile, or email).`);
+            return;
+          }
+
+          setLeads((prevLeads) => [...prevLeads, ...newLeads]);
+          if (skipped > 0) {
+            alert(`Imported ${newLeads.length} lead(s). ${skipped} row(s) skipped due to missing required fields.`);
+          }
         };
         reader.readAsText(file);
       }
@@ -411,88 +691,96 @@ export default function LeadsPage() {
     setCustomColumns(prevColumns => prevColumns.filter(col => col.key !== key));
   }, []);
 
-  // Date filter handlers
   const handleQuickDateFilterChange = useCallback((filter: string) => {
     setQuickDateFilter(filter);
-    setDateRangeFilter({ from: null, to: null }); // Clear custom range when quick filter is selected
-    setCurrentPage(1); // Reset to first page
   }, []);
 
-  const handleDateRangeChange = useCallback((field: 'from' | 'to', value: Date | null) => {
-    setDateRangeFilter(prev => ({ ...prev, [field]: value }));
-    setQuickDateFilter('all'); // Clear quick filter when custom range is set
-    setCurrentPage(1); // Reset to first page
-  }, []);
-
-  const clearDateFilters = useCallback(() => {
-    setQuickDateFilter('all');
-    setDateRangeFilter({ from: null, to: null });
-    setCurrentPage(1);
-  }, []);
-
-  // Reset pagination when view mode changes
   const handleViewModeChange = useCallback((mode: 'table' | 'kanban' | 'calendar') => {
     setViewMode(mode);
-    setCurrentPage(1);
     setSelectedRows(new Set());
   }, []);
 
-  // Lazy loading handlers
-  const handleLoadMore = useCallback(() => {
-    setIsLoading(true);
-    // Simulate API call delay
-    setTimeout(() => {
-      setCurrentPage(prev => prev + 1);
-      setIsLoading(false);
-    }, 500);
-  }, []);
-
-  // Extract unique cities from leads data
-  const cityOptions = useMemo(() => {
-    const cities = [...new Set(leads.map(l => l.city).filter(Boolean))];
-    return cities.sort();
-  }, [leads]);
-
-  // Filter configuration for ConsolidatedFilterBox
   const filterConfigs: FilterConfig[] = useMemo(() => [
     {
       key: 'status',
       label: 'Status',
       value: statusFilter,
       onChange: setStatusFilter,
-      options: [{ value: 'all', label: 'All Status' }, ...statusOptions.map(s => ({ value: s, label: s }))],
+      options: [{ value: 'all', label: 'All Status' }, ...leadConfig.statuses.map(s => ({ value: s, label: s }))],
     },
     {
       key: 'priority',
       label: 'Priority',
       value: priorityFilter,
       onChange: setPriorityFilter,
-      options: [{ value: 'all', label: 'All Priority' }, ...priorityOptions.map(p => ({ value: p, label: p }))],
+      options: [{ value: 'all', label: 'All Priority' }, ...leadConfig.priorities.map(p => ({ value: p, label: p }))],
+    },
+    {
+      key: 'source',
+      label: 'Source',
+      value: sourceFilter,
+      onChange: setSourceFilter,
+      options: [{ value: 'all', label: 'All Sources' }, ...leadFilterOptions.sources.map(s => ({ value: s, label: s }))],
+    },
+    {
+      key: 'createdDate',
+      label: 'Created',
+      value: quickDateFilter,
+      onChange: handleQuickDateFilterChange,
+      options: [
+        { value: 'all', label: 'All Dates' },
+        { value: 'today', label: 'Today' },
+        { value: 'tomorrow', label: 'Tomorrow' },
+        { value: 'this_week', label: 'This Week' },
+        { value: 'this_month', label: 'This Month' },
+        { value: 'this_year', label: 'This Year' },
+      ],
     },
     {
       key: 'city',
       label: 'City',
-      value: '',
-      onChange: () => {},
-      options: [{ value: 'all', label: 'All Cities' }, ...cityOptions.map(c => ({ value: c, label: c }))],
+      value: cityFilter,
+      onChange: setCityFilter,
+      options: [{ value: 'all', label: 'All Cities' }, ...leadFilterOptions.cities.map(c => ({ value: c, label: c }))],
     },
-  ], [statusFilter, priorityFilter, cityOptions]);
+    {
+      key: 'projectType',
+      label: 'Project Type',
+      value: projectTypeFilter,
+      onChange: setProjectTypeFilter,
+      options: [{ value: 'all', label: 'All Types' }, ...leadFilterOptions.projectTypes.map(p => ({ value: p, label: p }))],
+    },
+    {
+      key: 'structureType',
+      label: 'Structure Type',
+      value: structureTypeFilter,
+      onChange: setStructureTypeFilter,
+      options: [{ value: 'all', label: 'All Structures' }, ...leadFilterOptions.structureTypes.map(s => ({ value: s, label: s }))],
+    },
+    {
+      key: 'assignedEmployee',
+      label: 'Assigned To',
+      value: assignedEmployeeFilter,
+      onChange: setAssignedEmployeeFilter,
+      options: [{ value: 'all', label: 'All Employees' }, ...leadFilterOptions.assignedEmployees.map(e => ({ value: e, label: e }))],
+    },
+  ], [statusFilter, priorityFilter, cityFilter, projectTypeFilter, structureTypeFilter, sourceFilter, assignedEmployeeFilter, quickDateFilter, leadFilterOptions, leadConfig.statuses, leadConfig.priorities, handleQuickDateFilterChange]);
 
   const handleClearFilters = useCallback(() => {
     setStatusFilter('all');
     setPriorityFilter('all');
+    setCityFilter('all');
+    setProjectTypeFilter('all');
+    setStructureTypeFilter('all');
+    setSourceFilter('all');
+    setAssignedEmployeeFilter('all');
     setKpiFilterMode('none');
     setSearchQuery('');
-    setDateRangeFilter({ from: null, to: null });
     setQuickDateFilter('all');
   }, []);
 
-  const handleDateRangeChangeWrapper = useCallback((range: { from?: Date | null; to?: Date | null }) => {
-    setDateRangeFilter({ from: range.from || null, to: range.to || null });
-  }, []);
-
   const handleEditLeadFromRow = useCallback((lead: Lead) => {
-    setSelectedLead(lead);
+    setSelectedLeadId(lead.id);
     setIsEditDialogOpen(true);
   }, []);
 
@@ -513,15 +801,14 @@ export default function LeadsPage() {
       return;
     }
 
-    setSelectedLead(lead);
+    setSelectedLeadId(lead.id);
     setIsConvertToCustomerDialogOpen(true);
   }, []);
 
   const handleCustomerCreated = useCallback((customer: any) => {
-    // Update lead with customerId and status
     setLeads((prevLeads) =>
       prevLeads.map((l) =>
-        l.id === selectedLead?.id
+        l.id === selectedLeadId
           ? {
               ...l,
               customerId: customer.id,
@@ -532,13 +819,39 @@ export default function LeadsPage() {
           : l
       )
     );
+    if (selectedLeadId) {
+      appendActivity(selectedLeadId, {
+        type: 'converted',
+        description: 'Lead converted to customer',
+        performedBy: 'Current User',
+        performedAt: new Date(),
+        metadata: { customerId: customer.id },
+      });
+    }
     setIsConvertToCustomerDialogOpen(false);
-    setSelectedLead(null);
-  }, [selectedLead]);
+    setSelectedLeadId(null);
+  }, [selectedLeadId, appendActivity]);
+
+  const handleEditFromDrawer = useCallback((lead: Lead) => {
+    setSelectedLeadId(lead.id);
+    setIsViewDrawerOpen(false);
+    setIsEditDialogOpen(true);
+  }, []);
 
   const handleAddScore = useCallback((lead: Lead, score: number) => {
-    // Add score to lead
-  }, []);
+    setLeads((prevLeads) =>
+      prevLeads.map((l) =>
+        l.id === lead.id ? { ...l, score, updatedAt: new Date() } : l
+      )
+    );
+    appendActivity(lead.id, {
+      type: 'updated',
+      description: `Lead score updated to ${score}`,
+      performedBy: 'Current User',
+      performedAt: new Date(),
+      metadata: { score },
+    });
+  }, [appendActivity]);
 
   const handleStatusChange = useCallback((lead: Lead, status: LeadStatus) => {
     setLeads((prevLeads) => {
@@ -550,7 +863,14 @@ export default function LeadsPage() {
       });
       return newLeads;
     });
-  }, []);
+    appendActivity(lead.id, {
+      type: 'status_changed',
+      description: `Status changed to ${status}`,
+      performedBy: 'Current User',
+      performedAt: new Date(),
+      metadata: { oldStatus: lead.status, newStatus: status },
+    });
+  }, [appendActivity]);
 
   const handleBulkDelete = useCallback(() => {
     if (confirm(`Delete ${selectedRows.size} selected leads?`)) {
@@ -568,198 +888,162 @@ export default function LeadsPage() {
     setSelectedRows(new Set());
   }, [selectedRows]);
 
+  const viewToggle = (
+    <div className="flex items-center bg-muted rounded-lg p-1">
+      <button
+        type="button"
+        onClick={() => handleViewModeChange('table')}
+        className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
+          viewMode === 'table'
+            ? 'bg-background shadow-sm text-foreground'
+            : 'text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        <LayoutList className="h-4 w-4" />
+        <span className="hidden sm:inline">Table</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => handleViewModeChange('kanban')}
+        className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
+          viewMode === 'kanban'
+            ? 'bg-background shadow-sm text-foreground'
+            : 'text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        <Grid3X3 className="h-4 w-4" />
+        <span className="hidden sm:inline">Kanban</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => handleViewModeChange('calendar')}
+        className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
+          viewMode === 'calendar'
+            ? 'bg-background shadow-sm text-foreground'
+            : 'text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        <CalendarDays className="h-4 w-4" />
+        <span className="hidden sm:inline">Calendar</span>
+      </button>
+    </div>
+  );
+
   return (
-    <MainLayout title="Leads" subtitle="Manage customer enquiries and PEB requirements">
-      <div className="space-y-4">
-        {/* Header with Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className={cn(componentTextSizes.pageHeader.title, 'font-bold')}>Leads</h1>
-          </div>
-          <div className="flex items-center gap-2">
+    <MainLayout>
+      <StandardPageLayout
+        title="Leads"
+        subtitle="Manage customer enquiries and PEB requirements"
+        headerActions={
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {viewToggle}
             <Button onClick={() => setIsCreateDialogOpen(true)} className="h-9">
               <Plus className="h-4 w-4 mr-2" />
-              Add Lead
+              <span className="hidden sm:inline">Add Lead</span>
+              <span className="sm:hidden">Add</span>
             </Button>
-
-            {/* View Toggle */}
-            <div className="flex items-center bg-muted rounded-lg p-1">
-              <button
-                onClick={() => handleViewModeChange('table')}
-                className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
-                  viewMode === 'table'
-                    ? 'bg-background shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <LayoutList className="h-4 w-4" />
-                <span className="hidden sm:inline">Table</span>
-              </button>
-              <button
-                onClick={() => handleViewModeChange('kanban')}
-                className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
-                  viewMode === 'kanban'
-                    ? 'bg-background shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Grid3X3 className="h-4 w-4" />
-                <span className="hidden sm:inline">Kanban</span>
-              </button>
-              <button
-                onClick={() => handleViewModeChange('calendar')}
-                className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
-                  viewMode === 'calendar'
-                    ? 'bg-background shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <CalendarDays className="h-4 w-4" />
-                <span className="hidden sm:inline">Calendar</span>
-              </button>
-            </div>
           </div>
-        </div>
-
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-          <KPICard
-            data={{
-              title: 'Total Leads',
-              value: leads.length,
-              change: 0,
-              icon: <Plus />,
-              color: 'text-blue-500'
-            }}
-            onClick={() => handleKpiCardClick('all')}
+        }
+        kpiCards={
+          <>
+            <KPICard data={kpiData[0]} onClick={() => handleKpiCardClick('all')} />
+            <KPICard data={kpiData[1]} onClick={() => handleKpiCardClick('New')} />
+            <KPICard data={kpiData[2]} onClick={() => handleKpiCardClick('in-progress')} />
+            <KPICard data={kpiData[3]} onClick={() => handleKpiCardClick('Converted')} />
+          </>
+        }
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search leads by name, company, mobile, email, or ID..."
+        filters={filterConfigs}
+        onClearFilters={handleClearFilters}
+        filterMode="popover"
+        toolbarActions={
+          <>
+            <Button variant="outline" size="sm" onClick={handleExport} className="h-9 gap-1.5 text-xs">
+              <Download className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleImport} className="h-9 gap-1.5 text-xs">
+              <Upload className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Import</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsCustomColumnDialogOpen(true)} className="h-9 gap-1.5 text-xs">
+              <FileText className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Columns</span>
+            </Button>
+          </>
+        }
+        className="gap-4 sm:gap-6"
+      >
+        {viewMode === 'kanban' ? (
+          <KanbanBoard
+            leads={filteredLeads}
+            pipelineStages={leadConfig.statuses as LeadStatus[]}
+            onLeadUpdate={handleLeadUpdate}
+            onLeadsReorder={handleLeadsReorder}
           />
-          <KPICard
-            data={{
-              title: 'New Leads',
-              value: leads.filter(l => l.status === 'New').length,
-              change: 0,
-              icon: <Calendar />,
-              color: 'text-green-500'
-            }}
-            onClick={() => handleKpiCardClick('New')}
-          />
-          <KPICard
-            data={{
-              title: 'In Progress',
-              value: leads.filter(l =>
-                ['Contacted', 'Design Pending', 'BOQ Pending', 'Estimate Sent', 'Proposal Sent', 'Negotiation'].includes(l.status)
-              ).length,
-              change: 0,
-              icon: <RefreshCw />,
-              color: 'text-yellow-500'
-            }}
-            onClick={() => handleKpiCardClick('in-progress')}
-          />
-          <KPICard
-            data={{
-              title: 'Converted',
-              value: leads.filter(l => l.status === 'Converted').length,
-              change: 0,
-              icon: <Filter />,
-              color: 'text-emerald-500'
-            }}
-            onClick={() => handleKpiCardClick('Converted')}
-          />
-        </div>
-
-        {/* Consolidated Filter Box */}
-        <ConsolidatedFilterBox
-          searchValue={searchQuery}
-          onSearchChange={setSearchQuery}
-          searchPlaceholder="Search by customer name, company, mobile number, or lead ID..."
-          filters={filterConfigs}
-          onClearFilters={handleClearFilters}
-          dateRange={dateRangeFilter}
-          onDateRangeChange={handleDateRangeChangeWrapper}
-          onExport={handleExport}
-          onImport={handleImport}
-          onColumns={() => setIsCustomColumnDialogOpen(true)}
-        />
-
-          {/* Data Table / Kanban / Calendar View */}
-          {viewMode === 'kanban' ? (
-            <KanbanBoard
-              leads={filteredLeads}
-              onLeadUpdate={handleLeadUpdate}
-              onLeadsReorder={handleLeadsReorder}
-              onAddLead={() => setIsCreateDialogOpen(true)}
-            />
-          ) : viewMode === 'calendar' ? (
-            <LeadCalendarView
-              leads={filteredLeads}
-              onLeadClick={handleRowClick}
-            />
-          ) : (
-            <div className="min-w-0">
-              {selectedRows.size > 0 && (
-                <Card className="bg-muted/50">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium">{selectedRows.size} lead(s) selected</p>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleBulkStatusChange('Contacted')}>
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Mark Contacted
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Send className="h-4 w-4 mr-2" />
-                          Send Estimate
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <FileText className="h-4 w-4 mr-2" />
-                          Send Proposal
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </Button>
-                      </div>
+        ) : viewMode === 'calendar' ? (
+          <LeadCalendarView leads={filteredLeads} onLeadClick={handleRowClick} />
+        ) : (
+          <div className="min-w-0">
+            {selectedRows.size > 0 && (
+              <Card className="bg-muted/40 border-dashed mb-3 sm:mb-4">
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <p className="text-sm font-medium">{selectedRows.size} lead(s) selected</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleBulkStatusChange('Contacted')}>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Mark Contacted
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Send className="h-4 w-4 mr-2" />
+                        Send Estimate
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <FileText className="h-4 w-4 mr-2" />
+                        Send Proposal
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-              <DataTable
-                columns={columns}
-                data={paginatedLeads}
-                onRowClick={handleRowClick}
-                enableSelection={true}
-                selectedRows={selectedRows}
-                onSelectionChange={setSelectedRows}
-                rowIdKey="id"
-                rowActions={(row) => (
-                  <LeadRowActions
-                    lead={row as Lead}
-                    onEdit={handleEditLeadFromRow}
-                    onDelete={handleDeleteLead}
-                    onConvert={handleConvertLead}
-                    onConvertToCustomer={handleConvertToCustomer}
-                    onAddScore={handleAddScore}
-                    onStatusChange={handleStatusChange}
-                  />
-                )}
-              />
-
-              {/* Lazy Loading - Load More Button */}
-              {filteredLeads.length > currentPage * itemsPerPage && (
-                <div className="flex justify-center mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={handleLoadMore}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Loading...' : `Load More (${filteredLeads.length - currentPage * itemsPerPage} remaining)`}
-                  </Button>
-                </div>
+            <DataTable
+              key={tableFilterKey}
+              columns={columns}
+              data={filteredLeads}
+              showToolbar={false}
+              compact
+              onRowClick={handleRowClick}
+              enableSelection={true}
+              selectedRows={selectedRows}
+              onSelectionChange={setSelectedRows}
+              rowIdKey="id"
+              emptyMessage="No leads found. Adjust your filters or add a new lead."
+              rowActions={(row) => (
+                <LeadRowActions
+                  lead={row as Lead}
+                  statusOptions={leadConfig.statuses as LeadStatus[]}
+                  onEdit={handleEditLeadFromRow}
+                  onDelete={handleDeleteLead}
+                  onConvert={handleConvertLead}
+                  onConvertToCustomer={handleConvertToCustomer}
+                  onAddScore={handleAddScore}
+                  onStatusChange={handleStatusChange}
+                />
               )}
-            </div>
-          )}
-        </div>
+            />
+
+          </div>
+        )}
+      </StandardPageLayout>
 
       {/* Create Lead Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -768,6 +1052,8 @@ export default function LeadsPage() {
             <DialogTitle>Create New Lead</DialogTitle>
           </DialogHeader>
           <LeadForm
+            configuration={leadConfig}
+            existingLeads={leads}
             onSubmit={handleCreateLead}
             onCancel={() => setIsCreateDialogOpen(false)}
           />
@@ -783,6 +1069,8 @@ export default function LeadsPage() {
           {selectedLead ? (
             <LeadForm
               initialData={selectedLead as Partial<Lead>}
+              configuration={leadConfig}
+              existingLeads={leads}
               onSubmit={handleEditLead}
               onCancel={() => setIsEditDialogOpen(false)}
             />
@@ -790,106 +1078,15 @@ export default function LeadsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* View Lead Dialog */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Lead Details</DialogTitle>
-          </DialogHeader>
-          {selectedLead ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Lead ID</p>
-                  <p className="text-lg font-semibold">{selectedLead!.leadId}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Status</p>
-                  <Badge variant={
-                    selectedLead!.status === 'New' ? 'info' :
-                    selectedLead!.status === 'Contacted' ? 'warning' :
-                    selectedLead!.status === 'Converted' || selectedLead!.status === 'Approved' ? 'success' :
-                    selectedLead!.status === 'Rejected' ? 'destructive' :
-                    'secondary'
-                  }>{selectedLead!.status}</Badge>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Customer Name</p>
-                  <p className="text-lg font-semibold">{selectedLead!.customerName}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Company</p>
-                  <p className="text-lg font-semibold">{selectedLead!.companyName}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Mobile</p>
-                  <p className="text-lg font-semibold">{selectedLead!.mobile}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Email</p>
-                  <p className="text-lg font-semibold">{selectedLead!.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">City</p>
-                  <p className="text-lg font-semibold">{selectedLead!.city}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">State</p>
-                  <p className="text-lg font-semibold">{selectedLead!.state}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Project Title</p>
-                  <p className="text-lg font-semibold">{selectedLead!.projectTitle}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Project Type</p>
-                  <p className="text-lg font-semibold">{selectedLead!.projectType}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Structure Type</p>
-                  <p className="text-lg font-semibold">{selectedLead!.structureType}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Priority</p>
-                  <Badge variant={
-                    selectedLead!.priority === 'Urgent' ? 'destructive' :
-                    selectedLead!.priority === 'High' ? 'warning' :
-                    selectedLead!.priority === 'Medium' ? 'info' :
-                    'secondary'
-                  }>{selectedLead!.priority}</Badge>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Assigned To</p>
-                  <p className="text-lg font-semibold">{selectedLead!.assignedEmployee}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Source</p>
-                  <p className="text-lg font-semibold">{selectedLead!.source}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Created Date</p>
-                  <p className="text-lg font-semibold">{new Date(selectedLead!.createdDate).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Next Follow-up</p>
-                  <p className="text-lg font-semibold">{selectedLead!.nextFollowUpDate ? new Date(selectedLead!.nextFollowUpDate || '').toLocaleDateString() : '-'}</p>
-                </div>
-              </div>
-              <div className="flex gap-2 justify-end pt-4 border-t">
-                <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-                  Close
-                </Button>
-                <Button onClick={() => {
-                  setIsViewDialogOpen(false);
-                  setIsEditDialogOpen(true);
-                }}>
-                  Edit
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+      {/* View Lead Drawer */}
+      <LeadViewDrawer
+        lead={viewedLead}
+        open={isViewDrawerOpen}
+        onOpenChange={setIsViewDrawerOpen}
+        onEdit={handleEditFromDrawer}
+        onConvertToCustomer={handleConvertToCustomer}
+        activities={viewedLeadActivities}
+      />
 
       {/* Custom Columns Dialog */}
       <Dialog open={isCustomColumnDialogOpen} onOpenChange={setIsCustomColumnDialogOpen}>
@@ -956,7 +1153,7 @@ export default function LeadsPage() {
         <LeadToCustomerConversionDialog
           open={isConvertToCustomerDialogOpen}
           onOpenChange={setIsConvertToCustomerDialogOpen}
-          lead={selectedLead!}
+          lead={selectedLead}
           onCustomerCreated={handleCustomerCreated}
         />
       ) : null}

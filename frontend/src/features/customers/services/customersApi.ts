@@ -173,14 +173,64 @@ export const customersApi = {
   /**
    * Create new customer
    */
-  create: (data: any) =>
-    api.post<Customer>('/api/customers', data),
+  create: async (data: any) => {
+    try {
+      return await api.post<Customer>('/api/customers', data);
+    } catch (error) {
+      if (isConnectionError(error)) {
+        const newCustomer: Customer = {
+          id: String(MOCK_CUSTOMERS.length + 1),
+          customerId: 2000 + MOCK_CUSTOMERS.length + 1,
+          customerName: data.customerName,
+          companyName: data.companyName,
+          mobile: data.mobile,
+          email: data.email || '',
+          address: data.address || '',
+          city: data.city || '',
+          state: data.state || '',
+          pincode: data.pincode || '',
+          gstNumber: data.gstNumber || '',
+          industry: data.industry || 'Manufacturing',
+          businessType: data.businessType || 'Pvt Ltd',
+          country: data.country || 'India',
+          assignedEmployee: data.assignedEmployee || '',
+          assignedEmployeeId: data.assignedEmployeeId,
+          leadSource: data.leadSource || 'Manual',
+          leadId: data.leadId,
+          customerSince: new Date(),
+          totalProjects: 0,
+          activeProjects: 0,
+          completedProjects: 0,
+          totalRevenue: 0,
+          pendingQuotations: 0,
+          pendingFollowups: 0,
+          status: data.status || 'Active',
+        };
+        MOCK_CUSTOMERS.push(newCustomer);
+        return newCustomer;
+      }
+      throw error;
+    }
+  },
 
   /**
    * Update existing customer
    */
-  update: (id: string, data: any) =>
-    api.patch<Customer>(`/api/customers/${id}`, data),
+  update: async (id: string, data: any) => {
+    try {
+      return await api.patch<Customer>(`/api/customers/${id}`, data);
+    } catch (error) {
+      if (isConnectionError(error)) {
+        const index = MOCK_CUSTOMERS.findIndex((c) => c.id === id);
+        if (index >= 0) {
+          MOCK_CUSTOMERS[index] = { ...MOCK_CUSTOMERS[index], ...data };
+          return MOCK_CUSTOMERS[index];
+        }
+        throw new Error(`Customer not found: ${id}`);
+      }
+      throw error;
+    }
+  },
 
   /**
    * Delete customer

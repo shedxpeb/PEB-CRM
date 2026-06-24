@@ -2,554 +2,343 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { MainLayout } from '@/layouts/MainLayout';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DataTable, Column } from '@/components/data-table/DataTable';
+import { CardSkeleton } from '@/components/loading/CardSkeleton';
+import { ErrorState } from '@/components/states/ErrorState';
 import { InventoryActivityTimeline } from '@/features/inventory/components/InventoryActivityTimeline';
-import { InventoryItem, StockMovement, StockStatus } from '@/features/inventory/types';
+import { InventoryCustomFields } from '@/features/inventory/components/InventoryCustomFields';
+import {
+  useInventoryItem,
+  useUpdateInventoryItem,
+  useInventoryConfiguration,
+  useInventoryActivities,
+  useStockMovementHistory,
+} from '@/features/inventory/hooks/useInventory';
+import { InventoryItem, StockMovement, CreateInventoryItemDto } from '@/features/inventory/types';
 import { getStockStatusVariant, getMovementTypeVariant } from '@/features/inventory/constants';
-import { useInventoryItem, useInventoryActivities, useStockMovementHistory } from '@/features/inventory/hooks/useInventory';
+import { MOCK_PROJECT_ALLOCATIONS } from '@/features/inventory/data/mockInventoryData';
+import { ROUTES } from '@/core/routes';
 import {
   ArrowLeft,
+  Edit,
   Package,
-  DollarSign,
   AlertTriangle,
   Warehouse,
+  ExternalLink,
   Truck,
   Building2,
-  FileText,
-  Clock,
-  ArrowUpFromLine,
-  ArrowDownToLine,
-  ArrowRightLeft,
-  Lock,
-  Edit,
-  Download,
 } from 'lucide-react';
+
+const InventoryItemForm = dynamic(
+  () => import('@/features/inventory/components/InventoryItemForm').then((m) => ({ default: m.InventoryItemForm })),
+  { loading: () => <CardSkeleton />, ssr: false }
+);
+
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium break-words">{value ?? '-'}</p>
+    </div>
+  );
+}
 
 export default function InventoryDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-
+  const { data: item, isLoading, refetch } = useInventoryItem(id);
+  const inventoryConfig = useInventoryConfiguration();
+  const updateMutation = useUpdateInventoryItem();
   const [activeTab, setActiveTab] = useState('overview');
-
-  const { data: item, isLoading } = useInventoryItem(id);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { data: activities } = useInventoryActivities(id, activeTab === 'activity');
   const { data: movements } = useStockMovementHistory(id, activeTab === 'stock-history');
 
   if (isLoading) {
     return (
-      <MainLayout title="Inventory Details" subtitle="View item information">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center space-y-2">
-            <div className="h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-sm text-muted-foreground">Loading item details...</p>
-          </div>
-        </div>
+      <MainLayout>
+        <CardSkeleton count={4} />
       </MainLayout>
     );
   }
 
   if (!item) {
     return (
-      <MainLayout title="Inventory Details" subtitle="View item information">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center space-y-2">
-            <p className="text-sm text-destructive">Item not found</p>
-            <Button variant="outline" size="sm" onClick={() => router.back()}>
-              Go Back
-            </Button>
-          </div>
-        </div>
+      <MainLayout>
+        <ErrorState
+          title="Inventory entry not found"
+          message="The selected inventory record could not be loaded."
+          retryLabel="Back to Inventory"
+          onRetry={() => router.push(ROUTES.inventory)}
+        />
       </MainLayout>
     );
   }
 
+  const needsReorder = item.currentStock <= item.reorderLevel;
+
   const movementColumns: Column<StockMovement>[] = [
-    {
-      key: 'movementNumber',
-      label: 'Movement #',
-      sortable: true,
-      render: (value) => <span className="font-mono text-xs">{value}</span>,
-    },
-    {
-      key: 'type',
-      label: 'Type',
-      sortable: true,
-      render: (value) => (
-        <Badge variant={getMovementTypeVariant(value as any)}>
-          {value}
-        </Badge>
-      ),
-    },
-    {
-      key: 'quantity',
-      label: 'Quantity',
-      sortable: true,
-      render: (value) => <span className="text-xs font-medium">{Number(value).toLocaleString()}</span>,
-    },
-    {
-      key: 'warehouse',
-      label: 'Warehouse',
-      sortable: true,
-    },
-    {
-      key: 'referenceNumber',
-      label: 'Reference',
-      render: (value) => <span className="text-xs font-mono">{value || '-'}</span>,
-    },
-    {
-      key: 'performedBy',
-      label: 'Performed By',
-    },
-    {
-      key: 'date',
-      label: 'Date',
-      sortable: true,
-      render: (value) => {
-        if (!value) return <span className="text-xs text-muted-foreground">-</span>;
-        const date = new Date(value);
-        return (
-          <span className="text-xs text-muted-foreground">
-            {date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-          </span>
-        );
-      },
-    },
+    { key: 'movementNumber', label: 'Movement #', sortable: true, render: (v) => <span className="font-mono text-xs">{v}</span> },
+    { key: 'type', label: 'Type', render: (v) => <Badge variant={getMovementTypeVariant(v as StockMovement['type'])} className="text-[10px]">{v}</Badge> },
+    { key: 'quantity', label: 'Qty', sortable: true, render: (v) => <span className="text-xs font-medium">{Number(v).toLocaleString()}</span> },
+    { key: 'warehouse', label: 'Warehouse' },
+    { key: 'referenceNumber', label: 'Reference', render: (v) => <span className="text-xs font-mono">{v || '-'}</span> },
+    { key: 'date', label: 'Date', render: (v) => v ? new Date(v).toLocaleDateString('en-IN') : '-' },
   ];
 
   return (
-    <MainLayout title={item.itemName} subtitle={item.itemCode}>
+    <MainLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Button variant="ghost" size="sm" onClick={() => router.push(ROUTES.inventory)}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Inventory
             </Button>
-            <Button size="sm">
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Item
-            </Button>
+            <div className="h-4 w-px bg-border" />
+            <div className="min-w-0">
+              <h1 className="text-lg font-semibold truncate">{item.itemName}</h1>
+              <p className="text-sm text-muted-foreground truncate">
+                {item.itemCode} · {item.warehouseName} · {item.category || 'No category'}
+              </p>
+            </div>
           </div>
+          <Button variant="outline" size="sm" onClick={() => setIsEditDialogOpen(true)}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit Inventory
+          </Button>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge variant={getStockStatusVariant(item.status)}>{item.status}</Badge>
+          {item.itemTypeClass && <Badge variant="outline">{item.itemTypeClass}</Badge>}
+          {needsReorder && <Badge variant="destructive">Reorder Required</Badge>}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-100">
-                  <Package className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Current Stock</p>
-                  <p className="text-lg font-bold">{Number(item.currentStock).toLocaleString()} {item.unit}</p>
-                </div>
-              </div>
+            <CardContent className="p-3 sm:p-4">
+              <p className="text-xs text-muted-foreground mb-1">Current Stock</p>
+              <p className="text-base font-bold">{Number(item.currentStock).toLocaleString()} {item.unit}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-100">
-                  <DollarSign className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Value</p>
-                  <p className="text-lg font-bold">₹{Number(item.totalValue).toLocaleString()}</p>
-                </div>
-              </div>
+            <CardContent className="p-3 sm:p-4">
+              <p className="text-xs text-muted-foreground mb-1">Available</p>
+              <p className="text-base font-bold text-green-700">{Number(item.availableStock).toLocaleString()} {item.unit}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-purple-100">
-                  <Lock className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Reserved Stock</p>
-                  <p className="text-lg font-bold">{Number(item.reservedStock).toLocaleString()} {item.unit}</p>
-                </div>
-              </div>
+            <CardContent className="p-3 sm:p-4">
+              <p className="text-xs text-muted-foreground mb-1">Reserved</p>
+              <p className="text-base font-bold">{Number(item.reservedStock).toLocaleString()} {item.unit}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-100">
-                  <AlertTriangle className="h-5 w-5 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Available</p>
-                  <p className="text-lg font-bold">{Number(item.availableStock).toLocaleString()} {item.unit}</p>
-                </div>
-              </div>
+            <CardContent className="p-3 sm:p-4">
+              <p className="text-xs text-muted-foreground mb-1">Incoming</p>
+              <p className="text-base font-bold">{Number(item.incomingStock ?? 0).toLocaleString()} {item.unit}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <p className="text-xs text-muted-foreground mb-1">Outgoing</p>
+              <p className="text-base font-bold">{Number(item.outgoingStock ?? 0).toLocaleString()} {item.unit}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 sm:p-4">
+              <p className="text-xs text-muted-foreground mb-1">Stock Value</p>
+              <p className="text-base font-bold">₹{Number(item.totalValue).toLocaleString()}</p>
             </CardContent>
           </Card>
         </div>
 
-
-        {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
+          <TabsList className="flex flex-wrap h-auto gap-1">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="stock-history">Stock History</TabsTrigger>
-            <TabsTrigger value="warehouses">Warehouses</TabsTrigger>
-            <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
-            <TabsTrigger value="projects">Projects</TabsTrigger>
-            <TabsTrigger value="files">Files</TabsTrigger>
+            <TabsTrigger value="stock">Stock</TabsTrigger>
+            <TabsTrigger value="warehouse">Warehouse</TabsTrigger>
+            <TabsTrigger value="stock-history">Movement</TabsTrigger>
+            <TabsTrigger value="references">References</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* General Information */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
                     <Package className="h-4 w-4" />
-                    General Information
+                    Item Reference (Read-only)
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Item Code</p>
-                      <p className="text-sm font-medium font-mono">{item.itemCode}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Unit</p>
-                      <p className="text-sm font-medium">{item.unit}</p>
-                    </div>
-                  </div>
+                <CardContent className="grid grid-cols-2 gap-3">
+                  <Field label="Item Code" value={<span className="font-mono">{item.itemCode}</span>} />
+                  <Field label="Item Master ID" value={item.itemMasterId} />
+                  <Field label="Category" value={item.category} />
+                  <Field label="Brand" value={item.brand} />
+                  <Field label="Item Type" value={item.itemTypeClass} />
+                  <Field label="Unit" value={item.unit} />
                 </CardContent>
               </Card>
-
-
-
-              {/* Inventory Rules */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4" />
-                    Inventory Rules
+                    Reorder Settings
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Minimum Stock</p>
-                      <p className="text-sm font-medium">{Number(item.minimumStock).toLocaleString()} {item.unit}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Reorder Level</p>
-                      <p className="text-sm font-medium">{Number(item.reorderLevel).toLocaleString()} {item.unit}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Safety Stock</p>
-                      <p className="text-sm font-medium">{Number(item.safetyStock).toLocaleString()} {item.unit}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Warehouse</p>
-                      <p className="text-sm font-medium">{item.warehouseName}</p>
-                    </div>
-                  </div>
+                <CardContent className="grid grid-cols-2 gap-3">
+                  <Field label="Minimum Stock" value={`${Number(item.minimumStock).toLocaleString()} ${item.unit}`} />
+                  <Field label="Reorder Level" value={`${Number(item.reorderLevel).toLocaleString()} ${item.unit}`} />
+                  <Field label="Reorder Quantity" value={`${Number(item.reorderQuantity ?? 0).toLocaleString()} ${item.unit}`} />
+                  <Field label="Safety Stock" value={`${Number(item.safetyStock).toLocaleString()} ${item.unit}`} />
                 </CardContent>
               </Card>
-
             </div>
+            <Card>
+              <CardContent className="pt-6">
+                <InventoryCustomFields mode="view" fields={inventoryConfig.customFields} values={item.customFields} />
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          {/* Stock History Tab */}
-          <TabsContent value="stock-history">
+          <TabsContent value="stock">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Stock Movement History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DataTable
-                  columns={movementColumns}
-                  data={movements || []}
-                  rowIdKey="id"
+              <CardHeader><CardTitle className="text-base">Stock Information</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <Field label="Current Stock" value={`${Number(item.currentStock).toLocaleString()} ${item.unit}`} />
+                <Field label="Reserved Stock" value={`${Number(item.reservedStock).toLocaleString()} ${item.unit}`} />
+                <Field label="Issued Stock" value={`${Number(item.issuedStock).toLocaleString()} ${item.unit}`} />
+                <Field label="Available Stock" value={`${Number(item.availableStock).toLocaleString()} ${item.unit}`} />
+                <Field label="Incoming Stock" value={`${Number(item.incomingStock ?? 0).toLocaleString()} ${item.unit}`} />
+                <Field label="Outgoing Stock" value={`${Number(item.outgoingStock ?? 0).toLocaleString()} ${item.unit}`} />
+                <Field label="Purchase Rate" value={item.purchaseRate != null ? `₹${item.purchaseRate.toLocaleString()}` : '-'} />
+                <Field label="Total Value" value={`₹${Number(item.totalValue).toLocaleString()}`} />
+                <Field
+                  label="Last Movement"
+                  value={item.lastMovementDate ? new Date(item.lastMovementDate).toLocaleDateString('en-IN') : '-'}
                 />
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Warehouses Tab */}
-          <TabsContent value="warehouses">
+          <TabsContent value="warehouse">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Warehouse className="h-4 w-4" />
-                  Warehouse Stock Breakdown
+                  Warehouse Information
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-medium">Main Warehouse</h3>
-                      <Badge variant="default">Primary</Badge>
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Current</p>
-                        <p className="font-medium">5,000 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Reserved</p>
-                        <p className="font-medium">1,200 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Issued</p>
-                        <p className="font-medium">800 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Available</p>
-                        <p className="font-medium">3,000 Kg</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-medium">Fabrication Yard</h3>
-                      <Badge variant="secondary">Secondary</Badge>
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Current</p>
-                        <p className="font-medium">3,500 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Reserved</p>
-                        <p className="font-medium">800 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Issued</p>
-                        <p className="font-medium">700 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Available</p>
-                        <p className="font-medium">2,000 Kg</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <CardContent className="grid grid-cols-2 gap-4">
+                <Field label="Warehouse" value={item.warehouseName} />
+                <Field label="Bin Location" value={item.binLocation} />
+                <Field label="Warehouse ID" value={item.warehouseId} />
               </CardContent>
             </Card>
           </TabsContent>
 
-
-          {/* Suppliers Tab */}
-          <TabsContent value="suppliers">
+          <TabsContent value="stock-history">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Truck className="h-4 w-4" />
-                  Supplier Information
-                </CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-base">Movement History</CardTitle></CardHeader>
               <CardContent>
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-medium">JSW Steel</h3>
-                    <Badge variant="default">Last Purchase</Badge>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Contact Person</p>
-                      <p className="font-medium">Rajesh Patil</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Last Purchase Date</p>
-                      <p className="font-medium">10 Jun 2024</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Last Purchase Qty</p>
-                      <p className="font-medium">5,000 Kg</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Last Purchase Rate</p>
-                      <p className="font-medium">₹65/Kg</p>
-                    </div>
-                  </div>
-                </div>
+                <DataTable columns={movementColumns} data={movements || []} rowIdKey="id" compact showToolbar={false} />
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Projects Tab */}
-          <TabsContent value="projects">
+          <TabsContent value="references">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  Project Stock Allocations
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="font-medium">Factory Shed - Ahmedabad</h3>
-                        <p className="text-xs text-muted-foreground">Reliance Industries</p>
+              <CardHeader><CardTitle className="text-base">Cross-Module References</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => router.push(ROUTES.items)}>
+                    Item Master <ExternalLink className="h-3 w-3 ml-1.5" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => router.push(ROUTES.documentsEstimates)}>
+                    Estimates <ExternalLink className="h-3 w-3 ml-1.5" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => router.push(ROUTES.documentsProposals)}>
+                    Proposals <ExternalLink className="h-3 w-3 ml-1.5" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => router.push(ROUTES.documentsQuotations)}>
+                    Quotations <ExternalLink className="h-3 w-3 ml-1.5" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => router.push(ROUTES.finance)}>
+                    Finance <ExternalLink className="h-3 w-3 ml-1.5" />
+                  </Button>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Project Allocations
+                  </h4>
+                  <div className="space-y-2">
+                    {MOCK_PROJECT_ALLOCATIONS.map((alloc) => (
+                      <div key={alloc.projectId} className="p-3 border rounded-lg text-sm">
+                        <div className="flex justify-between items-start gap-2">
+                          <div>
+                            <p className="font-medium">{alloc.projectName}</p>
+                            <p className="text-xs text-muted-foreground">{alloc.customerName}</p>
+                          </div>
+                          <Badge variant={alloc.status === 'Active' ? 'default' : 'secondary'} className="text-[10px]">{alloc.status}</Badge>
+                        </div>
+                        <p className="text-xs mt-2 text-muted-foreground">
+                          Reserved: {alloc.reservedQuantity} · Issued: {alloc.issuedQuantity} · Balance: {alloc.balanceQuantity}
+                        </p>
                       </div>
-                      <Badge variant="default">Active</Badge>
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Reserved Qty</p>
-                        <p className="font-medium">2,500 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Issued Qty</p>
-                        <p className="font-medium">1,500 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Balance Qty</p>
-                        <p className="font-medium">1,000 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Status</p>
-                        <Badge variant="default" className="text-xs">Active</Badge>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="font-medium">Warehouse - Mumbai</h3>
-                        <p className="text-xs text-muted-foreground">Tata Motors</p>
-                      </div>
-                      <Badge variant="default">Active</Badge>
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Reserved Qty</p>
-                        <p className="font-medium">1,500 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Issued Qty</p>
-                        <p className="font-medium">800 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Balance Qty</p>
-                        <p className="font-medium">700 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Status</p>
-                        <Badge variant="default" className="text-xs">Active</Badge>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="font-medium">Industrial Building - Pune</h3>
-                        <p className="text-xs text-muted-foreground">Mahindra & Mahindra</p>
-                      </div>
-                      <Badge variant="secondary">Completed</Badge>
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Reserved Qty</p>
-                        <p className="font-medium">1,000 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Issued Qty</p>
-                        <p className="font-medium">1,000 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Balance Qty</p>
-                        <p className="font-medium">0 Kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Status</p>
-                        <Badge variant="secondary" className="text-xs">Completed</Badge>
-                      </div>
-                    </div>
-                  </div>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                    <Truck className="h-4 w-4" />
+                    Vendor Reference
+                  </h4>
+                  <p className="text-sm text-muted-foreground">Supplier linkage available when backend is connected.</p>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Files Tab */}
-          <TabsContent value="files">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Stock Documents
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="p-4 border rounded-lg flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <p className="font-medium">Stock Movement History</p>
-                        <p className="text-xs text-muted-foreground">Complete stock transaction log</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm">View</Button>
-                  </div>
-                  <div className="p-4 border rounded-lg flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-green-600" />
-                      <div>
-                        <p className="font-medium">GRN Documents</p>
-                        <p className="text-xs text-muted-foreground">Goods Received Notes</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm">View</Button>
-                  </div>
-                  <div className="p-4 border rounded-lg flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-purple-600" />
-                      <div>
-                        <p className="font-medium">Internal Notes</p>
-                        <p className="text-xs text-muted-foreground">Warehouse internal notes</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm">View</Button>
-                  </div>
-                  <div className="p-4 border rounded-lg flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-amber-600" />
-                      <div>
-                        <p className="font-medium">Warehouse Documents</p>
-                        <p className="text-xs text-muted-foreground">Warehouse-related documents</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm">View</Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Activity Tab */}
           <TabsContent value="activity">
             <InventoryActivityTimeline activities={activities || []} />
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit Inventory Entry</DialogTitle></DialogHeader>
+          <InventoryItemForm
+            mode="edit"
+            initialData={item}
+            onSubmit={(data) =>
+              updateMutation.mutate(
+                { id: item.id, data },
+                {
+                  onSuccess: () => {
+                    setIsEditDialogOpen(false);
+                    refetch();
+                  },
+                }
+              )
+            }
+            onCancel={() => setIsEditDialogOpen(false)}
+            isLoading={updateMutation.isPending}
+          />
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

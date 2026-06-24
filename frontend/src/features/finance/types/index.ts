@@ -599,9 +599,9 @@ export interface FinanceActivity {
  * Finance Stats
  */
 export interface FinanceStats {
-  totalRevenue: number;
+  totalInvoiced: number;
+  totalReceived: number;
   totalExpenses: number;
-  netProfit: number;
   pendingReceivables: number;
   pendingPayables: number;
   monthlyRevenue: number;
@@ -612,6 +612,15 @@ export interface FinanceStats {
   overduePayments: number;
   gstLiability: number;
   availableCashPosition: number;
+  // Optional percentage changes (calculated by backend)
+  totalInvoicedChange?: number;
+  totalReceivedChange?: number;
+  totalExpensesChange?: number;
+  pendingReceivablesChange?: number;
+  pendingPayablesChange?: number;
+  cashInflowChange?: number;
+  cashOutflowChange?: number;
+  availableCashChange?: number;
   projectProfitability: number;
 }
 

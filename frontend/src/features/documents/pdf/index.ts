@@ -11,6 +11,7 @@ export { DocumentSignature } from './components/DocumentSignature';
 export { EstimatePDF } from './EstimatePDF';
 export { ProposalPDF } from './ProposalPDF';
 export { QuotationPDF } from './QuotationPDF';
+export { InvoicePDF } from './InvoicePDF';
 
 export {
   numberToWords,
@@ -19,3 +20,16 @@ export {
   calculateDiscount,
   formatCurrencyForPDF,
 } from './utils/pdfUtils';
+
+export {
+  buildDocumentPdfElement,
+  mapCompanyToPdfProps,
+  getPdfFilename,
+  getPdfAuthorizedBy,
+} from './buildDocumentPdf';
+export type { CompanyPdfProps } from './buildDocumentPdf';
+export {
+  generateDocumentPdfBlob,
+  downloadDocumentPdf,
+  createDocumentPdfPreviewUrl,
+} from './documentPdfService';

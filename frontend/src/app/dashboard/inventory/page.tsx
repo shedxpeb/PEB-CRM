@@ -1,426 +1,483 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { MainLayout } from '@/layouts/MainLayout';
 import { DataTable, Column } from '@/components/data-table/DataTable';
 import { KPICard } from '@/components/dashboard/KPICard';
+import { StandardPageLayout } from '@/components/layout/StandardPageLayout';
+import { FilterConfig } from '@/components/layout/FilterBar';
+import { InventoryViewDrawer } from '@/features/inventory/components/InventoryViewDrawer';
 import { InventoryRowActions } from '@/features/inventory/components/InventoryRowActions';
-
-// Lazy load InventoryItemForm to reduce initial bundle size
-const InventoryItemForm = dynamic(() => import('@/features/inventory/components/InventoryItemForm').then(mod => ({ default: mod.InventoryItemForm })), {
-  loading: () => <div className="p-8 text-center">Loading form...</div>,
-  ssr: false
-});
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { InventoryItem, StockStatus } from '@/features/inventory/types';
-import { getStockStatusVariant } from '@/features/inventory/constants';
+import { getInventoryCustomFieldValue } from '@/features/inventory/components/InventoryCustomFields';
 import {
   useInventoryItems,
-  useInventoryStats,
   useCreateInventoryItem,
   useUpdateInventoryItem,
   useDeleteInventoryItem,
+  useInventoryConfiguration,
 } from '@/features/inventory/hooks/useInventory';
+import { InventoryItem, StockStatus, ItemTypeClass, CreateInventoryItemDto } from '@/features/inventory/types';
+import { getStockStatusVariant } from '@/features/inventory/constants';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ROUTES } from '@/core/routes';
 import { useDebounce } from '@/shared/hooks/useDebounce';
-import {
-  Package,
-  DollarSign,
-  AlertTriangle,
-  XCircle,
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Lock,
-  Truck,
-  ShoppingCart,
-  AlertOctagon,
-  Plus,
-  Download,
-  Search,
-} from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Package, Plus, Download, Warehouse, AlertTriangle, DollarSign } from 'lucide-react';
+
+const InventoryItemForm = dynamic(
+  () => import('@/features/inventory/components/InventoryItemForm').then((m) => ({ default: m.InventoryItemForm })),
+  { loading: () => <div className="p-8 text-center">Loading form...</div>, ssr: false }
+);
+
+const STOCK_STATUSES: StockStatus[] = ['In Stock', 'Low Stock', 'Out of Stock', 'Critical', 'On Order', 'Discontinued'];
+const ITEM_TYPE_CLASSES: ItemTypeClass[] = ['Structural', 'Cladding', 'Accessory', 'Service', 'Other'];
+
+function isLowStock(item: InventoryItem): boolean {
+  return item.status === 'Low Stock' || item.status === 'Critical' || item.currentStock <= item.minimumStock;
+}
+
+function isReorderRequired(item: InventoryItem): boolean {
+  return item.currentStock <= item.reorderLevel;
+}
 
 export default function InventoryPage() {
   const router = useRouter();
+  const inventoryConfig = useInventoryConfiguration();
 
-  // Search and filter state with debounce
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 300);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [brandFilter, setBrandFilter] = useState<string>('all');
+  const [warehouseFilter, setWarehouseFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<StockStatus | 'all'>('all');
+  const [itemTypeFilter, setItemTypeFilter] = useState<string>('all');
+  const [lowStockFilter, setLowStockFilter] = useState<string>('all');
+  const [reorderFilter, setReorderFilter] = useState<string>('all');
 
-  // React Query hooks
-  const [params, setParams] = useState({ page: 1, pageSize: 20, search: '' });
-  const { data: itemsResponse, isLoading, error } = useInventoryItems(params);
-  const { data: stats } = useInventoryStats();
+  const { data: itemsResponse, isLoading, error, refetch } = useInventoryItems({ page: 1, pageSize: 1000 });
   const createMutation = useCreateInventoryItem();
   const updateMutation = useUpdateInventoryItem();
   const deleteMutation = useDeleteInventoryItem();
 
-  // Update search in params when debounced search changes
-  useEffect(() => {
-    setParams(prev => ({ ...prev, search: debouncedSearch }));
-  }, [debouncedSearch]);
-
-  // UI state only
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [isViewDrawerOpen, setIsViewDrawerOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
 
-  // Extract data
-  const items = itemsResponse?.data ?? [];
-  const statsData = stats;
+  const allItems = itemsResponse?.data ?? [];
 
-  // 10 KPI Cards - memoized to prevent recreation on every render
-  const kpiData = useMemo(() => [
-    { title: 'Total Items', value: String(statsData?.totalItems ?? 0), change: 5.2, icon: <Package className="h-6 w-6 text-blue-600" />, color: 'text-blue-600' },
-    { title: 'Total Value', value: `₹${((statsData?.totalValue ?? 0) / 100000).toFixed(1)}L`, change: 8.7, icon: <DollarSign className="h-6 w-6 text-green-600" />, color: 'text-green-600' },
-    { title: 'Low Stock', value: String(statsData?.lowStockItems ?? 0), change: -3.1, icon: <AlertTriangle className="h-6 w-6 text-amber-600" />, color: 'text-amber-600' },
-    { title: 'Out of Stock', value: String(statsData?.outOfStockItems ?? 0), change: -12.0, icon: <XCircle className="h-6 w-6 text-red-600" />, color: 'text-red-600' },
-    { title: 'Incoming Stock', value: String(statsData?.incomingStock ?? 0), change: 15.3, icon: <ArrowDownToLine className="h-6 w-6 text-emerald-600" />, color: 'text-emerald-600' },
-    { title: 'Outgoing Stock', value: String(statsData?.outgoingStock ?? 0), change: 7.8, icon: <ArrowUpFromLine className="h-6 w-6 text-orange-600" />, color: 'text-orange-600' },
-    { title: 'Reserved Stock', value: String(statsData?.reservedStock ?? 0), change: 4.5, icon: <Lock className="h-6 w-6 text-purple-600" />, color: 'text-purple-600' },
-    { title: 'Active Suppliers', value: String(statsData?.activeSuppliers ?? 0), change: 2.0, icon: <Truck className="h-6 w-6 text-teal-600" />, color: 'text-teal-600' },
-    { title: 'Pending PRs', value: String(statsData?.pendingPurchaseRequests ?? 0), change: -5.5, icon: <ShoppingCart className="h-6 w-6 text-indigo-600" />, color: 'text-indigo-600' },
-    { title: 'Material Shortages', value: String(statsData?.materialShortages ?? 0), change: -8.2, icon: <AlertOctagon className="h-6 w-6 text-rose-600" />, color: 'text-rose-600' },
-  ], [statsData]);
-
-  // 16-column DataTable - memoized to prevent recreation on every render
-  const columns: Column<InventoryItem>[] = useMemo(() => [
-    {
-      key: 'itemCode',
-      label: 'Item Code',
-      sortable: true,
-      render: (value) => <span className="font-mono text-xs text-muted-foreground">{value}</span>,
-    },
-    {
-      key: 'itemName',
-      label: 'Item Name',
-      sortable: true,
-      filterable: true,
-      render: (_, row) => (
-        <div>
-          <p className="font-medium text-sm">{row.itemName}</p>
-          <p className="text-xs text-muted-foreground">{row.itemCode}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'category',
-      label: 'Category',
-      sortable: true,
-      filterable: true,
-      render: (value) => <span className="text-xs">{value}</span>,
-    },
-    {
-      key: 'materialType',
-      label: 'Material Type',
-      sortable: true,
-      filterable: true,
-      render: (value) => <span className="text-xs">{value}</span>,
-    },
-    {
-      key: 'unit',
-      label: 'Unit',
-      render: (value) => <span className="text-xs">{value}</span>,
-    },
-    {
-      key: 'currentStock',
-      label: 'Current Stock',
-      sortable: true,
-      render: (value) => (
-        <span className="text-xs font-medium">{Number(value).toLocaleString()}</span>
-      ),
-    },
-    {
-      key: 'reservedStock',
-      label: 'Reserved',
-      sortable: true,
-      render: (value) => (
-        <span className="text-xs text-purple-600">{Number(value).toLocaleString()}</span>
-      ),
-    },
-    {
-      key: 'availableStock',
-      label: 'Available',
-      sortable: true,
-      render: (value) => (
-        <span className="text-xs font-medium text-green-700">{Number(value).toLocaleString()}</span>
-      ),
-    },
-    {
-      key: 'minimumStock',
-      label: 'Min Stock',
-      render: (value) => <span className="text-xs text-muted-foreground">{Number(value).toLocaleString()}</span>,
-    },
-    {
-      key: 'reorderLevel',
-      label: 'Reorder',
-      render: (value) => <span className="text-xs text-muted-foreground">{Number(value).toLocaleString()}</span>,
-    },
-    {
-      key: 'warehouseName',
-      label: 'Warehouse',
-      sortable: true,
-      filterable: true,
-      render: (value) => <span className="text-xs">{value}</span>,
-    },
-    {
-      key: 'purchaseRate',
-      label: 'Purchase Rate',
-      sortable: true,
-      render: (value) => (
-        <span className="text-xs">₹{Number(value).toFixed(2)}</span>
-      ),
-    },
-    {
-      key: 'totalValue',
-      label: 'Current Value',
-      sortable: true,
-      render: (value) => (
-        <span className="text-xs font-medium">₹{Number(value).toLocaleString()}</span>
-      ),
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      sortable: true,
-      filterable: true,
-      render: (value) => (
-        <Badge variant={getStockStatusVariant(value as StockStatus)}>
-          {value}
-        </Badge>
-      ),
-    },
-    {
-      key: 'lastUpdated',
-      label: 'Last Updated',
-      sortable: true,
-      render: (value) => {
-        if (!value) return <span className="text-xs text-muted-foreground">-</span>;
-        const date = new Date(value);
-        return (
-          <span className="text-xs text-muted-foreground">
-            {date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-          </span>
-        );
-      },
-    },
-  ], []);
-
-  // Mutation handlers - memoized to prevent recreation on every render
-  const handleCreate = useCallback((data: Partial<InventoryItem>) => {
-    createMutation.mutate(data as any, {
-      onSuccess: () => setIsCreateDialogOpen(false),
-    });
-  }, [createMutation]);
-
-  const handleEdit = useCallback((data: Partial<InventoryItem>) => {
-    if (!selectedItem) return;
-    updateMutation.mutate(
-      { id: selectedItem.id, data: data as any },
-      {
-        onSuccess: () => {
-          setIsEditDialogOpen(false);
-          setSelectedItem(null);
-        },
-      }
-    );
-  }, [selectedItem, updateMutation]);
-
-  const handleDelete = useCallback((item: InventoryItem) => {
-    if (confirm(`Delete inventory item "${item.itemName}"?`)) {
-      deleteMutation.mutate(item.id);
+  const filterOptions = useMemo(() => {
+    const categories = new Set<string>();
+    const brands = new Set<string>();
+    const warehouses = new Set<string>();
+    for (const item of allItems) {
+      if (item.category) categories.add(item.category);
+      if (item.brand) brands.add(item.brand);
+      if (item.warehouseName) warehouses.add(item.warehouseName);
     }
-  }, [deleteMutation]);
+    return {
+      categories: [...categories].sort(),
+      brands: [...brands].sort(),
+      warehouses: [...warehouses].sort(),
+    };
+  }, [allItems]);
 
-  const handleRowClick = useCallback((row: InventoryItem) => {
-    router.push(`${ROUTES.inventory}/${row.id}`);
-  }, [router]);
+  const filteredItems = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
+    return allItems.filter((item) => {
+      const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
+      const matchesBrand = brandFilter === 'all' || item.brand === brandFilter;
+      const matchesWarehouse = warehouseFilter === 'all' || item.warehouseName === warehouseFilter;
+      const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+      const matchesType = itemTypeFilter === 'all' || item.itemTypeClass === itemTypeFilter;
+      const matchesLowStock = lowStockFilter === 'all' || (lowStockFilter === 'yes' ? isLowStock(item) : !isLowStock(item));
+      const matchesReorder = reorderFilter === 'all' || (reorderFilter === 'yes' ? isReorderRequired(item) : !isReorderRequired(item));
+      const matchesSearch =
+        !debouncedSearch ||
+        item.itemCode.toLowerCase().includes(q) ||
+        item.itemName.toLowerCase().includes(q) ||
+        item.warehouseName?.toLowerCase().includes(q) ||
+        item.category?.toLowerCase().includes(q) ||
+        item.brand?.toLowerCase().includes(q) ||
+        item.status.toLowerCase().includes(q) ||
+        item.binLocation?.toLowerCase().includes(q);
+      return matchesCategory && matchesBrand && matchesWarehouse && matchesStatus && matchesType && matchesLowStock && matchesReorder && matchesSearch;
+    });
+  }, [allItems, debouncedSearch, categoryFilter, brandFilter, warehouseFilter, statusFilter, itemTypeFilter, lowStockFilter, reorderFilter]);
+
+  const selectedItem = useMemo(
+    () => (selectedItemId ? allItems.find((i) => i.id === selectedItemId) ?? null : null),
+    [allItems, selectedItemId]
+  );
+
+  const filteredStats = useMemo(() => {
+    const warehouses = new Set<string>();
+    let totalStock = 0;
+    let lowStock = 0;
+    let reorderRequired = 0;
+    let stockValue = 0;
+    for (const item of filteredItems) {
+      totalStock += item.currentStock;
+      stockValue += item.totalValue;
+      if (item.warehouseName) warehouses.add(item.warehouseName);
+      if (isLowStock(item)) lowStock++;
+      if (isReorderRequired(item)) reorderRequired++;
+    }
+    return {
+      total: filteredItems.length,
+      totalStock,
+      lowStock,
+      reorderRequired,
+      warehouses: warehouses.size,
+      stockValue,
+    };
+  }, [filteredItems]);
+
+  const kpiData = useMemo(
+    () => [
+      { title: 'Total Items', value: String(filteredStats.total), change: 0, icon: <Package className="h-5 w-5 text-blue-600" />, color: 'text-blue-600' },
+      { title: 'Total Stock', value: filteredStats.totalStock.toLocaleString(), change: 0, icon: <Package className="h-5 w-5 text-indigo-600" />, color: 'text-indigo-600' },
+      { title: 'Low Stock Items', value: String(filteredStats.lowStock), change: 0, icon: <AlertTriangle className="h-5 w-5 text-amber-600" />, color: 'text-amber-600' },
+      { title: 'Reorder Required', value: String(filteredStats.reorderRequired), change: 0, icon: <AlertTriangle className="h-5 w-5 text-orange-600" />, color: 'text-orange-600' },
+      { title: 'Warehouses', value: String(filteredStats.warehouses), change: 0, icon: <Warehouse className="h-5 w-5 text-purple-600" />, color: 'text-purple-600' },
+      { title: 'Stock Value', value: `₹${(filteredStats.stockValue / 100000).toFixed(1)}L`, change: 0, icon: <DollarSign className="h-5 w-5 text-green-600" />, color: 'text-green-600' },
+    ],
+    [filteredStats]
+  );
+
+  const tableFilterKey = useMemo(
+    () => [debouncedSearch, categoryFilter, brandFilter, warehouseFilter, statusFilter, itemTypeFilter, lowStockFilter, reorderFilter].join('|'),
+    [debouncedSearch, categoryFilter, brandFilter, warehouseFilter, statusFilter, itemTypeFilter, lowStockFilter, reorderFilter]
+  );
+
+  const filterConfigs: FilterConfig[] = useMemo(
+    () => [
+      {
+        key: 'category',
+        label: 'Category',
+        value: categoryFilter,
+        onChange: setCategoryFilter,
+        options: [{ value: 'all', label: 'All Categories' }, ...filterOptions.categories.map((c) => ({ value: c, label: c }))],
+      },
+      {
+        key: 'brand',
+        label: 'Brand',
+        value: brandFilter,
+        onChange: setBrandFilter,
+        options: [{ value: 'all', label: 'All Brands' }, ...filterOptions.brands.map((b) => ({ value: b, label: b }))],
+      },
+      {
+        key: 'warehouse',
+        label: 'Warehouse',
+        value: warehouseFilter,
+        onChange: setWarehouseFilter,
+        options: [{ value: 'all', label: 'All Warehouses' }, ...filterOptions.warehouses.map((w) => ({ value: w, label: w }))],
+      },
+      {
+        key: 'status',
+        label: 'Stock Status',
+        value: statusFilter,
+        onChange: (v: string) => setStatusFilter(v as StockStatus | 'all'),
+        options: [{ value: 'all', label: 'All Status' }, ...STOCK_STATUSES.map((s) => ({ value: s, label: s }))],
+      },
+      {
+        key: 'itemType',
+        label: 'Item Type',
+        value: itemTypeFilter,
+        onChange: setItemTypeFilter,
+        options: [{ value: 'all', label: 'All Types' }, ...ITEM_TYPE_CLASSES.map((t) => ({ value: t, label: t }))],
+      },
+      {
+        key: 'lowStock',
+        label: 'Low Stock',
+        value: lowStockFilter,
+        onChange: setLowStockFilter,
+        options: [
+          { value: 'all', label: 'All' },
+          { value: 'yes', label: 'Low Stock Only' },
+          { value: 'no', label: 'Not Low Stock' },
+        ],
+      },
+      {
+        key: 'reorder',
+        label: 'Reorder Required',
+        value: reorderFilter,
+        onChange: setReorderFilter,
+        options: [
+          { value: 'all', label: 'All' },
+          { value: 'yes', label: 'Reorder Required' },
+          { value: 'no', label: 'Not Required' },
+        ],
+      },
+    ],
+    [categoryFilter, brandFilter, warehouseFilter, statusFilter, itemTypeFilter, lowStockFilter, reorderFilter, filterOptions]
+  );
+
+  const handleClearFilters = useCallback(() => {
+    setCategoryFilter('all');
+    setBrandFilter('all');
+    setWarehouseFilter('all');
+    setStatusFilter('all');
+    setItemTypeFilter('all');
+    setLowStockFilter('all');
+    setReorderFilter('all');
+    setSearchQuery('');
+  }, []);
+
+  const baseColumns: Column<InventoryItem>[] = useMemo(
+    () => [
+      { key: 'itemCode', label: 'Code', sortable: true, className: 'w-[90px]', render: (v) => <span className="font-mono text-xs">{v}</span> },
+      {
+        key: 'itemName',
+        label: 'Item',
+        sortable: true,
+        className: 'min-w-[140px] max-w-[200px]',
+        render: (_, row) => (
+          <div className="min-w-0">
+            <p className="font-medium text-xs truncate">{row.itemName}</p>
+            <p className="text-[11px] text-muted-foreground truncate">{row.category || '-'}</p>
+          </div>
+        ),
+      },
+      { key: 'brand', label: 'Brand', sortable: true, className: 'hidden md:table-cell', headerClassName: 'hidden md:table-cell', render: (v) => <span className="text-xs">{v || '-'}</span> },
+      { key: 'currentStock', label: 'Stock', sortable: true, render: (v, row) => <span className="text-xs font-medium">{Number(v).toLocaleString()} {row.unit}</span> },
+      { key: 'availableStock', label: 'Available', sortable: true, className: 'hidden sm:table-cell', headerClassName: 'hidden sm:table-cell', render: (v, row) => <span className="text-xs text-green-700">{Number(v).toLocaleString()} {row.unit}</span> },
+      { key: 'warehouseName', label: 'Warehouse', sortable: true, className: 'hidden lg:table-cell', headerClassName: 'hidden lg:table-cell', render: (v) => <span className="text-xs truncate">{v}</span> },
+      { key: 'binLocation', label: 'Bin', sortable: true, className: 'hidden xl:table-cell', headerClassName: 'hidden xl:table-cell', render: (v) => <span className="text-xs font-mono">{v || '-'}</span> },
+      {
+        key: 'totalValue',
+        label: 'Value',
+        sortable: true,
+        className: 'hidden lg:table-cell',
+        headerClassName: 'hidden lg:table-cell',
+        render: (v) => <span className="text-xs font-medium">₹{Number(v).toLocaleString()}</span>,
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        sortable: true,
+        render: (v) => (
+          <Badge variant={getStockStatusVariant(v as StockStatus)} className="text-[10px]">
+            {v}
+          </Badge>
+        ),
+      },
+    ],
+    []
+  );
+
+  const settingsCustomColumnDefs = useMemo(
+    () =>
+      inventoryConfig.customFields.map((field) => ({
+        key: field.key as keyof InventoryItem,
+        label: field.label,
+        sortable: true,
+        className: 'hidden 2xl:table-cell',
+        headerClassName: 'hidden 2xl:table-cell',
+        render: (_: unknown, row: InventoryItem) => (
+          <span className="text-xs truncate block">{getInventoryCustomFieldValue(row, field.key)?.toString() ?? '-'}</span>
+        ),
+      })),
+    [inventoryConfig.customFields]
+  );
+
+  const columns = useMemo(() => [...baseColumns, ...settingsCustomColumnDefs], [baseColumns, settingsCustomColumnDefs]);
+
+  const handleRowClick = useCallback((item: InventoryItem) => {
+    setSelectedItemId(item.id);
+    setIsViewDrawerOpen(true);
+  }, []);
 
   const handleViewDetails = useCallback((item: InventoryItem) => {
-    router.push(`${ROUTES.inventory}/${item.id}`);
+    router.push(ROUTES.inventoryDetail(item.id));
   }, [router]);
 
   const handleEditFromRow = useCallback((item: InventoryItem) => {
-    setSelectedItem(item);
+    setSelectedItemId(item.id);
     setIsEditDialogOpen(true);
   }, []);
 
-  const handleStatusChange = useCallback((item: InventoryItem, status: StockStatus) => {
-    updateMutation.mutate({ id: item.id, data: { status } });
-  }, [updateMutation]);
+  const handleEditFromDrawer = useCallback((item: InventoryItem) => {
+    setIsViewDrawerOpen(false);
+    setSelectedItemId(item.id);
+    setIsEditDialogOpen(true);
+  }, []);
 
-  // Loading state
-  if (isLoading) {
+  const handleDelete = useCallback(
+    (item: InventoryItem) => {
+      if (confirm(`Delete inventory entry "${item.itemName}"?`)) {
+        deleteMutation.mutate(item.id);
+      }
+    },
+    [deleteMutation]
+  );
+
+  const handleCreate = useCallback(
+    (data: Partial<InventoryItem>) => {
+      createMutation.mutate(data as CreateInventoryItemDto, {
+        onSuccess: (newItem) => {
+          setIsCreateDialogOpen(false);
+          refetch();
+          setSelectedItemId(newItem.id);
+          setIsViewDrawerOpen(true);
+        },
+      });
+    },
+    [createMutation, refetch]
+  );
+
+  const handleEdit = useCallback(
+    (data: Partial<InventoryItem>) => {
+      if (!selectedItem) return;
+      updateMutation.mutate(
+        { id: selectedItem.id, data },
+        {
+          onSuccess: () => {
+            setIsEditDialogOpen(false);
+            refetch();
+            setIsViewDrawerOpen(true);
+          },
+        }
+      );
+    },
+    [selectedItem, updateMutation, refetch]
+  );
+
+  const handleExport = useCallback(() => {
+    const headers = ['Item Code', 'Item Name', 'Category', 'Brand', 'Current Stock', 'Available', 'Warehouse', 'Bin', 'Status', 'Value'];
+    const csv = [
+      headers.join(','),
+      ...filteredItems.map((i) =>
+        [
+          i.itemCode,
+          `"${i.itemName}"`,
+          i.category || '',
+          i.brand || '',
+          i.currentStock,
+          i.availableStock,
+          i.warehouseName,
+          i.binLocation || '',
+          i.status,
+          i.totalValue,
+        ].join(',')
+      ),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `inventory_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, [filteredItems]);
+
+  if (isLoading && !allItems.length) {
     return (
-      <MainLayout title="Inventory" subtitle="Manage materials and stock">
+      <MainLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-center space-y-2">
-            <div className="h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-sm text-muted-foreground">Loading inventory...</p>
-          </div>
+          <div className="h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
         </div>
       </MainLayout>
     );
   }
 
-  // Error state
   if (error) {
     return (
-      <MainLayout title="Inventory" subtitle="Manage materials and stock">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center space-y-2">
-            <p className="text-sm text-destructive">Failed to load inventory</p>
-            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
-              Retry
-            </Button>
-          </div>
-        </div>
+      <MainLayout>
+        <div className="flex items-center justify-center h-64 text-destructive text-sm">Failed to load inventory</div>
       </MainLayout>
     );
   }
 
   return (
-    <MainLayout title="Inventory" subtitle="Manage materials and stock">
-      <div className="space-y-2 sm:space-y-3 w-full overflow-hidden">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold">Inventory</h1>
-          </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)} className="w-full sm:w-auto h-9">
+    <MainLayout>
+      <StandardPageLayout
+        title="Inventory"
+        subtitle="Operational stock management — references Item Master"
+        headerActions={
+          <Button onClick={() => setIsCreateDialogOpen(true)} className="h-9">
             <Plus className="h-4 w-4 mr-2" />
-            Add Item
+            <span className="hidden sm:inline">Add Inventory</span>
+            <span className="sm:hidden">Add</span>
           </Button>
-        </div>
-
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-          <KPICard
-            data={{
-              title: 'Total Items',
-              value: statsData?.totalItems ?? 0,
-              change: 0,
-              icon: <Package />,
-              color: 'text-blue-500'
-            }}
-          />
-          <KPICard
-            data={{
-              title: 'Total Value',
-              value: `₹${((statsData?.totalValue ?? 0) / 100000).toFixed(1)}L`,
-              change: 0,
-              icon: <DollarSign />,
-              color: 'text-green-500'
-            }}
-          />
-          <KPICard
-            data={{
-              title: 'Low Stock',
-              value: statsData?.lowStockItems ?? 0,
-              change: 0,
-              icon: <AlertTriangle />,
-              color: 'text-yellow-500'
-            }}
-          />
-          <KPICard
-            data={{
-              title: 'Out of Stock',
-              value: statsData?.outOfStockItems ?? 0,
-              change: 0,
-              icon: <XCircle />,
-              color: 'text-emerald-500'
-            }}
-          />
-        </div>
-
-        {/* Filters */}
-        <Card className="min-w-0">
-          <CardContent className="p-2 sm:p-3">
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-center justify-between">
-              <div className="relative flex-1 w-full sm:max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  type="text"
-                  placeholder="Search inventory..."
-                  className="w-full pl-10 pr-3 py-2 text-xs sm:text-sm h-9"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-1 w-full sm:w-auto ml-auto">
-                <Button variant="outline" className="flex-1 sm:flex-none gap-1.5 px-2 sm:px-3 py-2 h-8 sm:h-9 text-xs">
-                  <Download className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Export</span>
-                </Button>
-                {searchQuery && (
-                  <Button variant="ghost" size="sm" onClick={() => setSearchQuery('')} className="flex-1 sm:flex-none h-8 sm:h-9 px-2 sm:px-3 text-xs">
-                    Clear
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Data Table */}
+        }
+        kpiCards={kpiData.map((kpi, i) => <KPICard key={i} data={kpi} />)}
+        kpiGridClassName="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4"
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by code, name, warehouse, category, brand, status, or bin location..."
+        filters={filterConfigs}
+        onClearFilters={handleClearFilters}
+        filterMode="popover"
+        toolbarActions={
+          <Button variant="outline" size="sm" onClick={handleExport} className="h-9 gap-1.5 text-xs">
+            <Download className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Export</span>
+          </Button>
+        }
+        className="gap-4 sm:gap-6"
+      >
         <div className="min-w-0">
           <DataTable
-          columns={columns}
-          data={items}
-          onRowClick={handleRowClick}
-          enableSelection={true}
-          selectedRows={selectedRows}
-          onSelectionChange={setSelectedRows}
-          rowIdKey="id"
-          rowActions={(row) => (
-            <InventoryRowActions
-              item={row as InventoryItem}
-              onEdit={handleEditFromRow}
-              onDelete={handleDelete}
-              onViewDetails={handleViewDetails}
-              onStatusChange={handleStatusChange}
-            />
-          )}
-        />
-        </div>
-
-        {/* Create Item Dialog */}
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Inventory Item</DialogTitle>
-            </DialogHeader>
-            <InventoryItemForm
-              onSubmit={handleCreate}
-              onCancel={() => setIsCreateDialogOpen(false)}
-              isLoading={createMutation.isPending}
-            />
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Item Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Inventory Item</DialogTitle>
-            </DialogHeader>
-            {selectedItem && (
-              <InventoryItemForm
-                initialData={selectedItem}
-                onSubmit={handleEdit}
-                onCancel={() => setIsEditDialogOpen(false)}
-                isLoading={updateMutation.isPending}
+            key={tableFilterKey}
+            columns={columns}
+            data={filteredItems}
+            showToolbar={false}
+            compact
+            onRowClick={handleRowClick}
+            enableSelection
+            selectedRows={selectedRows}
+            onSelectionChange={setSelectedRows}
+            rowIdKey="id"
+            emptyMessage="No inventory items found. Adjust your filters or add a new entry."
+            rowActions={(row) => (
+              <InventoryRowActions
+                item={row as InventoryItem}
+                onEdit={handleEditFromRow}
+                onDelete={handleDelete}
+                onViewDetails={handleViewDetails}
               />
             )}
-          </DialogContent>
-        </Dialog>
-      </div>
+          />
+        </div>
+      </StandardPageLayout>
+
+      <InventoryViewDrawer
+        item={selectedItem}
+        open={isViewDrawerOpen}
+        onOpenChange={setIsViewDrawerOpen}
+        onEdit={handleEditFromDrawer}
+      />
+
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Create Inventory Entry</DialogTitle></DialogHeader>
+          <InventoryItemForm
+            mode="create"
+            onSubmit={handleCreate}
+            onCancel={() => setIsCreateDialogOpen(false)}
+            isLoading={createMutation.isPending}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit Inventory Entry</DialogTitle></DialogHeader>
+          {selectedItem && (
+            <InventoryItemForm
+              mode="edit"
+              initialData={selectedItem}
+              onSubmit={handleEdit}
+              onCancel={() => setIsEditDialogOpen(false)}
+              isLoading={updateMutation.isPending}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,24 +11,47 @@ interface VendorFormProps {
   onSubmit: (data: CreateVendorFormData) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  mode?: 'create' | 'edit';
+  initialData?: Partial<CreateVendorFormData> | null;
 }
 
-export const VendorForm = memo(function VendorForm({ onSubmit, onCancel, isLoading }: VendorFormProps) {
+const emptyVendorForm: CreateVendorFormData = {
+  name: '',
+  gstNumber: '',
+  panNumber: '',
+  contactPerson: '',
+  mobile: '',
+  email: '',
+  address: '',
+  city: '',
+  state: '',
+  pincode: '',
+  creditLimit: 0,
+  creditPeriod: 30,
+  paymentTerms: 'Net 30',
+};
+
+export const VendorForm = memo(function VendorForm({
+  onSubmit,
+  onCancel,
+  isLoading,
+  mode = 'create',
+  initialData,
+}: VendorFormProps) {
   const [formData, setFormData] = useState<CreateVendorFormData>({
-    name: '',
-    gstNumber: '',
-    panNumber: '',
-    contactPerson: '',
-    mobile: '',
-    email: '',
-    address: '',
-    city: '',
-    state: '',
-    pincode: '',
-    creditLimit: 0,
-    creditPeriod: 30,
-    paymentTerms: 'Net 30',
+    ...emptyVendorForm,
   });
+
+  useEffect(() => {
+    if (mode === 'edit' && initialData) {
+      setFormData({
+        ...emptyVendorForm,
+        ...initialData,
+      });
+      return;
+    }
+    setFormData({ ...emptyVendorForm });
+  }, [initialData, mode]);
 
   const handleChange = useCallback((field: keyof CreateVendorFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -193,7 +216,7 @@ export const VendorForm = memo(function VendorForm({ onSubmit, onCancel, isLoadi
           Cancel
         </Button>
         <Button type="submit" disabled={isLoading}>
-          {isLoading ? 'Creating...' : 'Create Vendor'}
+          {isLoading ? (mode === 'edit' ? 'Saving...' : 'Creating...') : mode === 'edit' ? 'Save Vendor' : 'Create Vendor'}
         </Button>
       </div>
     </form>

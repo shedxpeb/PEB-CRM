@@ -66,9 +66,88 @@ export const inventoryApi = {
     }
   },
 
-  create: (data: any) => api.post<InventoryItem>('/api/inventory', data),
-  update: (id: string, data: any) => api.patch<InventoryItem>(`/api/inventory/${id}`, data),
-  delete: (id: string) => api.delete(`/api/inventory/${id}`),
+  create: async (data: CreateInventoryItemDto): Promise<InventoryItem> => {
+    try {
+      return await api.post<InventoryItem>('/api/inventory', data);
+    } catch (error) {
+      if (isConnectionError(error)) {
+        const wh = MOCK_WAREHOUSES.find((w) => w.id === data.warehouseId);
+        const currentStock = data.currentStock ?? 0;
+        const reservedStock = data.reservedStock ?? 0;
+        const issuedStock = data.issuedStock ?? 0;
+        const newItem: InventoryItem = {
+          id: String(MOCK_ITEMS.length + 1),
+          itemCode: data.itemCode,
+          itemMasterId: data.itemMasterId,
+          itemName: data.itemName,
+          unit: data.unit,
+          currentStock,
+          reservedStock,
+          issuedStock,
+          availableStock: currentStock - reservedStock - issuedStock,
+          totalValue: currentStock * (data.purchaseRate ?? 0),
+          minimumStock: data.minimumStock ?? 0,
+          reorderLevel: data.reorderLevel ?? 0,
+          reorderQuantity: data.reorderQuantity,
+          safetyStock: data.safetyStock ?? 0,
+          warehouseId: data.warehouseId,
+          warehouseName: wh?.name ?? '',
+          binLocation: data.binLocation,
+          incomingStock: data.incomingStock,
+          outgoingStock: data.outgoingStock,
+          purchaseRate: data.purchaseRate,
+          status: data.status ?? 'In Stock',
+          customFields: data.customFields,
+          lastUpdated: new Date(),
+          createdAt: new Date(),
+        };
+        MOCK_ITEMS.push(newItem);
+        return newItem;
+      }
+      throw error;
+    }
+  },
+
+  update: async (id: string, data: Partial<CreateInventoryItemDto>): Promise<InventoryItem> => {
+    try {
+      return await api.patch<InventoryItem>(`/api/inventory/${id}`, data);
+    } catch (error) {
+      if (isConnectionError(error)) {
+        const index = MOCK_ITEMS.findIndex((i) => i.id === id);
+        if (index === -1) throw new Error(`Inventory item not found: ${id}`);
+        const wh = data.warehouseId
+          ? MOCK_WAREHOUSES.find((w) => w.id === data.warehouseId)
+          : undefined;
+        const current = { ...MOCK_ITEMS[index], ...data };
+        if (wh) current.warehouseName = wh.name;
+        if (data.currentStock !== undefined || data.reservedStock !== undefined || data.issuedStock !== undefined) {
+          current.availableStock = current.currentStock - current.reservedStock - current.issuedStock;
+        }
+        if (data.currentStock !== undefined || data.purchaseRate !== undefined) {
+          current.totalValue = current.currentStock * (current.purchaseRate ?? 0);
+        }
+        current.lastUpdated = new Date();
+        current.updatedAt = new Date();
+        MOCK_ITEMS[index] = current;
+        return current;
+      }
+      throw error;
+    }
+  },
+
+  delete: async (id: string): Promise<void> => {
+    try {
+      await api.delete(`/api/inventory/${id}`);
+    } catch (error) {
+      if (isConnectionError(error)) {
+        const index = MOCK_ITEMS.findIndex((i) => i.id === id);
+        if (index === -1) throw new Error(`Inventory item not found: ${id}`);
+        MOCK_ITEMS.splice(index, 1);
+        return;
+      }
+      throw error;
+    }
+  },
 
   getStats: async (): Promise<InventoryStats> => {
     try {

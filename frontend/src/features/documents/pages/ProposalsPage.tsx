@@ -1,47 +1,182 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/layouts/MainLayout';
-import { DataTable } from '@/components/data-table/DataTable';
+import { DataTable, Column } from '@/components/data-table/DataTable';
 import { KPICard } from '@/components/dashboard/KPICard';
-import { DocumentViewDialog } from '@/features/documents/components/DocumentViewDialog';
+import { StandardPageLayout } from '@/components/layout/StandardPageLayout';
+import { FilterConfig } from '@/components/layout/FilterBar';
+import { DocumentViewDrawer } from '@/features/documents/components/DocumentViewDrawer';
 import { ProposalBuilder } from '@/features/documents/components/ProposalBuilder';
 import { DocumentRowActions } from '@/features/documents/components/DocumentRowActions';
-import { useProposals, useProposalStats } from '@/features/documents/hooks';
+import { useProposals } from '@/features/documents/hooks';
+import { useDocumentConfiguration } from '@/features/documents/hooks/useDocuments';
+import { useDocumentPdfActions } from '@/features/documents/hooks/useDocumentPdfActions';
 import { Proposal, CreateProposalDto, Estimate } from '@/features/documents/types/peb-commercial';
 import { DOCUMENT_STATUS_BADGE_VARIANTS } from '@/features/documents/constants';
+import { getDetailRoute, normalizeProposal } from '@/features/documents/utils/documentHelpers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { File, Plus, ArrowRight, DollarSign, Clock, CheckCircle } from 'lucide-react';
+import { ROUTES } from '@/core/routes';
+import { useDebounce } from '@/shared/hooks/useDebounce';
+import { File, Plus, Clock, CheckCircle } from 'lucide-react';
 
 export function ProposalsPage() {
-  const { data: proposalsResponse, loading, error, createProposal, updateProposal, deleteProposal, refetch } = useProposals({ page: 1, pageSize: 50 });
-  const { data: stats } = useProposalStats();
-  
-  const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const { documentStatuses } = useDocumentConfiguration();
+  const router = useRouter();
+  const { data: proposalsResponse, loading, createProposal, updateProposal, deleteProposal, refetch } = useProposals({ page: 1, pageSize: 1000 });
+  const { previewPdf, downloadPdf, PdfPreviewDialog } = useDocumentPdfActions();
+  const proposals = proposalsResponse || [];
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [customerFilter, setCustomerFilter] = useState<string>('all');
+  const [projectFilter, setProjectFilter] = useState<string>('all');
+  const [createdByFilter, setCreatedByFilter] = useState<string>('all');
+
+  const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
+  const [isViewDrawerOpen, setIsViewDrawerOpen] = useState(false);
   const [isBuilderDialogOpen, setIsBuilderDialogOpen] = useState(false);
   const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
   const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
+  const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
 
-  const proposals = proposalsResponse || [];
-
-  const handleViewProposal = (proposal: Proposal) => {
-    setSelectedProposal(proposal);
-    setIsViewDialogOpen(true);
-  };
-
-  const handleEditProposal = (proposal: Proposal) => {
-    setEditingProposal(proposal);
-    setIsBuilderDialogOpen(true);
-  };
-
-  const handleDeleteProposal = async (proposal: Proposal) => {
-    if (confirm(`Are you sure you want to delete ${proposal.proposalNumber}?`)) {
+  useEffect(() => {
+    const estimateData = sessionStorage.getItem('convertFromEstimate');
+    if (estimateData) {
       try {
-        await deleteProposal(proposal.id);
+        const estimate = JSON.parse(estimateData) as Estimate;
+        setSelectedEstimate(estimate);
+        setEditingProposal(null);
+        setIsBuilderDialogOpen(true);
+        sessionStorage.removeItem('convertFromEstimate');
+      } catch (err) {
+        console.error('Failed to parse estimate data:', err);
+      }
+    }
+  }, []);
+
+  const filterOptions = useMemo(() => {
+    const customers = new Set<string>();
+    const projects = new Set<string>();
+    const creators = new Set<string>();
+    for (const prop of proposals) {
+      if (prop.customerName) customers.add(prop.customerName);
+      if (prop.projectName) projects.add(prop.projectName);
+      const creator = (prop as Proposal & { createdBy?: string }).createdBy;
+      if (creator) creators.add(creator);
+    }
+    return { customers: [...customers].sort(), projects: [...projects].sort(), creators: [...creators].sort() };
+  }, [proposals]);
+
+  const filteredProposals = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
+    return proposals.filter((prop) => {
+      const creator = (prop as Proposal & { createdBy?: string }).createdBy ?? '';
+      const matchesStatus = statusFilter === 'all' || prop.status === statusFilter;
+      const matchesCustomer = customerFilter === 'all' || prop.customerName === customerFilter;
+      const matchesProject = projectFilter === 'all' || prop.projectName === projectFilter;
+      const matchesCreator = createdByFilter === 'all' || creator === createdByFilter;
+      const matchesSearch =
+        !debouncedSearch ||
+        prop.proposalNumber.toLowerCase().includes(q) ||
+        prop.customerName.toLowerCase().includes(q) ||
+        (prop.projectName?.toLowerCase().includes(q) ?? false) ||
+        prop.estimateNumber.toLowerCase().includes(q) ||
+        prop.status.toLowerCase().includes(q) ||
+        creator.toLowerCase().includes(q);
+      return matchesStatus && matchesCustomer && matchesProject && matchesCreator && matchesSearch;
+    });
+  }, [proposals, debouncedSearch, statusFilter, customerFilter, projectFilter, createdByFilter]);
+
+  const selectedProposal = useMemo(
+    () => (selectedProposalId ? proposals.find((p) => p.id === selectedProposalId) ?? null : null),
+    [proposals, selectedProposalId]
+  );
+
+  const filteredStats = useMemo(() => {
+    let draft = 0;
+    let sent = 0;
+    let converted = 0;
+    for (const prop of filteredProposals) {
+      if (prop.status === 'Draft') draft++;
+      if (prop.status === 'Sent') sent++;
+      if (prop.status === 'Converted') converted++;
+    }
+    return { total: filteredProposals.length, draft, sent, converted };
+  }, [filteredProposals]);
+
+  const kpiData = useMemo(
+    () => [
+      { title: 'Total Proposals', value: String(filteredStats.total), change: 0, icon: <File className="h-5 w-5 text-blue-600" />, color: 'text-blue-600' },
+      { title: 'Draft', value: String(filteredStats.draft), change: 0, icon: <Clock className="h-5 w-5 text-gray-600" />, color: 'text-gray-600' },
+      { title: 'Sent', value: String(filteredStats.sent), change: 0, icon: <File className="h-5 w-5 text-orange-600" />, color: 'text-orange-600' },
+      { title: 'Converted', value: String(filteredStats.converted), change: 0, icon: <CheckCircle className="h-5 w-5 text-green-600" />, color: 'text-green-600' },
+    ],
+    [filteredStats]
+  );
+
+  const tableFilterKey = useMemo(
+    () => [debouncedSearch, statusFilter, customerFilter, projectFilter, createdByFilter].join('|'),
+    [debouncedSearch, statusFilter, customerFilter, projectFilter, createdByFilter]
+  );
+
+  const filterConfigs: FilterConfig[] = useMemo(
+    () => [
+      { key: 'status', label: 'Status', value: statusFilter, onChange: setStatusFilter, options: [{ value: 'all', label: 'All Status' }, ...documentStatuses.map((s) => ({ value: s, label: s }))] },
+      { key: 'customer', label: 'Customer', value: customerFilter, onChange: setCustomerFilter, options: [{ value: 'all', label: 'All Customers' }, ...filterOptions.customers.map((c) => ({ value: c, label: c }))] },
+      { key: 'project', label: 'Project', value: projectFilter, onChange: setProjectFilter, options: [{ value: 'all', label: 'All Projects' }, ...filterOptions.projects.map((p) => ({ value: p, label: p }))] },
+      { key: 'createdBy', label: 'Created By', value: createdByFilter, onChange: setCreatedByFilter, options: [{ value: 'all', label: 'All Users' }, ...filterOptions.creators.map((c) => ({ value: c, label: c }))] },
+    ],
+    [statusFilter, customerFilter, projectFilter, createdByFilter, filterOptions]
+  );
+
+  const handleClearFilters = useCallback(() => {
+    setStatusFilter('all');
+    setCustomerFilter('all');
+    setProjectFilter('all');
+    setCreatedByFilter('all');
+    setSearchQuery('');
+  }, []);
+
+  const columns: Column<Proposal>[] = useMemo(
+    () => [
+      { key: 'proposalNumber', label: 'Proposal #', sortable: true, render: (v) => <span className="font-mono text-xs">{v}</span> },
+      { key: 'customerName', label: 'Customer', sortable: true, render: (v, row) => (
+        <div className="min-w-0">
+          <p className="text-xs font-medium truncate">{v}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{row.projectName || '-'}</p>
+        </div>
+      )},
+      { key: 'estimateNumber', label: 'From Estimate', sortable: true, className: 'hidden lg:table-cell', headerClassName: 'hidden lg:table-cell', render: (v) => <span className="text-xs font-mono">{v}</span> },
+      { key: 'status', label: 'Status', sortable: true, render: (v) => <Badge variant={DOCUMENT_STATUS_BADGE_VARIANTS[v as keyof typeof DOCUMENT_STATUS_BADGE_VARIANTS] ?? 'secondary'} className="text-[10px]">{v}</Badge> },
+      { key: 'createdAt', label: 'Created', sortable: true, className: 'hidden md:table-cell', headerClassName: 'hidden md:table-cell', render: (v) => <span className="text-xs text-muted-foreground">{v ? new Date(v).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '-'}</span> },
+    ],
+    []
+  );
+
+  const handleRowClick = useCallback((prop: Proposal) => {
+    setSelectedProposalId(prop.id);
+    setIsViewDrawerOpen(true);
+  }, []);
+
+  const handleViewDetails = useCallback((prop: Proposal) => {
+    router.push(getDetailRoute(normalizeProposal(prop)));
+  }, [router]);
+
+  const handleEditProposal = useCallback((prop: Proposal) => {
+    setEditingProposal(prop);
+    setSelectedEstimate(null);
+    setIsBuilderDialogOpen(true);
+  }, []);
+
+  const handleDeleteProposal = async (prop: Proposal) => {
+    if (confirm(`Are you sure you want to delete ${prop.proposalNumber}?`)) {
+      try {
+        await deleteProposal(prop.id);
         refetch();
       } catch (err) {
         console.error('Failed to delete proposal:', err);
@@ -49,49 +184,33 @@ export function ProposalsPage() {
     }
   };
 
-  const handleSendProposal = (proposal: Proposal) => {
-    // Implement send functionality
-  };
-
   const handleConvertToQuotation = (proposal: Proposal) => {
-    // Navigate to quotation creation with proposal data
-    // Store proposal data in sessionStorage for the quotation builder to use
     sessionStorage.setItem('convertFromProposal', JSON.stringify(proposal));
-    
-    // Navigate to quotations page
-    window.location.href = '/dashboard/documents/quotations';
+    router.push(ROUTES.documentsQuotations);
   };
 
   const handleDuplicateProposal = async (proposal: Proposal) => {
     try {
       const duplicateData: CreateProposalDto = {
         estimateId: proposal.estimateId,
-        customerId: proposal.customerId,
-        proposalNumber: `${proposal.proposalNumber}-COPY`,
-        validUntil: proposal.validUntil,
-        items: proposal.items,
-        subtotal: proposal.subtotal,
-        taxAmount: proposal.taxAmount,
-        totalAmount: proposal.totalAmount,
-        paymentTerms: proposal.paymentTerms,
+        proposalConfiguration: proposal.proposalConfiguration,
+        includeCommercialSummary: proposal.includeCommercialSummary,
+        commercialSummary: proposal.commercialSummary,
+        timeline: proposal.timeline,
         termsAndConditions: proposal.termsAndConditions,
         notes: proposal.notes,
-        status: 'Draft',
       };
-      
       await createProposal(duplicateData);
-      alert('Proposal duplicated successfully!');
       refetch();
     } catch (err) {
       console.error('Failed to duplicate proposal:', err);
-      alert('Failed to duplicate proposal. Please try again.');
     }
   };
 
   const handleBuilderSave = async (data: CreateProposalDto) => {
     try {
       if (editingProposal) {
-        await updateProposal(editingProposal.id, data as any);
+        await updateProposal(editingProposal.id, data);
       } else {
         await createProposal(data);
       }
@@ -104,182 +223,80 @@ export function ProposalsPage() {
     }
   };
 
-  const handleCreateNew = () => {
-    // For now, proposals must be created from estimates
-    alert('Proposals must be created from an Estimate. Please go to Estimates and convert an estimate to a proposal.');
-  };
-
-  const handleCreateFromEstimate = (estimate: Estimate) => {
-    setSelectedEstimate(estimate);
-    setEditingProposal(null);
-    setIsBuilderDialogOpen(true);
-  };
-
-  const columns = [
-    {
-      key: 'proposalNumber',
-      label: 'Proposal #',
-      sortable: true,
-      filterable: true,
-    },
-    {
-      key: 'customerName',
-      label: 'Customer',
-      sortable: true,
-      filterable: true,
-    },
-    {
-      key: 'projectName',
-      label: 'Project',
-      sortable: true,
-      filterable: true,
-    },
-    {
-      key: 'estimateNumber',
-      label: 'From Estimate',
-      sortable: true,
-      filterable: true,
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      sortable: true,
-      filterable: true,
-      render: (value: string) => (
-        <Badge variant={DOCUMENT_STATUS_BADGE_VARIANTS[value as keyof typeof DOCUMENT_STATUS_BADGE_VARIANTS]}>
-          {value}
-        </Badge>
-      ),
-    },
-    {
-      key: 'createdAt',
-      label: 'Created',
-      sortable: true,
-      render: (value: Date) => value ? new Date(value).toLocaleDateString() : '-',
-    },
-  ];
-
   return (
-    <MainLayout title="Proposals" subtitle="Manage proposal documents">
-      <div className="space-y-6">
-        {/* Stats Cards */}
-        {stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-            <KPICard
-              data={{
-                title: 'Total Proposals',
-                value: stats.totalProposals?.toString() || '0',
-                change: 0,
-                color: 'text-blue-600',
-                icon: <File />,
-              }}
-            />
-            <KPICard
-              data={{
-                title: 'Draft',
-                value: stats.draftProposals?.toString() || '0',
-                change: 0,
-                color: 'text-gray-600',
-                icon: <Clock />,
-              }}
-            />
-            <KPICard
-              data={{
-                title: 'Sent',
-                value: stats.sentProposals?.toString() || '0',
-                change: 0,
-                color: 'text-orange-600',
-                icon: <DollarSign />,
-              }}
-            />
-            <KPICard
-              data={{
-                title: 'Converted',
-                value: stats.convertedProposals?.toString() || '0',
-                change: 0,
-                color: 'text-green-600',
-                icon: <CheckCircle />,
-              }}
-            />
-          </div>
-        )}
-
-        {/* Header Actions */}
-        <div className="flex justify-between items-center">
-          <div>
-            <p className="text-sm text-muted-foreground">Total Proposals: {proposals.length}</p>
-          </div>
-          <Button onClick={handleCreateNew} className="h-9">
+    <MainLayout>
+      <StandardPageLayout
+        title="Proposals"
+        subtitle="Manage proposal documents"
+        headerActions={
+          <Button onClick={() => alert('Proposals are created from Estimates. Convert an estimate to create a proposal snapshot.')} className="h-9" variant="outline">
             <Plus className="h-4 w-4 mr-2" />
             New Proposal
           </Button>
-        </div>
-
-        {/* Proposals Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <File className="h-5 w-5" />
-              All Proposals
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              data={proposals}
-              columns={columns as any}
-              loading={loading}
-              emptyMessage="No proposals found"
-              onRowClick={(row) => handleViewProposal(row as Proposal)}
-              rowActions={(row) => (
-                <DocumentRowActions
-                  document={row as any}
-                  onView={() => handleViewProposal(row as Proposal)}
-                  onEdit={() => handleEditProposal(row as Proposal)}
-                  onDelete={() => handleDeleteProposal(row as Proposal)}
-                  onSend={() => handleSendProposal(row as Proposal)}
-                  onVersion={() => {}}
-                  onEmail={() => {}}
-                  onWhatsApp={() => {}}
-                  onPrint={() => {}}
-                  onDownload={() => {}}
-                  onCopy={() => {}}
-                  onDuplicate={() => handleDuplicateProposal(row as Proposal)}
-                />
-              )}
+        }
+        kpiCards={kpiData.map((kpi, i) => <KPICard key={i} data={kpi} />)}
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by proposal number, customer, project, estimate, status..."
+        filters={filterConfigs}
+        onClearFilters={handleClearFilters}
+        filterMode="popover"
+        className="gap-4 sm:gap-6"
+      >
+        <DataTable
+          key={tableFilterKey}
+          columns={columns}
+          data={filteredProposals}
+          showToolbar={false}
+          compact
+          loading={loading}
+          onRowClick={handleRowClick}
+          enableSelection
+          selectedRows={selectedRows}
+          onSelectionChange={setSelectedRows}
+          rowIdKey="id"
+          emptyMessage="No proposals found."
+          rowActions={(row) => (
+            <DocumentRowActions
+              document={row}
+              onView={() => handleViewDetails(row)}
+              onEdit={() => handleEditProposal(row)}
+              onDelete={() => handleDeleteProposal(row)}
+              onSend={() => {}}
+              onConvert={(_, target) => target === 'Quotation' && handleConvertToQuotation(row)}
+              onPreviewPdf={() => previewPdf(row)}
+              onDownload={() => downloadPdf(row)}
+              onDuplicate={() => handleDuplicateProposal(row)}
             />
-          </CardContent>
-        </Card>
-
-        {/* Proposal Builder Dialog */}
-        <Dialog open={isBuilderDialogOpen} onOpenChange={setIsBuilderDialogOpen}>
-          <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingProposal ? `Edit Proposal ${editingProposal.proposalNumber}` : 'Create New Proposal'}
-              </DialogTitle>
-            </DialogHeader>
-            {selectedEstimate && (
-              <ProposalBuilder
-                estimate={selectedEstimate}
-                proposal={editingProposal || undefined}
-                onSave={handleBuilderSave}
-                onCancel={() => {
-                  setIsBuilderDialogOpen(false);
-                  setEditingProposal(null);
-                  setSelectedEstimate(null);
-                }}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Proposal View Dialog */}
-        <DocumentViewDialog
-          document={selectedProposal}
-          open={isViewDialogOpen}
-          onOpenChange={setIsViewDialogOpen}
+          )}
         />
-      </div>
+      </StandardPageLayout>
+
+      <Dialog open={isBuilderDialogOpen} onOpenChange={setIsBuilderDialogOpen}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingProposal ? `Edit Proposal ${editingProposal.proposalNumber}` : 'Create New Proposal'}</DialogTitle>
+          </DialogHeader>
+          {(selectedEstimate || editingProposal) && (
+            <ProposalBuilder
+              estimate={selectedEstimate ?? ({ id: editingProposal!.estimateId, estimateNumber: editingProposal!.estimateNumber, customerId: editingProposal!.customerId, customerName: editingProposal!.customerName } as Estimate)}
+              proposal={editingProposal || undefined}
+              onSave={handleBuilderSave}
+              onCancel={() => { setIsBuilderDialogOpen(false); setEditingProposal(null); setSelectedEstimate(null); }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <DocumentViewDrawer
+        document={selectedProposal}
+        open={isViewDrawerOpen}
+        onOpenChange={setIsViewDrawerOpen}
+        onPreviewPdf={previewPdf}
+        onDownloadPdf={downloadPdf}
+        onEdit={(doc) => { setIsViewDrawerOpen(false); handleEditProposal(doc as Proposal); }}
+      />
+      {PdfPreviewDialog}
     </MainLayout>
   );
 }

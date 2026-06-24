@@ -1,20 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { EntityRowActionsMenu } from '@/components/row-actions';
+import { AnyCommercialDocument } from '../utils/documentHelpers';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Estimate, Proposal, Quotation } from '../types/peb-commercial';
-import {
-  MoreVertical,
   Eye,
   Edit,
   Send,
@@ -25,31 +13,41 @@ import {
   GitBranch,
   MessageSquare,
   Mail,
+  FileSearch,
   Printer,
   Download,
   Trash2,
-  Clock,
   Copy,
   Building2,
 } from 'lucide-react';
 
 interface DocumentRowActionsProps {
-  document: Estimate | Proposal | Quotation;
-  onView: (document: Estimate | Proposal | Quotation) => void;
-  onEdit: (document: Estimate | Proposal | Quotation) => void;
-  onDelete: (document: Estimate | Proposal | Quotation) => void;
-  onSend?: (document: Estimate | Proposal | Quotation) => void;
-  onConvert?: (document: Estimate | Proposal | Quotation, targetType: 'Estimate' | 'Proposal' | 'Quotation') => void;
-  onConvertToProject?: (document: Estimate | Proposal | Quotation) => void;
-  onApprove?: (document: Estimate | Proposal | Quotation) => void;
-  onReject?: (document: Estimate | Proposal | Quotation) => void;
-  onVersion?: (document: Estimate | Proposal | Quotation) => void;
-  onEmail?: (document: Estimate | Proposal | Quotation) => void;
-  onWhatsApp?: (document: Estimate | Proposal | Quotation) => void;
-  onPrint?: (document: Estimate | Proposal | Quotation) => void;
-  onDownload?: (document: Estimate | Proposal | Quotation) => void;
-  onCopy?: (document: Estimate | Proposal | Quotation) => void;
-  onDuplicate?: (document: Estimate | Proposal | Quotation) => void;
+  document: AnyCommercialDocument;
+  onView: (document: AnyCommercialDocument) => void;
+  onEdit: (document: AnyCommercialDocument) => void;
+  onDelete: (document: AnyCommercialDocument) => void;
+  onSend?: (document: AnyCommercialDocument) => void;
+  onConvert?: (document: AnyCommercialDocument, targetType: 'Estimate' | 'Proposal' | 'Quotation') => void;
+  onConvertToProject?: (document: AnyCommercialDocument) => void;
+  onApprove?: (document: AnyCommercialDocument) => void;
+  onReject?: (document: AnyCommercialDocument) => void;
+  onVersion?: (document: AnyCommercialDocument) => void;
+  onEmail?: (document: AnyCommercialDocument) => void;
+  onWhatsApp?: (document: AnyCommercialDocument) => void;
+  onPrint?: (document: AnyCommercialDocument) => void;
+  onPreviewPdf?: (document: AnyCommercialDocument) => void;
+  onDownload?: (document: AnyCommercialDocument) => void;
+  onCopy?: (document: AnyCommercialDocument) => void;
+  onDuplicate?: (document: AnyCommercialDocument) => void;
+}
+
+function getDocumentType(document: AnyCommercialDocument) {
+  const doc = document as unknown as Record<string, unknown>;
+  if (doc.estimateNumber) return 'Estimate';
+  if (doc.proposalNumber) return 'Proposal';
+  if (doc.quotationNumber) return 'Quotation';
+  if (doc.documentType === 'Invoice') return 'Invoice';
+  return 'Unknown';
 }
 
 export function DocumentRowActions({
@@ -66,170 +64,155 @@ export function DocumentRowActions({
   onEmail,
   onWhatsApp,
   onPrint,
+  onPreviewPdf,
   onDownload,
   onCopy,
   onDuplicate,
 }: DocumentRowActionsProps) {
-  const [open, setOpen] = useState(false);
+  const doc = document as unknown as Record<string, unknown>;
+  const docType = getDocumentType(document);
+  const canConvert = doc.status === 'Accepted' || doc.status === 'Sent';
+  const canConvertToProject =
+    docType === 'Quotation' && doc.status === 'Accepted' && !doc.convertedToProjectId;
+  const canApprove = doc.status === 'Draft' && !doc.approvalStatus;
+  const canReject = doc.status === 'Draft' && !doc.approvalStatus;
 
-  const handleConvert = (targetType: 'Estimate' | 'Proposal' | 'Quotation') => {
-    onConvert?.(document, targetType);
-    setOpen(false);
-  };
-
-  const getDocumentType = () => {
-    const doc = document as any;
-    if (doc.estimateNumber) return 'Estimate';
-    if (doc.proposalNumber) return 'Proposal';
-    if (doc.quotationNumber) return 'Quotation';
-    return 'Unknown';
-  };
-
-  const docType = getDocumentType();
-  const canConvert = (document as any).status === 'Accepted' || (document as any).status === 'Sent';
-  const canConvertToProject = docType === 'Quotation' && (document as any).status === 'Accepted' && !(document as any).convertedToProjectId;
-  const canApprove = (document as any).status === 'Draft' && !(document as any).approvalStatus;
-  const canReject = (document as any).status === 'Draft' && !(document as any).approvalStatus;
+  const convertTargets: Array<'Estimate' | 'Proposal' | 'Quotation'> = (
+    ['Estimate', 'Proposal', 'Quotation'] as const
+  ).filter((t) => t !== docType);
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <MoreVertical className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        {/* View & Edit */}
-        <DropdownMenuItem onClick={() => onView(document)}>
-          <Eye className="h-4 w-4 mr-2" />
-          View Details
-        </DropdownMenuItem>
-
-        <DropdownMenuItem onClick={() => onEdit(document)}>
-          <Edit className="h-4 w-4 mr-2" />
-          Edit Document
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        {/* Send */}
-        <DropdownMenuItem onClick={() => onSend?.(document)}>
-          <Send className="h-4 w-4 mr-2" />
-          Send Document
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        {/* Convert */}
-        {canConvert && (
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Convert To
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              {docType !== 'Estimate' && (
-                <DropdownMenuItem onClick={() => handleConvert('Estimate')}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Estimate
-                </DropdownMenuItem>
-              )}
-              {docType !== 'Proposal' && (
-                <DropdownMenuItem onClick={() => handleConvert('Proposal')}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Proposal
-                </DropdownMenuItem>
-              )}
-              {docType !== 'Quotation' && (
-                <DropdownMenuItem onClick={() => handleConvert('Quotation')}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Quotation
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        )}
-
-        {/* Convert to Project */}
-        {canConvertToProject && onConvertToProject && (
-          <DropdownMenuItem onClick={() => onConvertToProject(document)}>
-            <Building2 className="h-4 w-4 mr-2" />
-            Convert to Project
-          </DropdownMenuItem>
-        )}
-
-        <DropdownMenuSeparator />
-
-        {/* Approval */}
-        {canApprove && (
-          <DropdownMenuItem onClick={() => onApprove?.(document)}>
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Approve
-          </DropdownMenuItem>
-        )}
-
-        {canReject && (
-          <DropdownMenuItem onClick={() => onReject?.(document)}>
-            <XCircle className="h-4 w-4 mr-2" />
-            Reject
-          </DropdownMenuItem>
-        )}
-
-        <DropdownMenuSeparator />
-
-        {/* Version */}
-        <DropdownMenuItem onClick={() => onVersion?.(document)}>
-          <GitBranch className="h-4 w-4 mr-2" />
-          Create Version
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        {/* Communication */}
-        <DropdownMenuItem onClick={() => onEmail?.(document)}>
-          <Mail className="h-4 w-4 mr-2" />
-          Send Email
-        </DropdownMenuItem>
-
-        <DropdownMenuItem onClick={() => onWhatsApp?.(document)}>
-          <MessageSquare className="h-4 w-4 mr-2" />
-          Send WhatsApp
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        {/* Export */}
-        <DropdownMenuItem onClick={() => onPrint?.(document)}>
-          <Printer className="h-4 w-4 mr-2" />
-          Print
-        </DropdownMenuItem>
-
-        <DropdownMenuItem onClick={() => onDownload?.(document)}>
-          <Download className="h-4 w-4 mr-2" />
-          Download PDF
-        </DropdownMenuItem>
-
-        <DropdownMenuItem onClick={() => onCopy?.(document)}>
-          <Copy className="h-4 w-4 mr-2" />
-          Copy Document
-        </DropdownMenuItem>
-
-        <DropdownMenuItem onClick={() => onDuplicate?.(document)}>
-          <Copy className="h-4 w-4 mr-2" />
-          Duplicate Document
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        {/* Delete */}
-        <DropdownMenuItem
-          onClick={() => onDelete(document)}
-          className="text-destructive focus:text-destructive"
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          Delete Document
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <EntityRowActionsMenu
+      sections={{
+        view: [
+          {
+            key: 'view',
+            label: 'View Details',
+            icon: Eye,
+            onClick: () => onView(document),
+          },
+        ],
+        edit: [
+          {
+            key: 'edit',
+            label: 'Edit Document',
+            icon: Edit,
+            onClick: () => onEdit(document),
+          },
+        ],
+        exportPrint: [
+          {
+            key: 'print',
+            label: 'Print',
+            icon: Printer,
+            onClick: () => onPrint?.(document),
+            hidden: !onPrint,
+          },
+          {
+            key: 'preview-pdf',
+            label: 'Preview PDF',
+            icon: FileSearch,
+            onClick: () => onPreviewPdf?.(document),
+            hidden: !onPreviewPdf,
+          },
+          {
+            key: 'download-pdf',
+            label: 'Download PDF',
+            icon: Download,
+            onClick: () => onDownload?.(document),
+            hidden: !onDownload,
+          },
+        ],
+        communication: [
+          {
+            key: 'send',
+            label: 'Send Document',
+            icon: Send,
+            onClick: () => onSend?.(document),
+            hidden: !onSend,
+          },
+          {
+            key: 'email',
+            label: 'Send Email',
+            icon: Mail,
+            onClick: () => onEmail?.(document),
+            hidden: !onEmail,
+          },
+          {
+            key: 'whatsapp',
+            label: 'Send WhatsApp',
+            icon: MessageSquare,
+            onClick: () => onWhatsApp?.(document),
+            hidden: !onWhatsApp,
+          },
+        ],
+        workflow: [
+          {
+            key: 'convert-to',
+            label: 'Convert To',
+            icon: RefreshCw,
+            items: convertTargets.map((target) => ({
+              key: `convert-${target}`,
+              label: target,
+              icon: FileText,
+              onClick: () => onConvert?.(document, target),
+            })),
+            hidden: !(canConvert && onConvert && convertTargets.length > 0),
+          },
+          {
+            key: 'convert-project',
+            label: 'Convert to Project',
+            icon: Building2,
+            onClick: () => onConvertToProject?.(document),
+            hidden: !(canConvertToProject && onConvertToProject),
+          },
+          {
+            key: 'approve',
+            label: 'Approve',
+            icon: CheckCircle,
+            onClick: () => onApprove?.(document),
+            hidden: !(canApprove && onApprove),
+          },
+          {
+            key: 'reject',
+            label: 'Reject',
+            icon: XCircle,
+            onClick: () => onReject?.(document),
+            hidden: !(canReject && onReject),
+          },
+          {
+            key: 'version',
+            label: 'Create Version',
+            icon: GitBranch,
+            onClick: () => onVersion?.(document),
+            hidden: !onVersion,
+          },
+        ],
+        utility: [
+          {
+            key: 'copy',
+            label: 'Copy Document',
+            icon: Copy,
+            onClick: () => onCopy?.(document),
+            hidden: !onCopy,
+          },
+          {
+            key: 'duplicate',
+            label: 'Duplicate Document',
+            icon: Copy,
+            onClick: () => onDuplicate?.(document),
+            hidden: !onDuplicate,
+          },
+        ],
+        danger: [
+          {
+            key: 'delete',
+            label: 'Delete Document',
+            icon: Trash2,
+            onClick: () => onDelete(document),
+          },
+        ],
+      }}
+    />
   );
 }

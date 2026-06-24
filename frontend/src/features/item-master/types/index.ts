@@ -51,6 +51,22 @@ export type UnitType =
   | 'SET'
   | 'BUNDLE';
 
+export type ItemTypeClass = 'Structural' | 'Cladding' | 'Accessory' | 'Service' | 'Other';
+
+export type TaxType = 'CGST_SGST' | 'IGST' | 'Exempt';
+
+export type ItemCustomFieldType = 'text' | 'number' | 'boolean' | 'select' | 'textarea';
+
+export interface ItemCustomFieldDefinition {
+  key: string;
+  label: string;
+  type: ItemCustomFieldType;
+  required?: boolean;
+  options?: string[];
+}
+
+export type ItemCustomFieldValues = Record<string, string | number | boolean | undefined>;
+
 // ─── Item Master Entity ─────────────────────────────────────────────────────────
 
 export interface ItemMaster {
@@ -106,6 +122,21 @@ export interface ItemMaster {
   // Notes
   notes?: string;
   internalNotes?: string;
+
+  // PEB classification
+  itemTypeClass?: ItemTypeClass;
+  taxType?: TaxType;
+  materialGrade?: string;
+  isStructural?: boolean;
+  isCladding?: boolean;
+  isAccessory?: boolean;
+  isService?: boolean;
+  thickness?: number;
+  length?: number;
+  width?: number;
+
+  // Settings-driven custom fields
+  customFields?: ItemCustomFieldValues;
 }
 
 // ─── Item Variant (for products with multiple variants) ───────────────────────
@@ -239,6 +270,17 @@ export interface UpdateItemMasterDto {
   inventoryItemId?: string;
   notes?: string;
   internalNotes?: string;
+  itemTypeClass?: ItemTypeClass;
+  taxType?: TaxType;
+  materialGrade?: string;
+  isStructural?: boolean;
+  isCladding?: boolean;
+  isAccessory?: boolean;
+  isService?: boolean;
+  thickness?: number;
+  length?: number;
+  width?: number;
+  customFields?: ItemCustomFieldValues;
 }
 
 export interface CreateItemVariantDto {
@@ -292,9 +334,13 @@ export interface UpdateItemBundleDto {
 
 export interface ItemMasterFilter {
   category?: ItemCategory;
+  categoryId?: string;
   subCategory?: string;
   brand?: string;
   status?: ItemStatus;
+  itemTypeClass?: ItemTypeClass;
+  taxType?: TaxType;
+  unit?: UnitType;
   search?: string;
   tags?: string[];
   hsnCode?: string;

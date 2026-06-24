@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,17 +12,40 @@ interface BankAccountFormProps {
   onSubmit: (data: CreateBankAccountFormData) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  mode?: 'create' | 'edit';
+  initialData?: Partial<CreateBankAccountFormData> | null;
 }
 
-export const BankAccountForm = memo(function BankAccountForm({ onSubmit, onCancel, isLoading }: BankAccountFormProps) {
+const emptyBankAccountForm: CreateBankAccountFormData = {
+  accountName: '',
+  bankName: '',
+  accountNumber: '',
+  ifscCode: '',
+  branch: '',
+  accountType: 'Current',
+};
+
+export const BankAccountForm = memo(function BankAccountForm({
+  onSubmit,
+  onCancel,
+  isLoading,
+  mode = 'create',
+  initialData,
+}: BankAccountFormProps) {
   const [formData, setFormData] = useState<CreateBankAccountFormData>({
-    accountName: '',
-    bankName: '',
-    accountNumber: '',
-    ifscCode: '',
-    branch: '',
-    accountType: 'Current',
+    ...emptyBankAccountForm,
   });
+
+  useEffect(() => {
+    if (mode === 'edit' && initialData) {
+      setFormData({
+        ...emptyBankAccountForm,
+        ...initialData,
+      });
+      return;
+    }
+    setFormData({ ...emptyBankAccountForm });
+  }, [initialData, mode]);
 
   const handleChange = useCallback((field: keyof CreateBankAccountFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -107,7 +130,7 @@ export const BankAccountForm = memo(function BankAccountForm({ onSubmit, onCance
           Cancel
         </Button>
         <Button type="submit" disabled={isLoading}>
-          {isLoading ? 'Creating...' : 'Create Bank Account'}
+          {isLoading ? (mode === 'edit' ? 'Saving...' : 'Creating...') : mode === 'edit' ? 'Save Bank Account' : 'Create Bank Account'}
         </Button>
       </div>
     </form>

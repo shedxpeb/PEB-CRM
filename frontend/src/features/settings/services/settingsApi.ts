@@ -14,6 +14,17 @@ import type {
   SettingsStats,
   SecuritySettings,
 } from '../types';
+import { MODULES } from '../constants/settingsConstants';
+import {
+  LEAD_MODULE_DEFAULTS,
+  CUSTOMER_MODULE_DEFAULTS,
+  PROJECT_MODULE_DEFAULTS,
+  ITEM_MODULE_DEFAULTS,
+  INVENTORY_MODULE_DEFAULTS,
+  DOCUMENT_MODULE_DEFAULTS,
+  FINANCE_MODULE_DEFAULTS,
+  ACCOUNTING_MODULE_DEFAULTS,
+} from '../utils/moduleConfigurationDefaults';
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
 
@@ -86,30 +97,11 @@ const mockUsers: User[] = [
   },
 ];
 
-const mockModules: Module[] = [
-  {
-    id: 'leads',
-    name: 'leads',
-    displayName: 'Leads',
-    description: 'Manage leads and opportunities',
-    icon: 'Users',
-    isEnabled: true,
-    isVisible: true,
-    isLocked: false,
-    requiredPermissions: ['view', 'create', 'edit', 'delete'],
-  },
-  {
-    id: 'customers',
-    name: 'customers',
-    displayName: 'Customers',
-    description: 'Manage customer relationships',
-    icon: 'Building',
-    isEnabled: true,
-    isVisible: true,
-    isLocked: false,
-    requiredPermissions: ['view', 'create', 'edit', 'delete'],
-  },
-];
+let moduleStore: Module[] = MODULES.map((module) => ({
+  ...module,
+  name: module.name as Module['name'],
+  requiredPermissions: [...module.requiredPermissions],
+}));
 
 const mockSettingsStats: SettingsStats = {
   totalUsers: 15,
@@ -119,6 +111,15 @@ const mockSettingsStats: SettingsStats = {
   pendingApprovals: 5,
   systemHealth: 'healthy',
 };
+
+const mockLeadModuleSettings = LEAD_MODULE_DEFAULTS;
+const mockCustomerModuleSettings = CUSTOMER_MODULE_DEFAULTS;
+const mockProjectModuleSettings = PROJECT_MODULE_DEFAULTS;
+const mockItemModuleSettings = ITEM_MODULE_DEFAULTS;
+const mockInventoryModuleSettings = INVENTORY_MODULE_DEFAULTS;
+const mockDocumentModuleSettings = DOCUMENT_MODULE_DEFAULTS;
+const mockFinanceModuleSettings = FINANCE_MODULE_DEFAULTS;
+const mockAccountingModuleSettings = ACCOUNTING_MODULE_DEFAULTS;
 
 // ─── API Functions with Fallback ───────────────────────────────────────────────
 
@@ -277,10 +278,10 @@ export const settingsApi = {
     try {
       // const response = await api.get('/settings/modules');
       // return response.data;
-      return mockModules;
+      return moduleStore;
     } catch (error) {
       console.warn('API Error: getModules, using mock data');
-      return mockModules;
+      return moduleStore;
     }
   },
 
@@ -288,12 +289,21 @@ export const settingsApi = {
     try {
       // const response = await api.put(`/settings/modules/${id}`, data);
       // return response.data;
-      const module = mockModules.find(m => m.id === id);
-      return { ...module, ...data, id, updatedAt: new Date() } as Module;
+      moduleStore = moduleStore.map((module) =>
+        module.id === id ? { ...module, ...data, id, updatedAt: new Date() } : module
+      );
+      const updated = moduleStore.find((module) => module.id === id);
+      if (!updated) {
+        throw new Error(`Module not found: ${id}`);
+      }
+      return updated;
     } catch (error) {
       console.warn('API Error: updateModule, using mock data');
-      const module = mockModules.find(m => m.id === id);
-      return { ...module, ...data, id, updatedAt: new Date() } as Module;
+      moduleStore = moduleStore.map((module) =>
+        module.id === id ? { ...module, ...data, id, updatedAt: new Date() } : module
+      );
+      const updated = moduleStore.find((module) => module.id === id);
+      return (updated ?? { id, ...data, updatedAt: new Date() }) as Module;
     }
   },
 
@@ -363,9 +373,57 @@ export const settingsApi = {
     try {
       // const response = await api.get(`/settings/modules/${moduleId}/config`);
       // return response.data;
+      if (moduleId === 'leads') {
+        return { id: 'leads', name: 'Leads', settings: mockLeadModuleSettings };
+      }
+      if (moduleId === 'customers') {
+        return { id: 'customers', name: 'Customers', settings: mockCustomerModuleSettings };
+      }
+      if (moduleId === 'projects') {
+        return { id: 'projects', name: 'Projects', settings: mockProjectModuleSettings };
+      }
+      if (moduleId === 'items') {
+        return { id: 'items', name: 'Items', settings: mockItemModuleSettings };
+      }
+      if (moduleId === 'inventory') {
+        return { id: 'inventory', name: 'Inventory', settings: mockInventoryModuleSettings };
+      }
+      if (moduleId === 'documents') {
+        return { id: 'documents', name: 'Documents', settings: mockDocumentModuleSettings };
+      }
+      if (moduleId === 'finance') {
+        return { id: 'finance', name: 'Finance', settings: mockFinanceModuleSettings };
+      }
+      if (moduleId === 'accounting') {
+        return { id: 'accounting', name: 'Accounting', settings: mockAccountingModuleSettings };
+      }
       return { id: moduleId, name: '', settings: {} };
     } catch (error) {
       console.warn('API Error: getModuleConfiguration, using mock data');
+      if (moduleId === 'leads') {
+        return { id: 'leads', name: 'Leads', settings: mockLeadModuleSettings };
+      }
+      if (moduleId === 'customers') {
+        return { id: 'customers', name: 'Customers', settings: mockCustomerModuleSettings };
+      }
+      if (moduleId === 'projects') {
+        return { id: 'projects', name: 'Projects', settings: mockProjectModuleSettings };
+      }
+      if (moduleId === 'items') {
+        return { id: 'items', name: 'Items', settings: mockItemModuleSettings };
+      }
+      if (moduleId === 'inventory') {
+        return { id: 'inventory', name: 'Inventory', settings: mockInventoryModuleSettings };
+      }
+      if (moduleId === 'documents') {
+        return { id: 'documents', name: 'Documents', settings: mockDocumentModuleSettings };
+      }
+      if (moduleId === 'finance') {
+        return { id: 'finance', name: 'Finance', settings: mockFinanceModuleSettings };
+      }
+      if (moduleId === 'accounting') {
+        return { id: 'accounting', name: 'Accounting', settings: mockAccountingModuleSettings };
+      }
       return { id: moduleId, name: '', settings: {} };
     }
   },
@@ -495,6 +553,7 @@ export const settingsApi = {
         invoicePrefix: 'INV',
         receiptPrefix: 'REC',
         expensePrefix: 'EXP',
+        ...mockFinanceModuleSettings,
       };
     } catch (error) {
       console.warn('API Error: getFinanceConfiguration, using mock data');
@@ -505,6 +564,7 @@ export const settingsApi = {
         invoicePrefix: 'INV',
         receiptPrefix: 'REC',
         expensePrefix: 'EXP',
+        ...mockFinanceModuleSettings,
       };
     }
   },

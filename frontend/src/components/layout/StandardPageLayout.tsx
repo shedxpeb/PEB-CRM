@@ -2,32 +2,33 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { spacing } from "@/lib/design-system"
 import { PageHeader } from "./PageHeader"
 import { SearchBar } from "./SearchBar"
 import { FilterBar, FilterConfig } from "./FilterBar"
+import { FilterPopover } from "./FilterPopover"
+
+type FilterMode = "inline" | "popover" | "collapsible"
 
 interface StandardPageLayoutProps {
-  // Header
   title: string
   subtitle?: string
   breadcrumbs?: Array<{ label: string; href?: string }>
   headerActions?: React.ReactNode
 
-  // KPI Cards
   kpiCards?: React.ReactNode
+  kpiGridClassName?: string
 
-  // Search and Filters
   searchValue?: string
   onSearchChange?: (value: string) => void
   searchPlaceholder?: string
   filters?: FilterConfig[]
   onClearFilters?: () => void
+  /** Inline filter bar or standardized filter popover (collapsible is an alias for popover) */
+  filterMode?: FilterMode
+  toolbarActions?: React.ReactNode
 
-  // Content
   children: React.ReactNode
 
-  // Layout
   className?: string
 }
 
@@ -37,19 +38,27 @@ export function StandardPageLayout({
   breadcrumbs,
   headerActions,
   kpiCards,
+  kpiGridClassName,
   searchValue,
   onSearchChange,
   searchPlaceholder,
   filters,
   onClearFilters,
+  filterMode = "inline",
+  toolbarActions,
   children,
   className,
 }: StandardPageLayoutProps) {
-  const showActionBar = searchValue !== undefined || (filters && filters.length > 0)
+  const useFilterPopover =
+    filterMode === "popover" || filterMode === "collapsible"
+
+  const showActionBar =
+    searchValue !== undefined ||
+    (filters && filters.length > 0) ||
+    !!toolbarActions
 
   return (
     <div className={cn("flex flex-col gap-6", className)}>
-      {/* Page Header */}
       <PageHeader
         title={title}
         subtitle={subtitle}
@@ -57,37 +66,41 @@ export function StandardPageLayout({
         actions={headerActions}
       />
 
-      {/* KPI Cards Section */}
       {kpiCards && (
-        <div className={cn("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4", spacing.sm)}>
+        <div className={cn("grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4", kpiGridClassName)}>
           {kpiCards}
         </div>
       )}
 
-      {/* Action Bar (Search + Filters) */}
       {showActionBar && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-2">
           {searchValue !== undefined && onSearchChange && (
             <SearchBar
               value={searchValue}
               onChange={onSearchChange}
               placeholder={searchPlaceholder}
+              className="w-full sm:flex-1 sm:min-w-[200px] sm:max-w-md"
             />
           )}
-          {filters && filters.length > 0 && (
-            <FilterBar
-              filters={filters}
-              onClearAll={onClearFilters}
-              className="flex-wrap"
-            />
+
+          {toolbarActions}
+
+          {filters && filters.length > 0 && useFilterPopover && (
+            <FilterPopover filters={filters} onClearAll={onClearFilters} />
           )}
         </div>
       )}
 
-      {/* Content Area */}
-      <div className="flex-1">
-        {children}
-      </div>
+      {filters && filters.length > 0 && filterMode === "inline" && (
+        <FilterBar
+          filters={filters}
+          onClearAll={onClearFilters}
+          layout={filters.length > 4 ? "panel" : "inline"}
+          primaryCount={4}
+        />
+      )}
+
+      <div className="flex-1">{children}</div>
     </div>
   )
 }

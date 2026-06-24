@@ -3,9 +3,40 @@
  * React Query hooks for projects - never use useState/useEffect for server data
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { projectsApi } from '@/features/projects/services/projectsApi';
-import { ProjectFilters, CreateProjectDto, UpdateProjectDto, ProjectTask } from '@/features/projects/types';
+import { ProjectFilters, CreateProjectDto, UpdateProjectDto, ProjectTask, ProjectCustomFieldDefinition } from '@/features/projects/types';
 import { PaginationParams } from '@/shared/types/pagination';
+import { useModuleConfiguration } from '@/features/settings/hooks/useSettings';
+import { PROJECT_MODULE_DEFAULTS } from '@/features/settings/utils/moduleConfigurationDefaults';
+import { pickModuleSettings } from '@/features/settings/utils/resolveModuleSettings';
+
+export interface ProjectModuleConfiguration {
+  statuses: string[];
+  stages: string[];
+  priorities: string[];
+  healthIndicators: string[];
+  projectTypes: string[];
+  structureTypes: string[];
+  roofTypes: string[];
+  wallTypes: string[];
+  craneSystems: string[];
+  customFields: ProjectCustomFieldDefinition[];
+}
+
+export const DEFAULT_PROJECT_CONFIGURATION: ProjectModuleConfiguration = PROJECT_MODULE_DEFAULTS;
+
+export function useProjectConfiguration(): ProjectModuleConfiguration & { isLoading: boolean } {
+  const { data, isLoading } = useModuleConfiguration('projects');
+
+  return useMemo(() => {
+    const settings = pickModuleSettings(data?.settings, DEFAULT_PROJECT_CONFIGURATION);
+    return {
+      ...settings,
+      isLoading,
+    };
+  }, [data, isLoading]);
+}
 
 // ─── Projects ────────────────────────────────────────────────────────────────
 
