@@ -16,6 +16,11 @@ import { useDocumentPdfActions } from '@/features/documents/hooks/useDocumentPdf
 import { Quotation, CreateQuotationDto, Proposal } from '@/features/documents/types/peb-commercial';
 import { DOCUMENT_STATUS_BADGE_VARIANTS } from '@/features/documents/constants';
 import { getDetailRoute, normalizeQuotation } from '@/features/documents/utils/documentHelpers';
+import {
+  consumeConversionSnapshot,
+  DOCUMENT_CONVERSION_KEYS,
+  storeConversionSnapshot,
+} from '@/features/documents/utils/documentConversion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -56,17 +61,11 @@ export function QuotationsPage() {
   }, [shouldCreate, customerId]);
 
   useEffect(() => {
-    const proposalData = sessionStorage.getItem('convertFromProposal');
-    if (proposalData) {
-      try {
-        const proposal = JSON.parse(proposalData) as Proposal;
-        setSelectedProposal(proposal);
-        setEditingQuotation(null);
-        setIsBuilderDialogOpen(true);
-        sessionStorage.removeItem('convertFromProposal');
-      } catch (err) {
-        console.error('Failed to parse proposal data:', err);
-      }
+    const proposal = consumeConversionSnapshot<Proposal>(DOCUMENT_CONVERSION_KEYS.proposal);
+    if (proposal) {
+      setSelectedProposal(proposal);
+      setEditingQuotation(null);
+      setIsBuilderDialogOpen(true);
     }
   }, []);
 
@@ -204,7 +203,7 @@ export function QuotationsPage() {
       alert('Only Accepted quotations can be converted to projects.');
       return;
     }
-    sessionStorage.setItem('convertFromQuotation', JSON.stringify(quotation));
+    storeConversionSnapshot(DOCUMENT_CONVERSION_KEYS.quotation, quotation);
     router.push(ROUTES.projects);
   };
 

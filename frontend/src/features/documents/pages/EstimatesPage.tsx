@@ -16,6 +16,10 @@ import { useDocumentPdfActions } from '@/features/documents/hooks/useDocumentPdf
 import { Estimate, CreateEstimateDto, UpdateEstimateDto } from '@/features/documents/types/peb-commercial';
 import { DOCUMENT_STATUS_BADGE_VARIANTS } from '@/features/documents/constants';
 import { getDetailRoute, normalizeEstimate } from '@/features/documents/utils/documentHelpers';
+import {
+  DOCUMENT_CONVERSION_KEYS,
+  storeConversionSnapshot,
+} from '@/features/documents/utils/documentConversion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -177,7 +181,7 @@ export function EstimatesPage() {
   };
 
   const handleConvertToProposal = (estimate: Estimate) => {
-    sessionStorage.setItem('convertFromEstimate', JSON.stringify(estimate));
+    storeConversionSnapshot(DOCUMENT_CONVERSION_KEYS.estimate, estimate);
     router.push(ROUTES.documentsProposals);
   };
 

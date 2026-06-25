@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { MainLayout } from '@/layouts/MainLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -1182,67 +1183,59 @@ export default function ProjectDetailPage() {
             </div>
           </TabsContent>
 
-          {/* Documents Tab */}
+          {/* Documents Tab — linked records only; uploads live in Documents module */}
           <TabsContent value="documents">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center justify-between">
-                  <span>Project Documents</span>
-                  <Button size="sm">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Upload Document
+                  <span>Linked Documents</span>
+                  <Button size="sm" asChild>
+                    <Link href={`${ROUTES.documents}?projectId=${project.id}`}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Open Documents Module
+                    </Link>
                   </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                  <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                  <Link
+                    href={`${ROUTES.documentsEstimates}?projectId=${project.id}`}
+                    className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
                     <div className="flex items-center gap-2 mb-2">
                       <FileText className="h-5 w-5 text-indigo-600" />
-                      <span className="text-sm font-medium">BOQ Documents</span>
+                      <span className="text-sm font-medium">Estimates</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">Bill of Quantity files</p>
-                  </div>
-                  <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                    <p className="text-xs text-muted-foreground">Project estimates and costing</p>
+                  </Link>
+                  <Link
+                    href={`${ROUTES.documentsProposals}?projectId=${project.id}`}
+                    className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
                     <div className="flex items-center gap-2 mb-2">
                       <Wrench className="h-5 w-5 text-cyan-600" />
-                      <span className="text-sm font-medium">Design Drawings</span>
+                      <span className="text-sm font-medium">Proposals</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">Structural and fabrication drawings</p>
-                  </div>
-                  <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                    <p className="text-xs text-muted-foreground">Commercial proposals for this project</p>
+                  </Link>
+                  <Link
+                    href={`${ROUTES.documentsQuotations}?projectId=${project.id}`}
+                    className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
                     <div className="flex items-center gap-2 mb-2">
                       <Receipt className="h-5 w-5 text-green-600" />
-                      <span className="text-sm font-medium">Contracts</span>
+                      <span className="text-sm font-medium">Quotations</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">Legal agreements and contracts</p>
-                  </div>
-                  <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Shield className="h-5 w-5 text-purple-600" />
-                      <span className="text-sm font-medium">Approvals</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Customer and regulatory approvals</p>
-                  </div>
-                  <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Truck className="h-5 w-5 text-orange-600" />
-                      <span className="text-sm font-medium">Dispatch Documents</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Delivery challans and packing lists</p>
-                  </div>
-                  <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertTriangle className="h-5 w-5 text-red-600" />
-                      <span className="text-sm font-medium">Safety Documents</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Safety certificates and compliance</p>
-                  </div>
+                    <p className="text-xs text-muted-foreground">Final quotations and commitments</p>
+                  </Link>
                 </div>
                 <div className="text-center py-8 border-t pt-8">
                   <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No documents uploaded yet</p>
-                  <p className="text-sm text-muted-foreground mt-1">Upload design files, BOQs, contracts, and other project documents</p>
+                  <p className="text-muted-foreground">Document management is handled in the Documents module</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Create estimates, proposals, quotations, and manage attachments from Documents.
+                  </p>
                 </div>
               </CardContent>
             </Card>

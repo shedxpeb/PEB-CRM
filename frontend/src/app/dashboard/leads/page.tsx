@@ -889,13 +889,13 @@ export default function LeadsPage() {
   }, [selectedRows]);
 
   const viewToggle = (
-    <div className="flex items-center bg-muted rounded-lg p-1">
+    <div className="flex items-center bg-card-hover rounded-lg p-1">
       <button
         type="button"
         onClick={() => handleViewModeChange('table')}
         className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
           viewMode === 'table'
-            ? 'bg-background shadow-sm text-foreground'
+            ? 'bg-card shadow-sm text-foreground'
             : 'text-muted-foreground hover:text-foreground'
         }`}
       >
@@ -907,7 +907,7 @@ export default function LeadsPage() {
         onClick={() => handleViewModeChange('kanban')}
         className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
           viewMode === 'kanban'
-            ? 'bg-background shadow-sm text-foreground'
+            ? 'bg-card shadow-sm text-foreground'
             : 'text-muted-foreground hover:text-foreground'
         }`}
       >
@@ -919,7 +919,7 @@ export default function LeadsPage() {
         onClick={() => handleViewModeChange('calendar')}
         className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${
           viewMode === 'calendar'
-            ? 'bg-background shadow-sm text-foreground'
+            ? 'bg-card shadow-sm text-foreground'
             : 'text-muted-foreground hover:text-foreground'
         }`}
       >
@@ -988,7 +988,7 @@ export default function LeadsPage() {
         ) : (
           <div className="min-w-0">
             {selectedRows.size > 0 && (
-              <Card className="bg-muted/40 border-dashed mb-3 sm:mb-4">
+              <Card className="bg-card-hover border-dashed mb-3 sm:mb-4">
                 <CardContent className="p-3 sm:p-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <p className="text-sm font-medium">{selectedRows.size} lead(s) selected</p>

@@ -528,8 +528,8 @@ export default function DashboardPage() {
           <div className="space-y-3 sm:space-y-4 w-full">
             {/* Filter Bar Skeleton */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="h-10 w-48 bg-muted rounded-md animate-pulse" />
-              <div className="h-9 w-24 bg-muted rounded-md animate-pulse" />
+              <div className="h-10 w-48 bg-card-hover rounded-md animate-pulse" />
+              <div className="h-9 w-24 bg-card-hover rounded-md animate-pulse" />
             </div>
             
             {/* KPI Cards Skeleton */}
@@ -553,13 +553,13 @@ export default function DashboardPage() {
             
             {/* Project Timeline Skeleton */}
             <div className="space-y-3 sm:space-y-4">
-              <div className="h-12 w-full bg-muted rounded-md animate-pulse" />
-              <div className="h-64 w-full bg-muted rounded-md animate-pulse" />
-              <div className="h-48 w-full bg-muted rounded-md animate-pulse" />
+              <div className="h-12 w-full bg-card-hover rounded-md animate-pulse" />
+              <div className="h-64 w-full bg-card-hover rounded-md animate-pulse" />
+              <div className="h-48 w-full bg-card-hover rounded-md animate-pulse" />
             </div>
             
             {/* Recent Status Updates Skeleton */}
-            <div className="h-48 w-full bg-muted rounded-md animate-pulse" />
+            <div className="h-48 w-full bg-card-hover rounded-md animate-pulse" />
           </div>
         ) : (
           <div className="animate-in fade-in duration-500 space-y-3 sm:space-y-4 w-full">
@@ -610,7 +610,7 @@ export default function DashboardPage() {
                   showPeriod={true}
                 >
                   {(type, period) => (
-                    <Suspense fallback={<div className="h-48 w-full animate-pulse bg-muted rounded-md" />}>
+                    <Suspense fallback={<div className="h-48 w-full animate-pulse bg-card-hover rounded-md" />}>
                       <DynamicChart
                         type={type}
                         data={purchasesTrendData}
@@ -630,7 +630,7 @@ export default function DashboardPage() {
                   showPeriod={true}
                 >
                   {(type, period) => (
-                    <Suspense fallback={<div className="h-48 w-full animate-pulse bg-muted rounded-md" />}>
+                    <Suspense fallback={<div className="h-48 w-full animate-pulse bg-card-hover rounded-md" />}>
                       <DynamicChart
                         type={type}
                         data={salesTrendData}
@@ -658,7 +658,7 @@ export default function DashboardPage() {
                   showPeriod={true}
                 >
                   {(type, period) => (
-                    <Suspense fallback={<div className="h-48 w-full animate-pulse bg-muted rounded-md" />}>
+                    <Suspense fallback={<div className="h-48 w-full animate-pulse bg-card-hover rounded-md" />}>
                       <DynamicChart
                         type={type}
                         data={leadsSourceData}
@@ -678,7 +678,7 @@ export default function DashboardPage() {
                   showPeriod={true}
                 >
                   {(type, period) => (
-                    <Suspense fallback={<div className="h-48 w-full animate-pulse bg-muted rounded-md" />}>
+                    <Suspense fallback={<div className="h-48 w-full animate-pulse bg-card-hover rounded-md" />}>
                       <DynamicChart
                         type={type}
                         data={revenueData}
@@ -705,7 +705,7 @@ export default function DashboardPage() {
                   showPeriod={true}
                 >
                   {(type, period) => (
-                    <Suspense fallback={<div className="h-48 w-full animate-pulse bg-muted rounded-md" />}>
+                    <Suspense fallback={<div className="h-48 w-full animate-pulse bg-card-hover rounded-md" />}>
                       <DynamicChart
                         type={type}
                         data={projectsTrendData}
@@ -726,7 +726,7 @@ export default function DashboardPage() {
                   showPeriod={true}
                 >
                   {(type, period) => (
-                    <Suspense fallback={<div className="h-48 w-full animate-pulse bg-muted rounded-md" />}>
+                    <Suspense fallback={<div className="h-48 w-full animate-pulse bg-card-hover rounded-md" />}>
                       <DynamicChart
                         type={type}
                         data={inventoryValueData}

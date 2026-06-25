@@ -73,7 +73,7 @@ export const ModernKPICard = memo(function ModernKPICard({
       tabIndex={onClick || navigateTo ? 0 : undefined}
       onKeyDown={onClick || navigateTo ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } } : undefined}
       className={cn(
-        'group relative overflow-hidden border-border/70 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md',
+        'group relative overflow-hidden border-border/70 shadow-sm',
         (onClick || navigateTo) && 'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
       )}
     >
