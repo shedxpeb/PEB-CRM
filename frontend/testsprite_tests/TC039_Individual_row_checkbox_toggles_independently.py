@@ -1,0 +1,103 @@
+import asyncio
+import re
+from playwright import async_api
+from playwright.async_api import expect
+
+async def run_test():
+    pw = None
+    browser = None
+    context = None
+
+    try:
+        # Start a Playwright session in asynchronous mode
+        pw = await async_api.async_playwright().start()
+
+        # Launch a Chromium browser in headless mode with custom arguments
+        browser = await pw.chromium.launch(
+            headless=True,
+            args=[
+                "--window-size=1280,720",
+                "--disable-dev-shm-usage",
+                "--ipc=host",
+                "--single-process"
+            ],
+        )
+
+        # Create a new browser context (like an incognito window)
+        context = await browser.new_context()
+        # Wider default timeout to match the agent's DOM-stability budget;
+        # auto-waiting Playwright APIs (expect, locator.wait_for) inherit this.
+        context.set_default_timeout(15000)
+
+        # Open a new page in the browser context
+        page = await context.new_page()
+
+        # Interact with the page elements to simulate user flow
+        # -> navigate
+        await page.goto("http://localhost:3000")
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
+        
+        # -> Fill the 'Email address' field with test@test.com, fill the 'Password' field with password123, then click the 'Sign in' button to authenticate and trigger navigation away from /login.
+        # Email address email field
+        elem = page.locator('[id="email-address"]')
+        await elem.wait_for(state="visible", timeout=10000)
+        await elem.fill("test@test.com")
+        
+        # -> Fill the 'Email address' field with test@test.com, fill the 'Password' field with password123, then click the 'Sign in' button to authenticate and trigger navigation away from /login.
+        # Password password field
+        elem = page.locator('[id="password"]')
+        await elem.wait_for(state="visible", timeout=10000)
+        await elem.fill("password123")
+        
+        # -> Fill the 'Email address' field with test@test.com, fill the 'Password' field with password123, then click the 'Sign in' button to authenticate and trigger navigation away from /login.
+        # Sign in button
+        elem = page.get_by_role('button', name='Sign in', exact=True)
+        await elem.click(timeout=10000)
+        
+        # -> Click the visible 'Reload' button on the error page to retry loading the dashboard, then wait for the data table rows to finish loading so the row-select behavior can be tested.
+        # Reload button
+        elem = page.locator('[id="reload-button"]')
+        await elem.click(timeout=10000)
+        
+        # -> Click the 'Reload' button to retry loading the dashboard and wait for the data table to render (expect at least two rows).
+        # Reload button
+        elem = page.locator('[id="reload-button"]')
+        await elem.click(timeout=10000)
+        
+        # -> Click the visible 'Reload' button on the error page to retry loading the dashboard and then wait for the data table rows to finish rendering (expect at least two rows).
+        # Reload button
+        elem = page.locator('[id="reload-button"]')
+        await elem.click(timeout=10000)
+        
+        # -> Final action — this is where the agent failed
+        # Error observed by agent: Navigation failed - site unavailable: http://localhost:3000/dashboard/item
+        await page.goto("http://localhost:3000/dashboard/item")
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=5000)
+        except Exception:
+            pass
+        
+        # --> Assertions to verify final state
+        # Assert: Verify only that row checkbox is checked and other row checkboxes remain unchecked
+        assert False, "Expected: Verify only that row checkbox is checked and other row checkboxes remain unchecked (could not be verified on the page)"
+        # Assert: Verify the header select-all checkbox shows an indeterminate (partial) state rather than fully checked
+        assert False, "Expected: Verify the header select-all checkbox shows an indeterminate (partial) state rather than fully checked (could not be verified on the page)"
+        
+        # --> Test blocked by environment/access constraints during agent run
+        # Reason: TEST BLOCKED The test could not be run because the dashboard page is not reachable — the server returned no data and the browser shows an error page. Observations: - The page displays "This page isn’t working" and "ERR_EMPTY_RESPONSE" with only a "Reload" button visible. - Three reload attempts were made and the error persisted; the application UI (data table rows and header checkbox) never loa...
+        raise AssertionError("Test blocked during agent run: " + "TEST BLOCKED The test could not be run because the dashboard page is not reachable \u2014 the server returned no data and the browser shows an error page. Observations: - The page displays \"This page isn\u2019t working\" and \"ERR_EMPTY_RESPONSE\" with only a \"Reload\" button visible. - Three reload attempts were made and the error persisted; the application UI (data table rows and header checkbox) never loa..." + " — the exported script cannot reproduce a PASS in this environment.")
+        await asyncio.sleep(5)
+
+    finally:
+        if context:
+            await context.close()
+        if browser:
+            await browser.close()
+        if pw:
+            await pw.stop()
+
+asyncio.run(run_test())
+    

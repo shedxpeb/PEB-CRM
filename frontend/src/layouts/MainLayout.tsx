@@ -20,7 +20,7 @@ export const MainLayout = memo(function MainLayout({ children, title = '', subti
   const isCollapsed = useSidebarIsCollapsed();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <Sidebar currentPath={currentPath} />
       
       <main

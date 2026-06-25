@@ -24,7 +24,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ROUTES } from '@/core/routes';
-import { useDebounce } from '@/shared/hooks/useDebounce';
 import { Package, Plus, Download } from 'lucide-react';
 
 const ITEM_STATUSES: ItemStatus[] = ['Active', 'Inactive', 'Discontinued'];
@@ -43,8 +42,9 @@ export default function ItemPage() {
   const router = useRouter();
   const itemConfig = useItemConfiguration();
 
+  // SearchBar already debounces before calling onSearchChange, so we use the
+  // value directly here instead of debouncing a second time.
   const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearch = useDebounce(searchQuery, 300);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [brandFilter, setBrandFilter] = useState<string>('all');
   const [unitFilter, setUnitFilter] = useState<string>('all');
@@ -81,7 +81,7 @@ export default function ItemPage() {
 
   const filteredItems = useMemo(() => {
     if (!allItems) return [];
-    const q = debouncedSearch.toLowerCase();
+    const q = searchQuery.toLowerCase().trim();
     return allItems.filter((item) => {
       const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
       const matchesBrand = brandFilter === 'all' || item.brand === brandFilter;
@@ -90,7 +90,7 @@ export default function ItemPage() {
       const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
       const matchesTax = taxFilter === 'all' || item.taxType === taxFilter;
       const matchesSearch =
-        !debouncedSearch ||
+        !q ||
         item.itemCode.toLowerCase().includes(q) ||
         item.itemName.toLowerCase().includes(q) ||
         item.category?.toLowerCase().includes(q) ||
@@ -100,7 +100,7 @@ export default function ItemPage() {
         item.hsnCode?.toLowerCase().includes(q);
       return matchesCategory && matchesBrand && matchesUnit && matchesType && matchesStatus && matchesTax && matchesSearch;
     });
-  }, [allItems, debouncedSearch, categoryFilter, brandFilter, unitFilter, itemTypeFilter, statusFilter, taxFilter]);
+  }, [allItems, searchQuery, categoryFilter, brandFilter, unitFilter, itemTypeFilter, statusFilter, taxFilter]);
 
   const selectedItem = useMemo(
     () => (selectedItemId ? allItems?.find((i) => i.id === selectedItemId) ?? null : null),
@@ -127,11 +127,6 @@ export default function ItemPage() {
       { title: 'Brands', value: String(filteredStats.brands), change: 0, icon: <Package className="h-5 w-5 text-orange-600" />, color: 'text-orange-600' },
     ],
     [filteredStats]
-  );
-
-  const tableFilterKey = useMemo(
-    () => [debouncedSearch, categoryFilter, brandFilter, unitFilter, itemTypeFilter, statusFilter, taxFilter].join('|'),
-    [debouncedSearch, categoryFilter, brandFilter, unitFilter, itemTypeFilter, statusFilter, taxFilter]
   );
 
   const filterConfigs: FilterConfig[] = useMemo(
@@ -337,7 +332,6 @@ export default function ItemPage() {
       >
         <div className="min-w-0">
           <DataTable
-            key={tableFilterKey}
             columns={columns}
             data={filteredItems}
             showToolbar={false}

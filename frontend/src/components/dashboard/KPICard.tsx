@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowUp, ArrowDown } from 'lucide-react';
@@ -19,18 +18,13 @@ export function KPICard({ data, onClick, showComparison = false }: KPICardProps)
   const color = data.color || (isPositive ? 'text-green-600' : 'text-red-600');
 
   return (
-    <motion.div
-      whileHover={{ scale: 1.02, y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ duration: 0.2 }}
+    <Card
+      className={cn(
+        'cursor-pointer',
+        onClick && 'hover:border-blue-300'
+      )}
+      onClick={onClick}
     >
-      <Card
-        className={cn(
-          'cursor-pointer hover:shadow-md transition-shadow',
-          onClick && 'hover:border-blue-300'
-        )}
-        onClick={onClick}
-      >
         <CardContent className="p-2 sm:p-3">
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -74,6 +68,5 @@ export function KPICard({ data, onClick, showComparison = false }: KPICardProps)
           </div>
         </CardContent>
       </Card>
-    </motion.div>
   );
 }

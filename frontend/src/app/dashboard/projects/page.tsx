@@ -357,7 +357,7 @@ export default function ProjectsPage() {
         headerClassName: 'hidden sm:table-cell',
         render: (value) => (
           <div className="flex items-center gap-2">
-            <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+            <div className="w-12 h-1.5 bg-card-hover rounded-full overflow-hidden">
               <div className="h-full bg-blue-600" style={{ width: `${Number(value)}%` }} />
             </div>
             <span className="text-[11px]">{Number(value)}%</span>

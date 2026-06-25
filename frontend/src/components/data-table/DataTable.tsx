@@ -110,11 +110,21 @@ export const DataTable = React.memo(function DataTable<T = Record<string, any>>(
   }, [data, showToolbar, debouncedSearchTerm, sortColumn, sortDirection, filterColumn, filterValue, columns]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / rowsPerPage));
+
+  // Keep the current page within range when the data set shrinks (e.g. after a
+  // search or filter narrows results) so users never land on an empty page.
+  React.useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * rowsPerPage;
+    const safePage = Math.min(currentPage, totalPages);
+    const startIndex = (safePage - 1) * rowsPerPage;
     return filteredData.slice(startIndex, startIndex + rowsPerPage);
-  }, [filteredData, currentPage, rowsPerPage]);
+  }, [filteredData, currentPage, totalPages, rowsPerPage]);
 
   const handleSort = useCallback((column: keyof T) => {
     if (sortColumn === column) {

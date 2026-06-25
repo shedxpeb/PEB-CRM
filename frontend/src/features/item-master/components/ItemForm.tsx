@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -20,7 +20,9 @@ import { getCategoryById } from '@/features/item-master/data/categoryMasterData'
 import {
   useCreateItemMaster,
   useItemConfiguration,
+  useItemMasters,
 } from '@/features/item-master/hooks/useItemMaster';
+import { generateItemCode } from '@/features/item-master/utils/generateItemCode';
 import {
   CreateItemMasterDto,
   ItemCustomFieldValues,
@@ -83,6 +85,7 @@ export const ItemForm = memo(function ItemForm({
   isSubmitting,
 }: ItemFormProps) {
   const createMutation = useCreateItemMaster();
+  const { data: existingItems = [] } = useItemMasters();
   const { customFields: customFieldDefinitions } = useItemConfiguration();
   const [errors, setErrors] = useState<FormErrors>({});
   const [formData, setFormData] = useState({
@@ -134,6 +137,14 @@ export const ItemForm = memo(function ItemForm({
   );
 
   const pending = createMutation.isPending || isSubmitting;
+
+  useEffect(() => {
+    if (mode !== 'create' || !formData.categoryId) return;
+    const nextCode = generateItemCode(formData.categoryId, existingItems);
+    setFormData((prev) =>
+      prev.itemCode === nextCode ? prev : { ...prev, itemCode: nextCode }
+    );
+  }, [mode, formData.categoryId, existingItems]);
 
   const validatePositiveNumber = (
     next: FormErrors,
@@ -199,10 +210,17 @@ export const ItemForm = memo(function ItemForm({
     const widthNum = parseOptionalNumber(formData.width);
 
     const mainCategory = formData.categoryId ? getCategoryById(formData.categoryId) : undefined;
+    const resolvedItemCode =
+      mode === 'create'
+        ? formData.itemCode ||
+          (formData.categoryId
+            ? generateItemCode(formData.categoryId, existingItems)
+            : '')
+        : formData.itemCode;
 
     const submitData: Partial<ItemMaster> = {
-      sku: formData.sku || formData.itemCode,
-      itemCode: formData.itemCode,
+      sku: resolvedItemCode,
+      itemCode: resolvedItemCode,
       itemName: formData.itemName,
       category: mainCategory?.name || formData.category,
       subCategory: formData.subCategory || undefined,
@@ -285,6 +303,21 @@ export const ItemForm = memo(function ItemForm({
             />
             {fieldError('category')}
           </div>
+
+          {mode === 'create' && formData.itemCode && (
+            <div>
+              <Label htmlFor="itemCodePreview">Item Code</Label>
+              <Input
+                id="itemCodePreview"
+                value={formData.itemCode}
+                readOnly
+                className="bg-muted/50 font-mono"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Auto-generated from category. Managed by the system.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

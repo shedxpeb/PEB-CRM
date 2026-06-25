@@ -31,7 +31,7 @@ const Drawer = ({ children, open, onOpenChange, panelClassName }: DrawerProps) =
       {/* Drawer Panel */}
       <div
         className={cn(
-          "fixed right-0 top-0 h-full w-full sm:w-[47.5vw] sm:max-w-[960px] sm:min-w-[420px] bg-white shadow-xl transition-transform duration-300 ease-in-out",
+          "fixed right-0 top-0 h-full w-full sm:w-[47.5vw] sm:max-w-[960px] sm:min-w-[420px] bg-background shadow-xl transition-transform duration-300 ease-in-out",
           panelClassName,
           open ? "translate-x-0" : "translate-x-full"
         )}

@@ -3,6 +3,7 @@
  * All API calls go through this - never use axios directly in components
  */
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
+import { clearAuthSession, getAuthToken, getTenantId } from '@/core/auth/session';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -22,14 +23,12 @@ export const apiClient: AxiosInstance = axios.create({
  */
 apiClient.interceptors.request.use(
   (config) => {
-    // Add auth token
-    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+    const token = getAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
-    // Add tenant ID for multi-tenant
-    const tenantId = typeof window !== 'undefined' ? localStorage.getItem('tenantId') : null;
+
+    const tenantId = getTenantId();
     if (tenantId) {
       config.headers['X-Tenant-ID'] = tenantId;
     }
@@ -50,8 +49,7 @@ apiClient.interceptors.response.use(
     // Handle 401 - Unauthorized
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('tenantId');
+        clearAuthSession();
         window.location.href = '/login';
       }
     }

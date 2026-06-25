@@ -1506,7 +1506,7 @@ export default function FinancePage() {
                       key={row.id}
                       type="button"
                       onClick={() => handleView(row, 'receivables')}
-                      className="grid w-full grid-cols-[1.6fr_1fr_auto] items-center gap-3 rounded-lg border p-3 text-left hover:bg-muted/30"
+                      className="grid w-full grid-cols-[1.6fr_1fr_auto] items-center gap-3 rounded-lg border p-3 text-left hover:bg-card-hover"
                     >
                       <div>
                         <p className="font-medium">{row.customerName}</p>
@@ -1535,7 +1535,7 @@ export default function FinancePage() {
                       key={row.id}
                       type="button"
                       onClick={() => handleView(row, 'payables')}
-                      className="grid w-full grid-cols-[1.6fr_1fr_auto] items-center gap-3 rounded-lg border p-3 text-left hover:bg-muted/30"
+                      className="grid w-full grid-cols-[1.6fr_1fr_auto] items-center gap-3 rounded-lg border p-3 text-left hover:bg-card-hover"
                     >
                       <div>
                         <p className="font-medium">{row.vendorName}</p>

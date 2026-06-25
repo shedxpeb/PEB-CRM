@@ -16,6 +16,11 @@ import { useDocumentPdfActions } from '@/features/documents/hooks/useDocumentPdf
 import { Proposal, CreateProposalDto, Estimate } from '@/features/documents/types/peb-commercial';
 import { DOCUMENT_STATUS_BADGE_VARIANTS } from '@/features/documents/constants';
 import { getDetailRoute, normalizeProposal } from '@/features/documents/utils/documentHelpers';
+import {
+  consumeConversionSnapshot,
+  DOCUMENT_CONVERSION_KEYS,
+  storeConversionSnapshot,
+} from '@/features/documents/utils/documentConversion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -45,17 +50,11 @@ export function ProposalsPage() {
   const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
 
   useEffect(() => {
-    const estimateData = sessionStorage.getItem('convertFromEstimate');
-    if (estimateData) {
-      try {
-        const estimate = JSON.parse(estimateData) as Estimate;
-        setSelectedEstimate(estimate);
-        setEditingProposal(null);
-        setIsBuilderDialogOpen(true);
-        sessionStorage.removeItem('convertFromEstimate');
-      } catch (err) {
-        console.error('Failed to parse estimate data:', err);
-      }
+    const estimate = consumeConversionSnapshot<Estimate>(DOCUMENT_CONVERSION_KEYS.estimate);
+    if (estimate) {
+      setSelectedEstimate(estimate);
+      setEditingProposal(null);
+      setIsBuilderDialogOpen(true);
     }
   }, []);
 
@@ -185,7 +184,7 @@ export function ProposalsPage() {
   };
 
   const handleConvertToQuotation = (proposal: Proposal) => {
-    sessionStorage.setItem('convertFromProposal', JSON.stringify(proposal));
+    storeConversionSnapshot(DOCUMENT_CONVERSION_KEYS.proposal, proposal);
     router.push(ROUTES.documentsQuotations);
   };
 
