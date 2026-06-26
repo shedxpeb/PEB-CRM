@@ -56,8 +56,15 @@ export function ThemeProvider({
     // Apply data attribute for CSS selectors
     document.documentElement.setAttribute('data-theme', theme);
 
-    // Apply CSS variables
+    // Apply CSS variables with global transition
     const root = document.documentElement;
+    const body = document.body;
+    
+    // Add smooth transition class to body for simultaneous theme change
+    body.style.transition = 'background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, background 0.3s ease';
+    
+    // Add transition to all elements that use CSS variables
+    root.style.setProperty('--transition-duration', '0.3s');
     
     // Core colors
     root.style.setProperty('--background', colors.background);

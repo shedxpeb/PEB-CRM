@@ -1,7 +1,7 @@
 'use client';
 
 import { memo } from 'react';
-import { Bell, Search, User, Settings, LogOut, Menu } from 'lucide-react';
+import { Bell, Search, Settings, LogOut, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { useSidebarToggle } from '@/store/useSidebarStore';
 import { componentTextSizes } from '@/lib/design-system';
 import { ThemeToggle } from '@/theme/ThemeToggle';
+import { Breadcrumbs } from './Breadcrumbs';
 
 interface TopbarProps {
   title: string;
@@ -42,11 +43,15 @@ export const Topbar = memo(function Topbar({ title, subtitle, showBackButton, on
           {title ? (
             <>
               <h1 className="text-base md:text-lg lg:text-xl font-semibold text-foreground truncate">{title}</h1>
-              {subtitle && (
+              {subtitle ? (
                 <p className="text-xs text-muted-foreground hidden md:block truncate">{subtitle}</p>
+              ) : (
+                <Breadcrumbs className="hidden md:flex" />
               )}
             </>
-          ) : null}
+          ) : (
+            <Breadcrumbs className="hidden md:flex" />
+          )}
         </div>
       </div>
 

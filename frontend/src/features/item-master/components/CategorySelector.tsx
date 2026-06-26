@@ -98,7 +98,9 @@ const CategorySelector = memo(function CategorySelector({
   );
 
   const handleCategoryChange = (categoryId: string) => {
+    console.log('[CategorySelector] handleCategoryChange:', { categoryId, previous: selectedCategory })
     setSelectedCategory(categoryId);
+    console.log('[CategorySelector] setSelectedCategory completed')
 
     // Clear the selected item if it no longer belongs to the chosen category.
     if (selectedItemName) {
