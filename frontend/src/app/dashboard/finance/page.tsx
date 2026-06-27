@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -68,18 +69,44 @@ import {
   deriveVendorSummaries,
 } from '@/features/finance/utils/financeDerivedData';
 import { FinanceRowActions } from '@/features/finance/components/FinanceRowActions';
-import { InvoiceForm } from '@/features/finance/components/InvoiceForm';
-import { PaymentForm } from '@/features/finance/components/PaymentForm';
-import { ExpenseForm } from '@/features/finance/components/ExpenseForm';
-import { VendorForm } from '@/features/finance/components/VendorForm';
-import { BankAccountForm } from '@/features/finance/components/BankAccountForm';
-import { InvoiceViewDrawer } from '@/features/finance/components/InvoiceViewDrawer';
-import { PaymentViewDrawer } from '@/features/finance/components/PaymentViewDrawer';
-import { ExpenseViewDrawer } from '@/features/finance/components/ExpenseViewDrawer';
-import { VendorViewDrawer } from '@/features/finance/components/VendorViewDrawer';
-import { BankAccountViewDrawer } from '@/features/finance/components/BankAccountViewDrawer';
-import { ReceivableViewDrawer } from '@/features/finance/components/ReceivableViewDrawer';
-import { PayableViewDrawer } from '@/features/finance/components/PayableViewDrawer';
+
+// Lazy load forms and drawers to reduce initial bundle size
+const InvoiceForm = dynamic(() => import('@/features/finance/components/InvoiceForm').then(m => ({ default: m.InvoiceForm })), {
+  loading: () => <div className="p-8 text-center">Loading form...</div>
+});
+const PaymentForm = dynamic(() => import('@/features/finance/components/PaymentForm').then(m => ({ default: m.PaymentForm })), {
+  loading: () => <div className="p-8 text-center">Loading form...</div>
+});
+const ExpenseForm = dynamic(() => import('@/features/finance/components/ExpenseForm').then(m => ({ default: m.ExpenseForm })), {
+  loading: () => <div className="p-8 text-center">Loading form...</div>
+});
+const VendorForm = dynamic(() => import('@/features/finance/components/VendorForm').then(m => ({ default: m.VendorForm })), {
+  loading: () => <div className="p-8 text-center">Loading form...</div>
+});
+const BankAccountForm = dynamic(() => import('@/features/finance/components/BankAccountForm').then(m => ({ default: m.BankAccountForm })), {
+  loading: () => <div className="p-8 text-center">Loading form...</div>
+});
+const InvoiceViewDrawer = dynamic(() => import('@/features/finance/components/InvoiceViewDrawer').then(m => ({ default: m.InvoiceViewDrawer })), {
+  loading: () => <div className="p-8 text-center">Loading...</div>
+});
+const PaymentViewDrawer = dynamic(() => import('@/features/finance/components/PaymentViewDrawer').then(m => ({ default: m.PaymentViewDrawer })), {
+  loading: () => <div className="p-8 text-center">Loading...</div>
+});
+const ExpenseViewDrawer = dynamic(() => import('@/features/finance/components/ExpenseViewDrawer').then(m => ({ default: m.ExpenseViewDrawer })), {
+  loading: () => <div className="p-8 text-center">Loading...</div>
+});
+const VendorViewDrawer = dynamic(() => import('@/features/finance/components/VendorViewDrawer').then(m => ({ default: m.VendorViewDrawer })), {
+  loading: () => <div className="p-8 text-center">Loading...</div>
+});
+const BankAccountViewDrawer = dynamic(() => import('@/features/finance/components/BankAccountViewDrawer').then(m => ({ default: m.BankAccountViewDrawer })), {
+  loading: () => <div className="p-8 text-center">Loading...</div>
+});
+const ReceivableViewDrawer = dynamic(() => import('@/features/finance/components/ReceivableViewDrawer').then(m => ({ default: m.ReceivableViewDrawer })), {
+  loading: () => <div className="p-8 text-center">Loading...</div>
+});
+const PayableViewDrawer = dynamic(() => import('@/features/finance/components/PayableViewDrawer').then(m => ({ default: m.PayableViewDrawer })), {
+  loading: () => <div className="p-8 text-center">Loading...</div>
+});
 
 type FinanceTab =
   | 'dashboard'
@@ -228,53 +255,41 @@ export default function FinancePage() {
     () => payables.reduce((sum, row) => sum + row.pendingAmount, 0),
     [payables]
   );
-  const dashboardAnchorDate = useMemo(() => {
+  // Combine date-related computations to reduce re-renders
+  const { dashboardAnchorDate, monthLabel, currentMonthSales, currentMonthExpenses } = useMemo(() => {
     const allDates = [
       ...derivedInvoices.map((item) => item.sentAt ?? item.createdAt ?? item.dueDate),
       ...payments.map((item) => item.paymentDate),
       ...expenses.map((item) => item.date),
     ].filter(Boolean) as Array<Date | string>;
-    if (allDates.length === 0) return new Date();
-    return new Date(
+    const anchorDate = allDates.length === 0 ? new Date() : new Date(
       [...allDates].sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0]
     );
+    
+    const monthLbl = anchorDate.toLocaleDateString('en-IN', {
+      month: 'short',
+      year: 'numeric',
+    });
+    
+    const sales = derivedInvoices
+      .filter((item) => item.status !== 'Draft' && item.status !== 'Cancelled')
+      .filter((item) => isSameMonth(item.sentAt ?? item.createdAt ?? item.dueDate, anchorDate))
+      .reduce((sum, item) => sum + item.totalAmount, 0);
+    
+    const exp = expenses
+      .filter((item) => item.status !== 'Rejected' && item.status !== 'Cancelled')
+      .filter((item) => isSameMonth(item.date, anchorDate))
+      .reduce((sum, item) => sum + item.totalAmount, 0);
+    
+    return { dashboardAnchorDate: anchorDate, monthLabel: monthLbl, currentMonthSales: sales, currentMonthExpenses: exp };
   }, [derivedInvoices, expenses, payments]);
-  const monthLabel = useMemo(
-    () =>
-      dashboardAnchorDate.toLocaleDateString('en-IN', {
-        month: 'short',
-        year: 'numeric',
-      }),
-    [dashboardAnchorDate]
-  );
-  const currentMonthSales = useMemo(
-    () =>
-      derivedInvoices
-        .filter((item) => item.status !== 'Draft' && item.status !== 'Cancelled')
-        .filter((item) => isSameMonth(item.sentAt ?? item.createdAt ?? item.dueDate, dashboardAnchorDate))
-        .reduce((sum, item) => sum + item.totalAmount, 0),
-    [dashboardAnchorDate, derivedInvoices]
-  );
-  const currentMonthExpenses = useMemo(
-    () =>
-      expenses
-        .filter((item) => item.status !== 'Rejected' && item.status !== 'Cancelled')
-        .filter((item) => isSameMonth(item.date, dashboardAnchorDate))
-        .reduce((sum, item) => sum + item.totalAmount, 0),
-    [dashboardAnchorDate, expenses]
-  );
-  const netCashPosition = useMemo(
-    () => financeMetrics.cashPosition + financeMetrics.outstandingAmount - outstandingPayablesTotal,
-    [financeMetrics.cashPosition, financeMetrics.outstandingAmount, outstandingPayablesTotal]
-  );
-  const overdueReceivablesCount = useMemo(
-    () => receivables.filter((row) => row.overdueDays > 0).length,
-    [receivables]
-  );
-  const overduePayablesCount = useMemo(
-    () => payables.filter((row) => row.overdueDays > 0).length,
-    [payables]
-  );
+  // Combine overdue counts and cash position computations
+  const { netCashPosition, overdueReceivablesCount, overduePayablesCount } = useMemo(() => {
+    const netCash = financeMetrics.cashPosition + financeMetrics.outstandingAmount - outstandingPayablesTotal;
+    const overdueRecv = receivables.filter((row) => row.overdueDays > 0).length;
+    const overduePay = payables.filter((row) => row.overdueDays > 0).length;
+    return { netCashPosition: netCash, overdueReceivablesCount: overdueRecv, overduePayablesCount: overduePay };
+  }, [financeMetrics.cashPosition, financeMetrics.outstandingAmount, outstandingPayablesTotal, receivables, payables]);
   const prioritizedInvoices = useMemo(
     () =>
       [...receivables]
@@ -317,18 +332,13 @@ export default function FinancePage() {
         .slice(0, 5),
     [vendorRows]
   );
-  const totalBankBalance = useMemo(
-    () => derivedBankAccounts.reduce((sum, row) => sum + row.derivedBalance, 0),
-    [derivedBankAccounts]
-  );
-  const totalInvoiceOutstanding = useMemo(
-    () => derivedInvoices.reduce((sum, row) => sum + row.pendingAmount, 0),
-    [derivedInvoices]
-  );
-  const totalVendorOutstanding = useMemo(
-    () => vendorRows.reduce((sum, row) => sum + row.outstandingBalance, 0),
-    [vendorRows]
-  );
+  // Combine total balance computations
+  const { totalBankBalance, totalInvoiceOutstanding, totalVendorOutstanding } = useMemo(() => {
+    const bankBal = derivedBankAccounts.reduce((sum, row) => sum + row.derivedBalance, 0);
+    const invOut = derivedInvoices.reduce((sum, row) => sum + row.pendingAmount, 0);
+    const vendOut = vendorRows.reduce((sum, row) => sum + row.outstandingBalance, 0);
+    return { totalBankBalance: bankBal, totalInvoiceOutstanding: invOut, totalVendorOutstanding: vendOut };
+  }, [derivedBankAccounts, derivedInvoices, vendorRows]);
   const financeConsistency = useMemo(
     () => ({
       cashMatches: Math.abs(financeMetrics.cashPosition - totalBankBalance) < 0.01,

@@ -17,6 +17,12 @@ import {
   FileText,
 } from 'lucide-react';
 
+// Move static quickActions outside component to prevent recreation
+const QUICK_ACTIONS = [
+  { icon: <UserCog className="h-4 w-4" />, label: 'Manage Users', href: ROUTES.settingsUsers },
+  { icon: <Package className="h-4 w-4" />, label: 'Manage Modules', href: ROUTES.settingsModules },
+];
+
 export const SettingsDashboard = memo(function SettingsDashboard() {
   const { data: stats, isLoading } = useSettingsStats();
   const typedStats = stats as SettingsStats | undefined;
@@ -52,11 +58,6 @@ export const SettingsDashboard = memo(function SettingsDashboard() {
     },
   ] : [];
 
-  const quickActions = [
-    { icon: <UserCog className="h-4 w-4" />, label: 'Manage Users', href: ROUTES.settingsUsers },
-    { icon: <Package className="h-4 w-4" />, label: 'Manage Modules', href: ROUTES.settingsModules },
-  ];
-
   return (
     <SettingsLayout>
       <div className="space-y-4 sm:space-y-6 w-full overflow-hidden">
@@ -83,7 +84,7 @@ export const SettingsDashboard = memo(function SettingsDashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-              {quickActions.map((action, index) => (
+              {QUICK_ACTIONS.map((action, index) => (
                 <Button
                   key={`${action.label}-${index}`}
                   variant="outline"

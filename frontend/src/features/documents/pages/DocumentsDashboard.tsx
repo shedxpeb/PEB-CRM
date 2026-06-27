@@ -107,7 +107,8 @@ export function DocumentsDashboard() {
     [allDocuments, selectedDocId]
   );
 
-  const filteredStats = useMemo(() => {
+  // Combine stats and KPI data computation to reduce re-renders
+  const { filteredStats, kpiData } = useMemo(() => {
     let estimates = 0;
     let proposals = 0;
     let quotations = 0;
@@ -124,22 +125,21 @@ export function DocumentsDashboard() {
       if (doc.status === 'Approved' || doc.status === 'Accepted') approved++;
       if (doc.status === 'Sent') sent++;
     }
-    return { total: filteredDocuments.length, estimates, proposals, quotations, invoices, draft, approved, sent };
+    const stats = { total: filteredDocuments.length, estimates, proposals, quotations, invoices, draft, approved, sent };
+    
+    const kpi = [
+      { title: 'Total Documents', value: String(stats.total), change: 0, icon: <FileText className="h-5 w-5 text-blue-600" />, color: 'text-blue-600' },
+      { title: 'Estimates', value: String(stats.estimates), change: 0, icon: <FileText className="h-5 w-5 text-indigo-600" />, color: 'text-indigo-600' },
+      { title: 'Proposals', value: String(stats.proposals), change: 0, icon: <File className="h-5 w-5 text-purple-600" />, color: 'text-purple-600' },
+      { title: 'Quotations', value: String(stats.quotations), change: 0, icon: <FileSpreadsheet className="h-5 w-5 text-green-600" />, color: 'text-green-600' },
+      { title: 'Invoices', value: String(stats.invoices), change: 0, icon: <Receipt className="h-5 w-5 text-emerald-600" />, color: 'text-emerald-600' },
+      { title: 'Draft', value: String(stats.draft), change: 0, icon: <FileText className="h-5 w-5 text-gray-600" />, color: 'text-gray-600' },
+      { title: 'Approved', value: String(stats.approved), change: 0, icon: <FileText className="h-5 w-5 text-teal-600" />, color: 'text-teal-600' },
+      { title: 'Sent', value: String(stats.sent), change: 0, icon: <FileText className="h-5 w-5 text-orange-600" />, color: 'text-orange-600' },
+    ];
+    
+    return { filteredStats: stats, kpiData: kpi };
   }, [filteredDocuments]);
-
-  const kpiData = useMemo(
-    () => [
-      { title: 'Total Documents', value: String(filteredStats.total), change: 0, icon: <FileText className="h-5 w-5 text-blue-600" />, color: 'text-blue-600' },
-      { title: 'Estimates', value: String(filteredStats.estimates), change: 0, icon: <FileText className="h-5 w-5 text-indigo-600" />, color: 'text-indigo-600' },
-      { title: 'Proposals', value: String(filteredStats.proposals), change: 0, icon: <File className="h-5 w-5 text-purple-600" />, color: 'text-purple-600' },
-      { title: 'Quotations', value: String(filteredStats.quotations), change: 0, icon: <FileSpreadsheet className="h-5 w-5 text-green-600" />, color: 'text-green-600' },
-      { title: 'Invoices', value: String(filteredStats.invoices), change: 0, icon: <Receipt className="h-5 w-5 text-emerald-600" />, color: 'text-emerald-600' },
-      { title: 'Draft', value: String(filteredStats.draft), change: 0, icon: <FileText className="h-5 w-5 text-gray-600" />, color: 'text-gray-600' },
-      { title: 'Approved', value: String(filteredStats.approved), change: 0, icon: <FileText className="h-5 w-5 text-teal-600" />, color: 'text-teal-600' },
-      { title: 'Sent', value: String(filteredStats.sent), change: 0, icon: <FileText className="h-5 w-5 text-orange-600" />, color: 'text-orange-600' },
-    ],
-    [filteredStats]
-  );
 
   const tableFilterKey = useMemo(
     () => [debouncedSearch, typeFilter, statusFilter, customerFilter, projectFilter, createdByFilter, dateFilter].join('|'),

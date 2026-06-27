@@ -9,8 +9,13 @@ import { KPICard } from '@/components/dashboard/KPICard';
 import { StandardPageLayout } from '@/components/layout/StandardPageLayout';
 import { FilterConfig } from '@/components/layout/FilterBar';
 import { InventoryViewDrawer } from '@/features/inventory/components/InventoryViewDrawer';
-import { InventoryRowActions } from '@/features/inventory/components/InventoryRowActions';
 import { getInventoryCustomFieldValue } from '@/features/inventory/components/InventoryCustomFields';
+
+// Lazy load row actions to reduce initial bundle size
+const InventoryRowActions = dynamic(
+  () => import('@/features/inventory/components/InventoryRowActions').then((m) => ({ default: m.InventoryRowActions })),
+  { loading: () => <div className="p-2">Loading...</div> }
+);
 import {
   useInventoryItems,
   useCreateInventoryItem,
@@ -29,7 +34,7 @@ import { Package, Plus, Download, Warehouse, AlertTriangle, DollarSign } from 'l
 
 const InventoryItemForm = dynamic(
   () => import('@/features/inventory/components/InventoryItemForm').then((m) => ({ default: m.InventoryItemForm })),
-  { loading: () => <div className="p-8 text-center">Loading form...</div>, ssr: false }
+  { loading: () => <div className="p-8 text-center">Loading form...</div> }
 );
 
 const STOCK_STATUSES: StockStatus[] = ['In Stock', 'Low Stock', 'Out of Stock', 'Critical', 'On Order', 'Discontinued'];
@@ -114,7 +119,8 @@ export default function InventoryPage() {
     [allItems, selectedItemId]
   );
 
-  const filteredStats = useMemo(() => {
+  // Combine stats and KPI data computation to reduce re-renders
+  const { filteredStats, kpiData } = useMemo(() => {
     const warehouses = new Set<string>();
     let totalStock = 0;
     let lowStock = 0;
@@ -127,7 +133,7 @@ export default function InventoryPage() {
       if (isLowStock(item)) lowStock++;
       if (isReorderRequired(item)) reorderRequired++;
     }
-    return {
+    const stats = {
       total: filteredItems.length,
       totalStock,
       lowStock,
@@ -135,19 +141,18 @@ export default function InventoryPage() {
       warehouses: warehouses.size,
       stockValue,
     };
+    
+    const kpi = [
+      { title: 'Total Items', value: String(stats.total), change: 0, icon: <Package className="h-5 w-5 text-blue-600" />, color: 'text-blue-600' },
+      { title: 'Total Stock', value: stats.totalStock.toLocaleString(), change: 0, icon: <Package className="h-5 w-5 text-indigo-600" />, color: 'text-indigo-600' },
+      { title: 'Low Stock Items', value: String(stats.lowStock), change: 0, icon: <AlertTriangle className="h-5 w-5 text-amber-600" />, color: 'text-amber-600' },
+      { title: 'Reorder Required', value: String(stats.reorderRequired), change: 0, icon: <AlertTriangle className="h-5 w-5 text-orange-600" />, color: 'text-orange-600' },
+      { title: 'Warehouses', value: String(stats.warehouses), change: 0, icon: <Warehouse className="h-5 w-5 text-purple-600" />, color: 'text-purple-600' },
+      { title: 'Stock Value', value: `₹${(stats.stockValue / 100000).toFixed(1)}L`, change: 0, icon: <DollarSign className="h-5 w-5 text-green-600" />, color: 'text-green-600' },
+    ];
+    
+    return { filteredStats: stats, kpiData: kpi };
   }, [filteredItems]);
-
-  const kpiData = useMemo(
-    () => [
-      { title: 'Total Items', value: String(filteredStats.total), change: 0, icon: <Package className="h-5 w-5 text-blue-600" />, color: 'text-blue-600' },
-      { title: 'Total Stock', value: filteredStats.totalStock.toLocaleString(), change: 0, icon: <Package className="h-5 w-5 text-indigo-600" />, color: 'text-indigo-600' },
-      { title: 'Low Stock Items', value: String(filteredStats.lowStock), change: 0, icon: <AlertTriangle className="h-5 w-5 text-amber-600" />, color: 'text-amber-600' },
-      { title: 'Reorder Required', value: String(filteredStats.reorderRequired), change: 0, icon: <AlertTriangle className="h-5 w-5 text-orange-600" />, color: 'text-orange-600' },
-      { title: 'Warehouses', value: String(filteredStats.warehouses), change: 0, icon: <Warehouse className="h-5 w-5 text-purple-600" />, color: 'text-purple-600' },
-      { title: 'Stock Value', value: `₹${(filteredStats.stockValue / 100000).toFixed(1)}L`, change: 0, icon: <DollarSign className="h-5 w-5 text-green-600" />, color: 'text-green-600' },
-    ],
-    [filteredStats]
-  );
 
   const tableFilterKey = useMemo(
     () => [debouncedSearch, categoryFilter, brandFilter, warehouseFilter, statusFilter, itemTypeFilter, lowStockFilter, reorderFilter].join('|'),

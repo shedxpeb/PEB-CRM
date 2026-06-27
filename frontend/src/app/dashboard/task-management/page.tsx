@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { MainLayout } from '@/layouts/MainLayout';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { DataTable } from '@/components/data-table/DataTable';
@@ -54,6 +54,10 @@ import {
   Clock
 } from 'lucide-react';
 import { TaskRowActions } from '@/features/task-management/components/TaskRowActions';
+
+// Move constants outside component to prevent recreation
+const STATUSES: (TaskStatus | 'all')[] = ['all', 'Created', 'Assigned', 'In Progress', 'Completed', 'Verified', 'Closed', 'Cancelled'];
+const PRIORITIES: (TaskPriority | 'all')[] = ['all', 'Low', 'Medium', 'High', 'Critical'];
 
 function SalaryAdjustmentForm({ 
   onSubmit, 
@@ -264,10 +268,7 @@ export default function TaskManagementPage() {
     });
   };
 
-  const statuses: (TaskStatus | 'all')[] = ['all', 'Created', 'Assigned', 'In Progress', 'Completed', 'Verified', 'Closed', 'Cancelled'];
-  const priorities: (TaskPriority | 'all')[] = ['all', 'Low', 'Medium', 'High', 'Critical'];
-
-  const columns = [
+  const columns = useMemo(() => [
     {
       key: 'taskId',
       label: 'Task ID',
@@ -340,7 +341,7 @@ export default function TaskManagementPage() {
         </div>
       ),
     },
-  ];
+  ], []);
 
   const handleDelete = (task: Task) => {
     if (confirm(`Are you sure you want to delete ${task.title}?`)) {
@@ -472,7 +473,7 @@ export default function TaskManagementPage() {
             <div className="flex flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-xs sm:text-sm font-medium text-muted-foreground">Status:</span>
-                {statuses.map(status => (
+                {STATUSES.map(status => (
                   <Badge
                     key={status}
                     variant={statusFilter === status ? 'default' : 'outline'}
@@ -485,7 +486,7 @@ export default function TaskManagementPage() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs sm:text-sm font-medium text-muted-foreground">Priority:</span>
-                {priorities.map(priority => (
+                {PRIORITIES.map(priority => (
                   <Badge
                     key={priority}
                     variant={priorityFilter === priority ? 'default' : 'outline'}

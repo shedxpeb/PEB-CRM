@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, memo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, AlertTriangle, Clock, CircleDot } from "lucide-react";
@@ -34,7 +34,7 @@ interface Props {
   onStatusFilterChange?: (f: Filter) => void;
 }
 
-export function ProjectTimeline({ statusFilter, selectedId, onSelectId, onStatusFilterChange }: Props = {}) {
+export const ProjectTimeline = memo(function ProjectTimeline({ statusFilter, selectedId, onSelectId, onStatusFilterChange }: Props = {}) {
   const [internalFilter, setInternalFilter] = useState<Filter>("All");
   const filter = statusFilter ?? internalFilter;
   const setFilter = (f: Filter) => {
@@ -221,4 +221,4 @@ export function ProjectTimeline({ statusFilter, selectedId, onSelectId, onStatus
       </CardContent>
     </Card>
   );
-}
+});
