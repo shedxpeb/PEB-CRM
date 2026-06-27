@@ -46,6 +46,14 @@ export function Combobox({
 
   const selectedOption = options.find((option) => option.value === value)
 
+  console.log('[Combobox] Render:', { 
+    open, 
+    value, 
+    searchQuery, 
+    optionsLength: options.length, 
+    selectedOption: selectedOption?.label 
+  })
+
   const filteredOptions = React.useMemo(() => {
     if (!searchQuery) return options
     const query = searchQuery.toLowerCase().trim()
@@ -125,13 +133,18 @@ export function Combobox({
 
   // Handle option click
   const handleOptionClick = (option: ComboboxOption) => {
+    console.log('[Combobox] Option clicked:', { value: option.value, label: option.label })
     onValueChange?.(option.value)
+    console.log('[Combobox] onValueChange callback completed')
     setOpen(false)
     setSearchQuery("")
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(newOpen) => {
+      console.log('[Combobox] Popover onOpenChange:', { from: open, to: newOpen })
+      setOpen(newOpen)
+    }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"

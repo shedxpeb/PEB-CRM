@@ -33,9 +33,10 @@ export function ThemeToggle() {
     >
       <div
         className={cn(
-          'absolute top-1 w-5 h-5 rounded-full transition-all duration-300',
-          'flex items-center justify-center',
-          isLight ? 'left-1 bg-yellow-400' : 'left-8 bg-gray-600'
+          'absolute top-0.5 w-5 h-5 rounded-full flex items-center justify-center',
+          isLight
+            ? 'left-1 bg-blue-400 transition-all duration-300 ease-in-out'
+            : 'left-7 bg-gray-600 transition-all duration-500 ease-bounce'
         )}
       >
         {isLight ? (
