@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { Lead, LeadStatus } from '@/types/leads';
 import { KanbanColumn } from './KanbanColumn';
 import { DEFAULT_LEAD_CONFIGURATION } from '@/features/leads/hooks/useLeads';
@@ -12,7 +12,7 @@ interface KanbanBoardProps {
   onLeadsReorder?: (leads: Lead[]) => void;
 }
 
-export function KanbanBoard({ leads, pipelineStages, onLeadUpdate, onLeadsReorder }: KanbanBoardProps) {
+export const KanbanBoard = memo(function KanbanBoard({ leads, pipelineStages, onLeadUpdate, onLeadsReorder }: KanbanBoardProps) {
   const stages = (pipelineStages ?? DEFAULT_LEAD_CONFIGURATION.statuses) as LeadStatus[];
   const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<string | null>(null);
@@ -161,4 +161,4 @@ export function KanbanBoard({ leads, pipelineStages, onLeadUpdate, onLeadsReorde
       </div>
     </div>
   );
-}
+});

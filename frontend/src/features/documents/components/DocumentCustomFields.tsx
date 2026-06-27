@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { EntityCustomFields, getCustomFieldValue } from '@/components/custom-fields';
 import { DocumentCustomFieldDefinition } from '@/features/documents/hooks/useDocuments';
 
@@ -10,9 +11,9 @@ interface DocumentCustomFieldsProps {
   mode: 'form' | 'view';
 }
 
-export function DocumentCustomFields(props: DocumentCustomFieldsProps) {
+export const DocumentCustomFields = memo(function DocumentCustomFields(props: DocumentCustomFieldsProps) {
   return <EntityCustomFields {...props} />;
-}
+});
 
 export function getDocumentCustomFieldValue(
   item: { customFields?: Record<string, string | number | boolean | undefined> },

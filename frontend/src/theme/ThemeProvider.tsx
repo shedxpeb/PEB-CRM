@@ -41,15 +41,19 @@ export function ThemeProvider({
 
   // Initialize theme on mount
   useEffect(() => {
+    const start = performance.now();
     const storedTheme = getStoredTheme();
     setThemeState(storedTheme);
     setIsMounted(true);
+    const end = performance.now();
+    console.log('[ThemeProvider] Initialization time:', (end - start).toFixed(2), 'ms');
   }, []);
 
   // Apply theme to document and CSS variables
   useEffect(() => {
     if (!isMounted) return;
 
+    const start = performance.now();
     const themeConfig = getThemeConfig(theme);
     const colors = themeConfig.colors;
 
@@ -97,6 +101,8 @@ export function ThemeProvider({
     } catch (e) {
       console.warn('Failed to save theme to localStorage:', e);
     }
+    const end = performance.now();
+    console.log('[ThemeProvider] CSS variables application time:', (end - start).toFixed(2), 'ms');
   }, [theme, isMounted, storageKey]);
 
   const setTheme = (newTheme: Theme) => {

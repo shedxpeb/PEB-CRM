@@ -94,7 +94,7 @@ export function EmployeeMonitoring({ employees }: EmployeeMonitoringProps) {
       </CardHeader>
       <CardContent>
         <AdminTable
-          columns={columns}
+          columns={columns as AdminTableColumn<Record<string, any>>[]}
           data={employees}
           filters={filters}
           searchPlaceholder="Search employees..."

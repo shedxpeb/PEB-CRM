@@ -2,6 +2,7 @@
  * Card Skeleton Component
  * Loading placeholder for KPI cards and other card components
  */
+import { memo } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -9,7 +10,7 @@ interface CardSkeletonProps {
   count?: number;
 }
 
-export function CardSkeleton({ count = 1 }: CardSkeletonProps) {
+export const CardSkeleton = memo(function CardSkeleton({ count = 1 }: CardSkeletonProps) {
   return (
     <>
       {Array.from({ length: count }).map((_, i) => (
@@ -32,4 +33,4 @@ export function CardSkeleton({ count = 1 }: CardSkeletonProps) {
       ))}
     </>
   );
-}
+});

@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Customer, CustomerActivity, CustomerStatus } from '@/features/customers/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,7 +36,7 @@ interface CustomerViewDrawerProps {
   activities?: CustomerActivity[];
 }
 
-export function CustomerViewDrawer({
+export const CustomerViewDrawer = memo(function CustomerViewDrawer({
   customer,
   open,
   onOpenChange,
@@ -184,4 +185,4 @@ export function CustomerViewDrawer({
       </EntityViewFooter>
     </EntityViewDrawer>
   );
-}
+});

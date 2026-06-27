@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import {
   Table,
   TableBody,
@@ -48,7 +48,7 @@ interface AdminTableProps<T extends Record<string, any>> {
 
 type SortDir = 'asc' | 'desc' | null;
 
-export function AdminTable<T extends Record<string, any>>({
+export const AdminTable = memo(function AdminTable<T extends Record<string, any>>({
   columns,
   data,
   filters = [],
@@ -259,4 +259,4 @@ export function AdminTable<T extends Record<string, any>>({
       </div>
     </div>
   );
-}
+});

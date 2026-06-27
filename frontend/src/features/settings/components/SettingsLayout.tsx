@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { usePathname } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -98,7 +98,7 @@ interface SettingsLayoutProps {
   children: React.ReactNode;
 }
 
-export function SettingsLayout({ children }: SettingsLayoutProps) {
+export const SettingsLayout = memo(function SettingsLayout({ children }: SettingsLayoutProps) {
   const pathname = usePathname();
   const [activeSection, setActiveSection] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -208,4 +208,4 @@ export function SettingsLayout({ children }: SettingsLayoutProps) {
       </main>
     </div>
   );
-}
+});

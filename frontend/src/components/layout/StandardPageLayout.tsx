@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { memo } from "react"
 import { cn } from "@/lib/utils"
 import { PageHeader } from "./PageHeader"
 import { SearchBar } from "./SearchBar"
@@ -32,7 +33,7 @@ interface StandardPageLayoutProps {
   className?: string
 }
 
-export function StandardPageLayout({
+export const StandardPageLayout = memo(function StandardPageLayout({
   title,
   subtitle,
   breadcrumbs,
@@ -103,4 +104,4 @@ export function StandardPageLayout({
       <div className="flex-1">{children}</div>
     </div>
   )
-}
+})

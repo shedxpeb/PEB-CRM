@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { EntityRowActionsMenu } from '@/components/row-actions';
 import { AnyCommercialDocument } from '../utils/documentHelpers';
 import {
@@ -50,7 +51,7 @@ function getDocumentType(document: AnyCommercialDocument) {
   return 'Unknown';
 }
 
-export function DocumentRowActions({
+export const DocumentRowActions = memo(function DocumentRowActions({
   document,
   onView,
   onEdit,
@@ -215,4 +216,4 @@ export function DocumentRowActions({
       }}
     />
   );
-}
+});

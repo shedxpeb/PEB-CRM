@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -31,7 +32,7 @@ const navItems = [
   { name: 'Settings', icon: Settings, path: '/super-admin/settings' },
 ];
 
-export function SuperAdminSidebar() {
+export const SuperAdminSidebar = memo(function SuperAdminSidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -145,4 +146,4 @@ export function SuperAdminSidebar() {
       )}
     </>
   );
-}
+});

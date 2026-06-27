@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Invoice } from '@/features/finance/types';
 import { formatCurrency, getInvoiceStatusVariant } from '@/features/finance/constants';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +27,7 @@ interface InvoiceViewDrawerProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function InvoiceViewDrawer({ invoice, open, onOpenChange }: InvoiceViewDrawerProps) {
+export const InvoiceViewDrawer = memo(function InvoiceViewDrawer({ invoice, open, onOpenChange }: InvoiceViewDrawerProps) {
   const router = useRouter();
 
   if (!invoice) return null;
@@ -186,4 +187,4 @@ export function InvoiceViewDrawer({ invoice, open, onOpenChange }: InvoiceViewDr
       <EntityViewFooter onClose={() => onOpenChange(false)} />
     </EntityViewDrawer>
   );
-}
+});

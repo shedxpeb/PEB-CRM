@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Expense } from '@/features/finance/types';
 import { formatCurrency, getExpenseStatusVariant } from '@/features/finance/constants';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +25,7 @@ interface ExpenseViewDrawerProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function ExpenseViewDrawer({ expense, open, onOpenChange }: ExpenseViewDrawerProps) {
+export const ExpenseViewDrawer = memo(function ExpenseViewDrawer({ expense, open, onOpenChange }: ExpenseViewDrawerProps) {
   if (!expense) return null;
 
   return (
@@ -116,4 +117,4 @@ export function ExpenseViewDrawer({ expense, open, onOpenChange }: ExpenseViewDr
       <EntityViewFooter onClose={() => onOpenChange(false)} />
     </EntityViewDrawer>
   );
-}
+});

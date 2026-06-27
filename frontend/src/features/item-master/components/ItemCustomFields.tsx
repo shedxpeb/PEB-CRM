@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { EntityCustomFields, getCustomFieldValue } from '@/components/custom-fields';
 import { ItemCustomFieldDefinition } from '@/features/item-master/types';
 
@@ -10,9 +11,9 @@ interface ItemCustomFieldsProps {
   mode: 'form' | 'view';
 }
 
-export function ItemCustomFields(props: ItemCustomFieldsProps) {
+export const ItemCustomFields = memo(function ItemCustomFields(props: ItemCustomFieldsProps) {
   return <EntityCustomFields {...props} />;
-}
+});
 
 export function getItemCustomFieldValue(
   item: { customFields?: Record<string, string | number | boolean | undefined> },

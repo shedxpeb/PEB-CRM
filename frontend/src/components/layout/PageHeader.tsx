@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { memo } from "react"
 import { cn } from "@/lib/utils"
 import { componentTextSizes } from "@/lib/design-system"
 
@@ -12,7 +13,7 @@ interface PageHeaderProps {
   className?: string
 }
 
-export function PageHeader({
+export const PageHeader = memo(function PageHeader({
   title,
   subtitle,
   actions,
@@ -59,4 +60,4 @@ export function PageHeader({
       </div>
     </div>
   )
-}
+})

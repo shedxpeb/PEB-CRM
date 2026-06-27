@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { KPICard } from '@/components/dashboard/KPICard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +17,7 @@ import {
   FileText,
 } from 'lucide-react';
 
-export function SettingsDashboard() {
+export const SettingsDashboard = memo(function SettingsDashboard() {
   const { data: stats, isLoading } = useSettingsStats();
   const typedStats = stats as SettingsStats | undefined;
 
@@ -100,4 +101,4 @@ export function SettingsDashboard() {
       </div>
     </SettingsLayout>
   );
-}
+});

@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Lead, LeadActivity, LeadPriority, LeadStatus } from '@/types/leads';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -52,7 +53,7 @@ function getPriorityVariant(priority: LeadPriority) {
   return 'secondary';
 }
 
-export function LeadViewDrawer({
+export const LeadViewDrawer = memo(function LeadViewDrawer({
   lead,
   open,
   onOpenChange,
@@ -241,4 +242,4 @@ export function LeadViewDrawer({
       </EntityViewFooter>
     </EntityViewDrawer>
   );
-}
+});

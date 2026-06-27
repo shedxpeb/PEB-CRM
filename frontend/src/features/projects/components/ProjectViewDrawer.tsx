@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Project, ProjectActivity, ProjectPriority, ProjectStage, ProjectStatus } from '@/features/projects/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,7 @@ function formatCurrency(value?: number) {
   return `₹${value.toLocaleString('en-IN')}`;
 }
 
-export function ProjectViewDrawer({
+export const ProjectViewDrawer = memo(function ProjectViewDrawer({
   project,
   open,
   onOpenChange,
@@ -218,4 +219,4 @@ export function ProjectViewDrawer({
       </EntityViewFooter>
     </EntityViewDrawer>
   );
-}
+});

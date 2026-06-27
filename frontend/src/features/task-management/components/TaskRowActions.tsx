@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Camera, CheckSquare, Edit, Trash2, Clock } from 'lucide-react';
 import { Task } from '../types';
@@ -13,7 +14,7 @@ interface TaskRowActionsProps {
   onViewActivity: (task: Task) => void;
 }
 
-export function TaskRowActions({
+export const TaskRowActions = memo(function TaskRowActions({
   task,
   onComplete,
   onVerify,
@@ -69,4 +70,4 @@ export function TaskRowActions({
       </Button>
     </div>
   );
-}
+});
