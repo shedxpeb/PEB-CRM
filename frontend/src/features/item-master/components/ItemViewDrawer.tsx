@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { ItemMaster } from '@/features/item-master/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,7 +40,7 @@ function getItemCategoryLabel(item: ItemMaster): string {
   return item.category || '-';
 }
 
-export function ItemViewDrawer({ item, open, onOpenChange, onEdit }: ItemViewDrawerProps) {
+export const ItemViewDrawer = memo(function ItemViewDrawer({ item, open, onOpenChange, onEdit }: ItemViewDrawerProps) {
   const router = useRouter();
   const itemConfig = useItemConfiguration();
 
@@ -178,4 +179,4 @@ export function ItemViewDrawer({ item, open, onOpenChange, onEdit }: ItemViewDra
       </EntityViewFooter>
     </EntityViewDrawer>
   );
-}
+});

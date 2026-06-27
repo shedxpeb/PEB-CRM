@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Payment } from '@/features/finance/types';
 import { formatCurrency, getPaymentStatusVariant } from '@/features/finance/constants';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +27,7 @@ interface PaymentViewDrawerProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function PaymentViewDrawer({ payment, open, onOpenChange }: PaymentViewDrawerProps) {
+export const PaymentViewDrawer = memo(function PaymentViewDrawer({ payment, open, onOpenChange }: PaymentViewDrawerProps) {
   const router = useRouter();
 
   if (!payment) return null;
@@ -115,4 +116,4 @@ export function PaymentViewDrawer({ payment, open, onOpenChange }: PaymentViewDr
       <EntityViewFooter onClose={() => onOpenChange(false)} />
     </EntityViewDrawer>
   );
-}
+});

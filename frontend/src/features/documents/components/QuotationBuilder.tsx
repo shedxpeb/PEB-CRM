@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -25,7 +25,7 @@ interface QuotationBuilderProps {
   onCancel: () => void;
 }
 
-export function QuotationBuilder({
+export const QuotationBuilder = memo(function QuotationBuilder({
   proposal,
   quotation,
   onSave,
@@ -379,4 +379,4 @@ export function QuotationBuilder({
       </Tabs>
     </div>
   );
-}
+});

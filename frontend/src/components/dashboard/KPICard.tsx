@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowUp, ArrowDown } from 'lucide-react';
@@ -13,7 +14,7 @@ interface KPICardProps {
   showComparison?: boolean;
 }
 
-export function KPICard({ data, onClick, showComparison = false }: KPICardProps) {
+export const KPICard = memo(function KPICard({ data, onClick, showComparison = false }: KPICardProps) {
   const isPositive = data.change >= 0;
   const color = data.color || (isPositive ? 'text-green-600' : 'text-red-600');
 
@@ -69,4 +70,4 @@ export function KPICard({ data, onClick, showComparison = false }: KPICardProps)
         </CardContent>
       </Card>
   );
-}
+});

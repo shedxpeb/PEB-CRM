@@ -11,10 +11,10 @@ import { DashboardExportData, ExportStatus, ExportType } from '@/features/dashbo
 import { CardSkeleton } from '@/components/loading/CardSkeleton';
 import { ChartSkeleton } from '@/components/loading/ChartSkeleton';
 import { useQueryClient } from '@tanstack/react-query';
-import { ProjectStatusGrid } from '@/components/dashboard/ProjectStatusGrid';
-import { ProjectTimeline } from '@/components/dashboard/ProjectTimeline';
-import { DetailedGanttChart } from '@/components/dashboard/DetailedGanttChart';
-import { RecentStatusUpdates } from '@/components/dashboard/RecentStatusUpdates';
+const ProjectStatusGrid = lazy(() => import('@/components/dashboard/ProjectStatusGrid').then(m => ({ default: m.ProjectStatusGrid })));
+const ProjectTimeline = lazy(() => import('@/components/dashboard/ProjectTimeline').then(m => ({ default: m.ProjectTimeline })));
+const DetailedGanttChart = lazy(() => import('@/components/dashboard/DetailedGanttChart').then(m => ({ default: m.DetailedGanttChart })));
+const RecentStatusUpdates = lazy(() => import('@/components/dashboard/RecentStatusUpdates').then(m => ({ default: m.RecentStatusUpdates })));
 import { type ProjectStatus } from '@/features/dashboard/data/projectMockData';
 import { useRecentStatusUpdates } from '@/features/dashboard/hooks/useRecentStatusUpdates';
 import { 
@@ -742,23 +742,31 @@ export default function DashboardPage() {
 
             {/* ROW 5 - Project Timeline Section */}
             <div className="space-y-3 sm:space-y-4">
-          <ProjectStatusGrid onSelect={(status) => setProjectStatusFilter(status)} />
-          <ProjectTimeline
-            statusFilter={projectStatusFilter}
-            selectedId={selectedProjectId}
-            onSelectId={setSelectedProjectId}
-            onStatusFilterChange={setProjectStatusFilter}
-          />
-          <DetailedGanttChart selectedProjectId={selectedProjectId} />
-        </div>
+              <Suspense fallback={<div className="h-32 w-full bg-card-hover rounded-md animate-pulse" />}>
+                <ProjectStatusGrid onSelect={(status) => setProjectStatusFilter(status)} />
+              </Suspense>
+              <Suspense fallback={<div className="h-64 w-full bg-card-hover rounded-md animate-pulse" />}>
+                <ProjectTimeline
+                  statusFilter={projectStatusFilter}
+                  selectedId={selectedProjectId}
+                  onSelectId={setSelectedProjectId}
+                  onStatusFilterChange={setProjectStatusFilter}
+                />
+              </Suspense>
+              <Suspense fallback={<div className="h-96 w-full bg-card-hover rounded-md animate-pulse" />}>
+                <DetailedGanttChart selectedProjectId={selectedProjectId} />
+              </Suspense>
+            </div>
 
             {/* ROW 6 - Recent Status Updates */}
             <div className="space-y-3 sm:space-y-4">
-          <RecentStatusUpdates
-            statusUpdates={statusUpdates}
-            loading={statusUpdatesLoading}
-            error={statusUpdatesError?.message || null}
-          />
+              <Suspense fallback={<div className="h-48 w-full bg-card-hover rounded-md animate-pulse" />}>
+                <RecentStatusUpdates
+                  statusUpdates={statusUpdates}
+                  loading={statusUpdatesLoading}
+                  error={statusUpdatesError?.message || null}
+                />
+              </Suspense>
             </div>
           </div>
         )}

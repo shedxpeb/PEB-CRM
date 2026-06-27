@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
@@ -52,7 +53,7 @@ function formatCurrency(amount?: number) {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
-export function DocumentViewDrawer({ document, open, onOpenChange, onEdit, onPreviewPdf, onDownloadPdf }: DocumentViewDrawerProps) {
+export const DocumentViewDrawer = memo(function DocumentViewDrawer({ document, open, onOpenChange, onEdit, onPreviewPdf, onDownloadPdf }: DocumentViewDrawerProps) {
   const router = useRouter();
   const docConfig = useDocumentConfiguration();
   const { data: activities } = useDocumentActivities(document?.id ?? '');
@@ -228,4 +229,4 @@ export function DocumentViewDrawer({ document, open, onOpenChange, onEdit, onPre
       </EntityViewFooter>
     </EntityViewDrawer>
   );
-}
+});

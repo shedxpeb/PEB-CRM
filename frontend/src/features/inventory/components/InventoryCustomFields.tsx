@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { EntityCustomFields, getCustomFieldValue } from '@/components/custom-fields';
 import { InventoryCustomFieldDefinition } from '@/features/inventory/types';
 
@@ -10,9 +11,9 @@ interface InventoryCustomFieldsProps {
   mode: 'form' | 'view';
 }
 
-export function InventoryCustomFields(props: InventoryCustomFieldsProps) {
+export const InventoryCustomFields = memo(function InventoryCustomFields(props: InventoryCustomFieldsProps) {
   return <EntityCustomFields {...props} />;
-}
+});
 
 export function getInventoryCustomFieldValue(
   item: { customFields?: Record<string, string | number | boolean | undefined> },

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +25,7 @@ interface ProjectFormProps {
   isEditMode?: boolean;
 }
 
-export function ProjectForm({
+export const ProjectForm = memo(function ProjectForm({
   onSubmit,
   onCancel,
   isLoading,
@@ -370,4 +370,4 @@ export function ProjectForm({
       </div>
     </form>
   );
-}
+});

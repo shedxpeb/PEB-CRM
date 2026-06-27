@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { useItemMasters } from '../hooks/useItemMaster';
 import { ItemMaster, ItemCategory } from '../types';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ interface ItemMasterSelectorProps {
   categoryFilter?: ItemCategory;
 }
 
-export function ItemMasterSelector({
+export const ItemMasterSelector = memo(function ItemMasterSelector({
   onSelect,
   selectedItems = [],
   multiSelect = false,
@@ -167,4 +167,4 @@ export function ItemMasterSelector({
       )}
     </div>
   );
-}
+});

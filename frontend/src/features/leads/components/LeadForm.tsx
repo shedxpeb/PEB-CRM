@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -36,7 +36,7 @@ interface LeadFormProps {
   isLoading?: boolean;
 }
 
-export function LeadForm({ initialData, existingLeads = [], configuration, onSubmit, onCancel, isLoading }: LeadFormProps) {
+export const LeadForm = memo(function LeadForm({ initialData, existingLeads = [], configuration, onSubmit, onCancel, isLoading }: LeadFormProps) {
   const config = configuration ?? DEFAULT_LEAD_CONFIGURATION;
   const [formData, setFormData] = useState<Partial<Lead>>({
     customerName: '',
@@ -570,4 +570,4 @@ export function LeadForm({ initialData, existingLeads = [], configuration, onSub
       </div>
     </form>
   );
-}
+});

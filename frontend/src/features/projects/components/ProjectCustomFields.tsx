@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { EntityCustomFields, getCustomFieldValue } from '@/components/custom-fields';
 import { ProjectCustomFieldDefinition } from '@/features/projects/types';
 
@@ -10,9 +11,9 @@ interface ProjectCustomFieldsProps {
   mode: 'form' | 'view';
 }
 
-export function ProjectCustomFields(props: ProjectCustomFieldsProps) {
+export const ProjectCustomFields = memo(function ProjectCustomFields(props: ProjectCustomFieldsProps) {
   return <EntityCustomFields {...props} />;
-}
+});
 
 export function getProjectCustomFieldValue(
   project: { customFields?: Record<string, string | number | boolean | undefined> },

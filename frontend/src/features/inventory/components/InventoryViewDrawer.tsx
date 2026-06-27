@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { InventoryItem } from '@/features/inventory/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,7 @@ interface InventoryViewDrawerProps {
   onEdit?: (item: InventoryItem) => void;
 }
 
-export function InventoryViewDrawer({ item, open, onOpenChange, onEdit }: InventoryViewDrawerProps) {
+export const InventoryViewDrawer = memo(function InventoryViewDrawer({ item, open, onOpenChange, onEdit }: InventoryViewDrawerProps) {
   const router = useRouter();
   const inventoryConfig = useInventoryConfiguration();
 
@@ -182,4 +183,4 @@ export function InventoryViewDrawer({ item, open, onOpenChange, onEdit }: Invent
       </EntityViewFooter>
     </EntityViewDrawer>
   );
-}
+});

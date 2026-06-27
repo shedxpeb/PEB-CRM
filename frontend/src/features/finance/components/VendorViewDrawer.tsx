@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Vendor } from '@/features/finance/types';
 import { formatCurrency } from '@/features/finance/constants';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +24,7 @@ interface VendorViewDrawerProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function VendorViewDrawer({ vendor, open, onOpenChange }: VendorViewDrawerProps) {
+export const VendorViewDrawer = memo(function VendorViewDrawer({ vendor, open, onOpenChange }: VendorViewDrawerProps) {
   if (!vendor) return null;
 
   return (
@@ -112,4 +113,4 @@ export function VendorViewDrawer({ vendor, open, onOpenChange }: VendorViewDrawe
       <EntityViewFooter onClose={() => onOpenChange(false)} />
     </EntityViewDrawer>
   );
-}
+});

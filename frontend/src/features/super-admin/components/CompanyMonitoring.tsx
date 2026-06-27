@@ -86,7 +86,7 @@ export function CompanyMonitoring({ companies }: CompanyMonitoringProps) {
       </CardHeader>
       <CardContent>
         <AdminTable
-          columns={columns}
+          columns={columns as AdminTableColumn<Record<string, any>>[]}
           data={companies}
           filters={filters}
           searchPlaceholder="Search companies..."

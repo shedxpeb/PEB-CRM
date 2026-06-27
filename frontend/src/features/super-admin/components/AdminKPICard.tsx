@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +17,7 @@ interface AdminKPICardProps {
   onClick?: () => void;
 }
 
-export function AdminKPICard({
+export const AdminKPICard = memo(function AdminKPICard({
   title,
   value,
   change,
@@ -69,4 +70,4 @@ export function AdminKPICard({
       </Card>
     </motion.div>
   );
-}
+});
