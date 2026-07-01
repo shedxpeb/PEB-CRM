@@ -257,7 +257,8 @@ export default function LeadsPage() {
     [leadConfig.statuses]
   );
 
-  const leadStats = useMemo(() => {
+  // Combine lead stats and KPI data computation to reduce re-renders
+  const { leadStats, kpiData } = useMemo(() => {
     let newCount = 0;
     let inProgress = 0;
     let converted = 0;
@@ -266,39 +267,41 @@ export default function LeadsPage() {
       if (lead.status === 'Converted') converted++;
       if (inProgressStatuses.has(lead.status)) inProgress++;
     }
-    return { total: leads.length, newCount, inProgress, converted };
+    const stats = { total: leads.length, newCount, inProgress, converted };
+    
+    const kpi = [
+      {
+        title: 'Total Leads',
+        value: String(stats.total),
+        change: 0,
+        icon: <Users className="h-5 w-5 text-blue-600" />,
+        color: 'text-blue-600',
+      },
+      {
+        title: 'New Leads',
+        value: String(stats.newCount),
+        change: 0,
+        icon: <Sparkles className="h-5 w-5 text-green-600" />,
+        color: 'text-green-600',
+      },
+      {
+        title: 'In Progress',
+        value: String(stats.inProgress),
+        change: 0,
+        icon: <RefreshCw className="h-5 w-5 text-amber-600" />,
+        color: 'text-amber-600',
+      },
+      {
+        title: 'Converted',
+        value: String(stats.converted),
+        change: 0,
+        icon: <CheckCircle className="h-5 w-5 text-emerald-600" />,
+        color: 'text-emerald-600',
+      },
+    ];
+    
+    return { leadStats: stats, kpiData: kpi };
   }, [leads, inProgressStatuses]);
-
-  const kpiData = useMemo(() => [
-    {
-      title: 'Total Leads',
-      value: String(leadStats.total),
-      change: 0,
-      icon: <Users className="h-5 w-5 text-blue-600" />,
-      color: 'text-blue-600',
-    },
-    {
-      title: 'New Leads',
-      value: String(leadStats.newCount),
-      change: 0,
-      icon: <Sparkles className="h-5 w-5 text-green-600" />,
-      color: 'text-green-600',
-    },
-    {
-      title: 'In Progress',
-      value: String(leadStats.inProgress),
-      change: 0,
-      icon: <RefreshCw className="h-5 w-5 text-amber-600" />,
-      color: 'text-amber-600',
-    },
-    {
-      title: 'Converted',
-      value: String(leadStats.converted),
-      change: 0,
-      icon: <CheckCircle className="h-5 w-5 text-emerald-600" />,
-      color: 'text-emerald-600',
-    },
-  ], [leadStats]);
 
   const leadFilterOptions = useMemo(() => {
     const cities = new Set<string>();

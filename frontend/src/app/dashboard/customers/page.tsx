@@ -107,7 +107,8 @@ export default function CustomersPage() {
 
   const { data: viewedActivities } = useCustomerActivities(selectedCustomerId ?? '');
 
-  const filteredStats = useMemo(() => {
+  // Combine stats and KPI data computation to reduce re-renders
+  const { filteredStats, kpiData } = useMemo(() => {
     const now = new Date();
     let total = 0;
     let active = 0;
@@ -122,16 +123,17 @@ export default function CustomersPage() {
       }
       totalRevenue += c.totalRevenue || 0;
     }
-    return { total, active, newThisMonth, totalRevenue };
+    const stats = { total, active, newThisMonth, totalRevenue };
+    
+    const kpi = [
+      { title: 'Total Customers', value: String(stats.total), change: 0, icon: <Users className="h-5 w-5 text-blue-600" />, color: 'text-blue-600' },
+      { title: 'Active Customers', value: String(stats.active), change: 0, icon: <UserCheck className="h-5 w-5 text-green-600" />, color: 'text-green-600' },
+      { title: 'New This Month', value: String(stats.newThisMonth), change: 0, icon: <UserPlus className="h-5 w-5 text-purple-600" />, color: 'text-purple-600' },
+      { title: 'Total Revenue', value: `₹${(stats.totalRevenue / 10000000).toFixed(1)}Cr`, change: 0, icon: <DollarSign className="h-5 w-5 text-green-700" />, color: 'text-green-700' },
+    ];
+    
+    return { filteredStats: stats, kpiData: kpi };
   }, [customers]);
-
-  // Memoized KPI cards from filtered data
-  const kpiData = useMemo(() => [
-    { title: 'Total Customers', value: String(filteredStats.total), change: 0, icon: <Users className="h-5 w-5 text-blue-600" />, color: 'text-blue-600' },
-    { title: 'Active Customers', value: String(filteredStats.active), change: 0, icon: <UserCheck className="h-5 w-5 text-green-600" />, color: 'text-green-600' },
-    { title: 'New This Month', value: String(filteredStats.newThisMonth), change: 0, icon: <UserPlus className="h-5 w-5 text-purple-600" />, color: 'text-purple-600' },
-    { title: 'Total Revenue', value: `₹${(filteredStats.totalRevenue / 10000000).toFixed(1)}Cr`, change: 0, icon: <DollarSign className="h-5 w-5 text-green-700" />, color: 'text-green-700' },
-  ], [filteredStats]);
 
   const tableFilterKey = useMemo(
     () => [debouncedSearch, statusFilter, cityFilter, stateFilter].join('|'),

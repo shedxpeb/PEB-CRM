@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Download, RefreshCw, ChevronDown } from 'lucide-react';
 import { ExportStatus, ExportType } from '@/features/dashboard/types/pdf';
+import { memo } from 'react';
 
 interface ExportButtonProps {
   onExport: (type: ExportType) => Promise<void>;
@@ -15,7 +16,7 @@ const EXPORT_TYPES = [
   { value: 'csv' as ExportType, label: 'Export CSV', enabled: false },
 ];
 
-export function ExportButton({ onExport, isGenerating, progress = 0, status = 'idle' }: ExportButtonProps) {
+export const ExportButton = memo(function ExportButton({ onExport, isGenerating, progress = 0, status = 'idle' }: ExportButtonProps) {
   const getStatusMessage = () => {
     switch (status) {
       case 'preparing':
@@ -64,4 +65,4 @@ export function ExportButton({ onExport, isGenerating, progress = 0, status = 'i
       </Button> */}
     </div>
   );
-}
+});

@@ -44,6 +44,16 @@ export function middleware(request: NextRequest) {
   // Get auth token from cookies (or localStorage via custom header)
   const authToken = request.cookies.get('authToken')?.value;
   
+  // Redirect root to dashboard if authenticated (eliminates 618ms redirect delay)
+  if (pathname === '/' && authToken) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+  
+  // Redirect root to login if not authenticated
+  if (pathname === '/' && !authToken) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+  
   // Check if route is protected
   const isProtectedRoute = protectedRoutes.some(route => 
     pathname.startsWith(route)

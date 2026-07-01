@@ -11,7 +11,12 @@ import { StandardPageLayout } from '@/components/layout/StandardPageLayout';
 import { FilterConfig } from '@/components/layout/FilterBar';
 import { ProjectViewDrawer } from '@/features/projects/components/ProjectViewDrawer';
 import { getProjectCustomFieldValue } from '@/features/projects/components/ProjectCustomFields';
-import { ProjectRowActions } from '@/features/projects/components/ProjectRowActions';
+
+// Lazy load row actions to reduce initial bundle size
+const ProjectRowActions = dynamic(
+  () => import('@/features/projects/components/ProjectRowActions').then((mod) => ({ default: mod.ProjectRowActions })),
+  { loading: () => <div className="p-2">Loading...</div> }
+);
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -36,7 +41,7 @@ import { Plus, Download, Building2, CheckCircle, Clock, DollarSign } from 'lucid
 
 const ProjectForm = dynamic(
   () => import('@/features/projects/components/ProjectForm').then((mod) => ({ default: mod.ProjectForm })),
-  { loading: () => <div className="p-8 text-center">Loading form...</div>, ssr: false }
+  { loading: () => <div className="p-8 text-center">Loading form...</div> }
 );
 
 function projectToFormInitial(project: Project) {
@@ -170,65 +175,67 @@ export default function ProjectsPage() {
 
   const { data: viewedActivities } = useProjectActivities(selectedProjectId ?? '');
 
-  const filteredStats = useMemo(() => {
+  // Move activeStatuses outside to prevent recreation on every render
+  const ACTIVE_STATUSES = new Set([
+    'Approved',
+    'Design',
+    'BOQ',
+    'Procurement',
+    'Fabrication',
+    'Dispatch',
+    'Installation',
+  ]);
+
+  // Combine stats and KPI data computation to reduce re-renders
+  const { filteredStats, kpiData } = useMemo(() => {
     const now = new Date();
     let total = 0;
     let active = 0;
     let delayed = 0;
     let totalRevenue = 0;
-    const activeStatuses = new Set([
-      'Approved',
-      'Design',
-      'BOQ',
-      'Procurement',
-      'Fabrication',
-      'Dispatch',
-      'Installation',
-    ]);
     for (const p of projects) {
       total++;
-      if (activeStatuses.has(p.status)) active++;
+      if (ACTIVE_STATUSES.has(p.status)) active++;
       if (p.endDate && new Date(p.endDate) < now && p.status !== 'Completion' && p.status !== 'Cancelled') {
         delayed++;
       }
       totalRevenue += p.value || 0;
     }
-    return { total, active, delayed, totalRevenue };
-  }, [projects]);
-
-  const kpiData = useMemo(
-    () => [
+    const stats = { total, active, delayed, totalRevenue };
+    
+    const kpi = [
       {
         title: 'Total Projects',
-        value: String(filteredStats.total),
+        value: String(stats.total),
         change: 0,
         icon: <Building2 className="h-5 w-5 text-blue-600" />,
         color: 'text-blue-600',
       },
       {
         title: 'Active',
-        value: String(filteredStats.active),
+        value: String(stats.active),
         change: 0,
         icon: <CheckCircle className="h-5 w-5 text-green-600" />,
         color: 'text-green-600',
       },
       {
         title: 'Delayed',
-        value: String(filteredStats.delayed),
+        value: String(stats.delayed),
         change: 0,
         icon: <Clock className="h-5 w-5 text-amber-600" />,
         color: 'text-amber-600',
       },
       {
         title: 'Revenue',
-        value: `₹${(filteredStats.totalRevenue / 1000000).toFixed(1)}M`,
+        value: `₹${(stats.totalRevenue / 1000000).toFixed(1)}M`,
         change: 0,
         icon: <DollarSign className="h-5 w-5 text-emerald-600" />,
         color: 'text-emerald-600',
       },
-    ],
-    [filteredStats]
-  );
+    ];
+    
+    return { filteredStats: stats, kpiData: kpi };
+  }, [projects]);
 
   const tableFilterKey = useMemo(
     () => [debouncedSearch, statusFilter, stageFilter, priorityFilter, cityFilter, healthFilter].join('|'),

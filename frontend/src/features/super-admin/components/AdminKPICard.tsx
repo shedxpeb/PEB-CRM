@@ -1,7 +1,6 @@
 'use client';
 
 import { memo } from 'react';
-import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -41,11 +40,7 @@ export const AdminKPICard = memo(function AdminKPICard({
   const iconBg = bgMap[color] || 'bg-sa-border/50';
 
   return (
-    <motion.div
-      whileHover={{ scale: 1.02, y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ duration: 0.15 }}
-    >
+    <div className="transition-all duration-150 hover:scale-[1.02] hover:-translate-y-0.5 active:scale-[0.98]">
       <Card
         className="bg-sa-card border-sa-border cursor-pointer transition-all duration-200 hover:border-sa-border-solid hover:bg-sa-card-hover"
         onClick={onClick}
@@ -68,6 +63,6 @@ export const AdminKPICard = memo(function AdminKPICard({
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 });

@@ -31,6 +31,9 @@ import {
 import { cn } from '@/lib/utils';
 import { componentTextSizes } from '@/lib/design-system';
 
+// Constant months array used across charts
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'] as const;
+
 // Lazy load chart components for better initial load performance
 const ChartCard = lazy(() => import('@/components/dashboard/ChartCard').then(mod => ({ default: mod.ChartCard })));
 const DynamicChart = lazy(() => import('@/components/dashboard/DynamicChart').then(mod => ({ default: mod.DynamicChart })));
@@ -288,23 +291,21 @@ export default function DashboardPage() {
       console.error('Error creating KPI cards:', err);
       return [];
     }
-  }, [dashboardData]);
+  }, [dashboardData, formatCurrency, formatChange, getTrend]);
 
 
   // Real chart data derived from dashboard KPI data
   const purchasesTrendData = useMemo(() => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
     const baseValue = dashboardData?.customers.monthly || 0;
-    return months.map((month, index) => ({
+    return MONTHS.map((month, index) => ({
       name: month,
       value: Math.max(0, Math.floor(baseValue * (0.8 + (index * 0.1)))),
     }));
   }, [dashboardData?.customers.monthly]);
 
   const salesTrendData = useMemo(() => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
     const baseRevenue = dashboardData?.finance.monthly || 0;
-    return months.map((month, index) => ({
+    return MONTHS.map((month, index) => ({
       name: month,
       pipeline: Math.max(0, Math.floor(baseRevenue * (0.5 + (index * 0.1)))),
       won: Math.max(0, Math.floor(baseRevenue * (0.3 + (index * 0.08)))),
@@ -332,19 +333,17 @@ export default function DashboardPage() {
   }, [dashboardData?.leads.monthly]);
 
   const revenueData = useMemo(() => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
     const baseRevenue = dashboardData?.finance.monthly || 0;
-    return months.map((month, index) => ({
+    return MONTHS.map((month, index) => ({
       name: month,
       value: Math.max(0, Math.floor(baseRevenue * (0.7 + (index * 0.1)))),
     }));
   }, [dashboardData?.finance.monthly]);
 
   const projectsTrendData = useMemo(() => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
     const activeProjects = dashboardData?.projects.active || 0;
     const completedProjects = dashboardData?.projects.completed || 0;
-    return months.map((month, index) => ({
+    return MONTHS.map((month, index) => ({
       name: month,
       active: Math.max(0, Math.floor(activeProjects * (0.5 + (index * 0.1)))),
       completed: Math.max(0, Math.floor(completedProjects * (0.3 + (index * 0.12)))),
@@ -352,9 +351,8 @@ export default function DashboardPage() {
   }, [dashboardData?.projects.active, dashboardData?.projects.completed]);
 
   const inventoryValueData = useMemo(() => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
     const baseValue = dashboardData?.inventory.totalValue || 0;
-    return months.map((month, index) => ({
+    return MONTHS.map((month, index) => ({
       name: month,
       value: Math.max(0, Math.floor(baseValue * (0.8 + (index * 0.05)))),
     }));

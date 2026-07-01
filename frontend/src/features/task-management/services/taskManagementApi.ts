@@ -57,14 +57,15 @@ const mockTasks: Task[] = [
     dueDate: new Date('2024-01-20'),
     priority: 'High',
     status: 'Completed',
+    progress: 100,
     linkedModule: 'Projects',
     linkedRecordId: 'proj-1',
     linkedRecordName: 'Warehouse Construction',
     incentiveValue: 2500,
     isPaymentEditable: false,
     completionProof: {
-      beforePhotoUrls: ['/uploads/task-1-before-1.jpg'],
-      afterPhotoUrls: ['/uploads/task-1-after-1.jpg', '/uploads/task-1-after-2.jpg'],
+      beforeImages: [],
+      afterImages: [],
       notes: 'Installation completed as per specifications',
       uploadedAt: new Date('2024-01-19'),
       uploadedBy: 'user-1',
@@ -145,6 +146,7 @@ const mockTasks: Task[] = [
     dueDate: new Date('2024-01-25'),
     priority: 'Critical',
     status: 'In Progress',
+    progress: 60,
     linkedModule: 'Projects',
     linkedRecordId: 'proj-1',
     linkedRecordName: 'Warehouse Construction',
@@ -164,7 +166,8 @@ const mockTasks: Task[] = [
     createdByName: 'Admin User',
     dueDate: new Date('2024-01-22'),
     priority: 'High',
-    status: 'Assigned',
+    status: 'Pending',
+    progress: 0,
     linkedModule: 'Projects',
     linkedRecordId: 'proj-2',
     linkedRecordName: 'Office Building',
@@ -184,15 +187,16 @@ const mockTasks: Task[] = [
     createdByName: 'Admin User',
     dueDate: new Date('2024-01-18'),
     priority: 'Medium',
-    status: 'Verified',
+    status: 'Completed',
+    progress: 100,
     linkedModule: 'Inventory',
     linkedRecordId: 'inv-1',
     linkedRecordName: 'Steel Plates Stock',
     incentiveValue: 800,
     isPaymentEditable: false,
     completionProof: {
-      beforePhotoUrls: ['/uploads/task-4-before.jpg'],
-      afterPhotoUrls: ['/uploads/task-4-after.jpg'],
+      beforeImages: [],
+      afterImages: [],
       notes: 'Count completed - 150 plates verified',
       uploadedAt: new Date('2024-01-17'),
       uploadedBy: 'user-1',
@@ -264,6 +268,7 @@ const mockTasks: Task[] = [
     dueDate: new Date('2024-01-21'),
     priority: 'Medium',
     status: 'In Progress',
+    progress: 40,
     linkedModule: 'Leads',
     linkedRecordId: 'lead-45',
     linkedRecordName: 'ABC Manufacturing - PEB Quotation',
@@ -329,13 +334,13 @@ const mockTaskStats: TaskStats = {
     Critical: 1,
   },
   tasksByStatus: {
-    Created: 0,
-    Assigned: 1,
+    Pending: 1,
     'In Progress': 2,
-    Completed: 1,
-    Verified: 1,
-    Closed: 0,
+    Blocked: 0,
+    Review: 0,
+    Completed: 2,
     Cancelled: 0,
+    Reopened: 0,
   },
   tasksByModule: {
     Leads: 1,
@@ -345,6 +350,11 @@ const mockTaskStats: TaskStats = {
     Finance: 0,
     Documents: 0,
     General: 0,
+    Estimates: 0,
+    Proposals: 0,
+    Quotations: 0,
+    Invoices: 0,
+    Purchases: 0,
   },
   pendingVerification: 1,
   completedToday: 0,
@@ -493,14 +503,33 @@ export const taskManagementApi = {
 
   async create(data: CreateTaskDto): Promise<Task> {
     await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // Note: File[] cannot be stored in mock data (browser-specific objects)
+    // In production, these would be uploaded to S3 and stored as URLs
+    // For frontend mock, we store empty arrays
     const newTask: Task = {
       id: (mockTasks.length + 1).toString(),
       taskId: `TSK-${String(mockTasks.length + 1).padStart(3, '0')}`,
       ...data,
+      // Convert File[] to empty arrays for mock storage (File objects can't be serialized)
+      completionProof: data.beforeImages ? {
+        beforeImages: data.beforeImages,
+        afterImages: [],
+      } : undefined,
+      // Convert checklist DTO to full ChecklistItem
+      checklist: data.checklist?.map((item, index) => ({
+        id: `checklist-${Date.now()}-${index}`,
+        text: item.text,
+        order: item.order,
+        completed: false,
+        completedAt: undefined,
+        completedBy: undefined,
+      })),
       assignedUserName: 'Unknown', // Should come from user service
       createdBy: 'system',
       createdByName: 'System',
-      status: 'Created',
+      status: 'Pending',
+      progress: 0,
       isPaymentEditable: true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -553,7 +582,7 @@ export const taskManagementApi = {
     if (index === -1) throw new Error('Task not found');
     
     // Validate after photo proof is provided (mandatory)
-    if (!data.completionProof.afterPhotoUrls || data.completionProof.afterPhotoUrls.length === 0) {
+    if (!data.completionProof.afterImages || data.completionProof.afterImages.length === 0) {
       throw new Error('After photo proof is mandatory for task completion');
     }
     
@@ -561,7 +590,7 @@ export const taskManagementApi = {
     const newActivity = createActivity(
       task.taskId,
       'Photos Uploaded',
-      `Uploaded ${data.completionProof.beforePhotoUrls.length} before and ${data.completionProof.afterPhotoUrls.length} after photos`,
+      `Uploaded ${data.completionProof.beforeImages.length} before and ${data.completionProof.afterImages.length} after photos`,
       task.assignedUserId,
       task.assignedUserName
     );
@@ -577,6 +606,7 @@ export const taskManagementApi = {
     mockTasks[index] = {
       ...mockTasks[index],
       status: 'Completed',
+      progress: 100,
       completionProof: {
         ...data.completionProof,
         uploadedAt: new Date(),
@@ -601,7 +631,7 @@ export const taskManagementApi = {
     
     // Payment and performance only count after verification
     // If rejected, status goes back to 'In Progress' for re-completion
-    const newStatus = data.status === 'Verified' ? 'Verified' : 'In Progress';
+    const newStatus = data.status === 'Verified' ? 'Completed' : 'In Progress';
     
     const task = mockTasks[index];
     const activityType = data.status === 'Verified' ? 'Verified' : 'Rejected';
@@ -655,15 +685,14 @@ export const taskManagementApi = {
     
     const performanceStats: EmployeePerformanceStats[] = employeeIds.map(empId => {
       const employeeTasks = mockTasks.filter(t => t.assignedUserId === empId);
-      const verifiedTasks = employeeTasks.filter(t => t.status === 'Verified');
+      const verifiedTasks = employeeTasks.filter(t => t.verifiedBy && t.verifiedAt); // Tasks that have been verified
       const rejectedTasks = employeeTasks.filter(t => t.status === 'In Progress' && t.verificationNotes); // Tasks that were rejected
       
       const tasksAssigned = employeeTasks.length;
-      const tasksCompleted = employeeTasks.filter(t => t.status === 'Completed' || t.status === 'Verified').length;
-      const tasksPending = employeeTasks.filter(t => t.status === 'Assigned' || t.status === 'In Progress').length;
+      const tasksCompleted = employeeTasks.filter(t => t.status === 'Completed').length;
+      const tasksPending = employeeTasks.filter(t => t.status === 'Pending' || t.status === 'In Progress' || t.status === 'Blocked' || t.status === 'Review').length;
       const tasksOverdue = employeeTasks.filter(t => 
-        t.status !== 'Verified' && 
-        t.status !== 'Closed' && 
+        t.status !== 'Completed' && 
         t.dueDate < new Date()
       ).length;
       const tasksVerified = verifiedTasks.length;

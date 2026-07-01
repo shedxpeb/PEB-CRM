@@ -17,13 +17,13 @@ export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Critical';
 // ─── Task Status ────────────────────────────────────────────────────────────────
 
 export type TaskStatus = 
-  | 'Created'
-  | 'Assigned'
+  | 'Pending'
   | 'In Progress'
+  | 'Blocked'
+  | 'Review'
   | 'Completed'
-  | 'Verified'
-  | 'Closed'
-  | 'Cancelled';
+  | 'Cancelled'
+  | 'Reopened';
 
 // ─── Linked Module Types ─────────────────────────────────────────────────────────
 
@@ -31,10 +31,70 @@ export type LinkedModule =
   | 'Leads'
   | 'Customers'
   | 'Projects'
+  | 'Estimates'
+  | 'Proposals'
+  | 'Quotations'
+  | 'Invoices'
   | 'Inventory'
+  | 'Purchases'
   | 'Finance'
   | 'Documents'
   | 'General';
+
+// ─── Task Category ───────────────────────────────────────────────────────────────
+
+export type TaskCategory = 
+  | 'General'
+  | 'Office'
+  | 'Field Work'
+  | 'Maintenance'
+  | 'Installation'
+  | 'Inspection'
+  | 'Documentation'
+  | 'Meeting'
+  | 'Training'
+  | 'Other';
+
+// ─── Checklist Item ──────────────────────────────────────────────────────────────
+
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  completed: boolean;
+  completedAt?: Date;
+  completedBy?: string;
+  order: number;
+}
+
+// ─── Comment ─────────────────────────────────────────────────────────────────────
+
+export interface Comment {
+  id: string;
+  taskId: string;
+  text: string;
+  userId: string;
+  userName: string;
+  createdAt: Date;
+  updatedAt?: Date;
+  isInternal?: boolean; // Admin-only comments
+}
+
+// ─── Attachment ─────────────────────────────────────────────────────────────────
+
+export type AttachmentType = 'Image' | 'PDF' | 'Excel' | 'Word' | 'ZIP' | 'Other';
+
+export interface Attachment {
+  id: string;
+  taskId: string;
+  fileName: string;
+  fileType: AttachmentType;
+  fileSize: number; // in bytes
+  fileUrl: string;
+  uploadedBy: string;
+  uploadedByName: string;
+  uploadedAt: Date;
+  description?: string;
+}
 
 // ─── Task Entity ────────────────────────────────────────────────────────────────
 
@@ -52,7 +112,9 @@ export interface Task {
   createdByName: string;
   
   // Dates
+  startDate?: Date;
   dueDate: Date;
+  reminderDate?: Date;
   completedAt?: Date;
   verifiedAt?: Date;
   closedAt?: Date;
@@ -60,31 +122,55 @@ export interface Task {
   // Status & Priority
   priority: TaskPriority;
   status: TaskStatus;
+  category?: TaskCategory;
   
-  // Cross-Module Links
+  // Progress & Time
+  progress: number; // 0-100
+  estimatedHours?: number;
+  timeSpent?: number; // Actual hours spent
+  
+  // Cross-Module Links (Optional)
   linkedModule?: LinkedModule;
   linkedRecordId?: string;
   linkedRecordName?: string;
   projectId?: string; // Direct link to Project for hierarchy
+  leadId?: string;
+  customerId?: string;
+  documentId?: string;
   
   // Payment (Incentive-based, not full salary)
   incentiveValue: number; // Set by Admin/Manager - this is the incentive amount, not full salary
   isPaymentEditable: boolean; // Only for authorized users
   
   // Completion Proof (Mandatory)
+  // Frontend only: Store as File[] in component state
+  // Backend later: Will store as string[] (S3 URLs)
   completionProof?: {
-    beforePhotoUrls: string[]; // Photos before task started
-    afterPhotoUrls: string[]; // Photos after task completed (mandatory)
+    beforeImages: File[]; // Photos before task started (File[] for frontend phase)
+    afterImages: File[]; // Photos after task completed (File[] for frontend phase)
     videoUrl?: string; // Optional video proof (future)
     notes?: string;
     uploadedAt?: Date;
     uploadedBy?: string;
   };
   
+  // Completion Details
+  completionNotes?: string;
+  completionChecklist?: ChecklistItem[];
+  
   // Verification
   verifiedBy?: string;
   verifiedByName?: string;
   verificationNotes?: string;
+  
+  // Checklist
+  checklist?: ChecklistItem[];
+  
+  // Comments
+  comments?: Comment[];
+  
+  // Attachments
+  attachments?: Attachment[];
   
   // General Notes
   notes?: string;
@@ -108,15 +194,25 @@ export type TaskActivityType =
   | 'Assigned'
   | 'Started'
   | 'In Progress'
+  | 'Blocked'
+  | 'Unblocked'
+  | 'Review'
   | 'Photos Uploaded'
   | 'Completed'
   | 'Verified'
   | 'Rejected'
   | 'Closed'
   | 'Cancelled'
+  | 'Reopened'
   | 'Reassigned'
   | 'Priority Changed'
-  | 'Due Date Changed';
+  | 'Due Date Changed'
+  | 'Progress Updated'
+  | 'Checklist Updated'
+  | 'Comment Added'
+  | 'Attachment Added'
+  | 'Before Images Added'
+  | 'After Images Added';
 
 export interface TaskActivity {
   id: string;
@@ -277,14 +373,23 @@ export interface CreateTaskDto {
   description?: string;
   assignedUserId: string;
   dueDate: Date;
+  startDate?: Date;
+  reminderDate?: Date;
   priority: TaskPriority;
+  category?: TaskCategory;
   linkedModule?: LinkedModule;
   linkedRecordId?: string;
   linkedRecordName?: string;
-  projectId?: string; // Direct link to Project for hierarchy
-  incentiveValue: number; // Incentive amount, not full salary
-  notes?: string;
+  projectId?: string;
+  leadId?: string;
+  customerId?: string;
+  documentId?: string;
+  incentiveValue: number;
+  estimatedHours?: number;
   tags?: string[];
+  notes?: string;
+  beforeImages?: File[]; // Frontend only: File[] for component state
+  checklist?: Omit<ChecklistItem, 'id' | 'completed' | 'completedAt' | 'completedBy'>[];
 }
 
 export interface UpdateTaskDto {
@@ -292,24 +397,39 @@ export interface UpdateTaskDto {
   description?: string;
   assignedUserId?: string;
   dueDate?: Date;
+  startDate?: Date;
+  reminderDate?: Date;
   priority?: TaskPriority;
   status?: TaskStatus;
+  category?: TaskCategory;
   linkedModule?: LinkedModule;
   linkedRecordId?: string;
   linkedRecordName?: string;
-  projectId?: string; // Direct link to Project for hierarchy
+  projectId?: string;
+  leadId?: string;
+  customerId?: string;
+  documentId?: string;
   incentiveValue?: number;
+  progress?: number;
+  estimatedHours?: number;
+  timeSpent?: number;
   notes?: string;
+  internalNotes?: string;
   tags?: string[];
+  beforeImages?: File[]; // Frontend only: File[] for component state
+  checklist?: ChecklistItem[];
 }
 
 export interface CompleteTaskDto {
   completionProof: {
-    beforePhotoUrls: string[];
-    afterPhotoUrls: string[];
+    beforeImages: File[]; // Frontend only: File[] for component state
+    afterImages: File[]; // Mandatory - Frontend only: File[] for component state
     videoUrl?: string;
     notes?: string;
   };
+  completionNotes: string; // Mandatory
+  completionChecklist?: ChecklistItem[]; // Mandatory completion checklist
+  timeSpent?: number; // Actual hours spent
   completedAt: Date;
 }
 
@@ -414,4 +534,57 @@ export interface DashboardTaskKPIs {
   pendingVerification: number;
   verifiedToday: number;
   topPerformers: EmployeePerformanceStats[];
+}
+
+// ─── Shared Foundation Types (Phase 3.1) ────────────────────────────────────────
+// Reusable types for the shared task component foundation. These extend (not
+// replace) the existing task types above and introduce no backend behaviour.
+
+// View modes for task lists. `calendar` and `matrix` are reserved placeholders
+// for later phases and are surfaced as disabled options in the UI.
+export type TaskViewMode = 'list' | 'kanban' | 'calendar' | 'matrix';
+
+// Minimal user reference used by avatars, followers and assignee displays.
+export interface TaskUser {
+  id: string;
+  name: string;
+  role?: string;
+  avatarUrl?: string;
+}
+
+// Scope of a saved view (frontend-only, no persistence yet).
+export type SavedViewScope = 'personal' | 'team' | 'public' | 'default';
+
+export interface SavedView {
+  id: string;
+  name: string;
+  scope: SavedViewScope;
+  isPinned?: boolean;
+  filter?: TaskFilter;
+}
+
+// Construction task template (frontend mock for the TemplateSelector).
+export interface TaskTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: TaskCategory;
+  defaultPriority?: TaskPriority;
+  checklist?: string[];
+}
+
+// Relationship between two tasks for the DependenciesCard (frontend mock).
+export type TaskRelationshipType =
+  | 'Depends On'
+  | 'Blocked By'
+  | 'Blocking'
+  | 'Related To'
+  | 'Duplicate Of';
+
+export interface TaskDependency {
+  id: string;
+  taskRef: string; // Human-facing task id, e.g. "TSK-002"
+  title: string;
+  status: TaskStatus;
+  relationship: TaskRelationshipType;
 }
