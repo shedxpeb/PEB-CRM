@@ -81,3 +81,7 @@ backend/*.sqlite
 uploads/
 frontend/uploads/
 backend/uploads/
+
+# Temporary reports (investigation, QA, performance, audit, debugging)
+# These are auto-generated and should be deleted after issue resolution
+reports/temp/
