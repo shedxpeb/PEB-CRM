@@ -7,7 +7,7 @@ import { z } from 'zod';
 /**
  * Create Lead Validation Schema
  */
-export const createLeadSchema = z.object({
+export const baseLeadSchema = z.object({
   customerName: z.string()
     .min(2, 'Customer name must be at least 2 characters')
     .max(100, 'Customer name must be less than 100 characters'),
@@ -63,6 +63,15 @@ export const createLeadSchema = z.object({
     .positive('Height must be positive')
     .optional(),
   
+  craneRequired: z.boolean().optional(),
+  craneCapacity: z.number().optional(),
+  mezzanine: z.boolean().optional(),
+  mezzanineArea: z.number().optional(),
+  mezzanineLoad: z.number().optional(),
+  insulationRequired: z.boolean().optional(),
+  insulationType: z.string().optional(),
+  insulationThickness: z.number().optional(),
+  
   source: z.enum(['Website', 'Referral', 'Cold Call', 'Social Media', 'Advertisement', 'Other']),
   
   priority: z.enum(['Low', 'Medium', 'High', 'Urgent']),
@@ -95,10 +104,84 @@ export const createLeadSchema = z.object({
     ),
 });
 
+const leadRefinements = (data: any, ctx: z.RefinementCtx) => {
+  if (data.craneRequired === true) {
+    if (data.craneCapacity === undefined || data.craneCapacity === null || isNaN(data.craneCapacity)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Crane capacity is required when crane is required',
+        path: ['craneCapacity'],
+      });
+    } else if (data.craneCapacity <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Crane capacity must be positive',
+        path: ['craneCapacity'],
+      });
+    }
+  }
+
+  if (data.mezzanine === true) {
+    if (data.mezzanineArea === undefined || data.mezzanineArea === null || isNaN(data.mezzanineArea)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Mezzanine area is required when mezzanine is yes',
+        path: ['mezzanineArea'],
+      });
+    } else if (data.mezzanineArea <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Mezzanine area must be positive',
+        path: ['mezzanineArea'],
+      });
+    }
+
+    if (data.mezzanineLoad === undefined || data.mezzanineLoad === null || isNaN(data.mezzanineLoad)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Mezzanine load is required when mezzanine is yes',
+        path: ['mezzanineLoad'],
+      });
+    } else if (data.mezzanineLoad <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Mezzanine load must be positive',
+        path: ['mezzanineLoad'],
+      });
+    }
+  }
+
+  if (data.insulationRequired === true) {
+    if (!data.insulationType || data.insulationType.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Insulation type is required when insulation is required',
+        path: ['insulationType'],
+      });
+    }
+
+    if (data.insulationThickness === undefined || data.insulationThickness === null || isNaN(data.insulationThickness)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Insulation thickness is required when insulation is required',
+        path: ['insulationThickness'],
+      });
+    } else if (data.insulationThickness <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Insulation thickness must be positive',
+        path: ['insulationThickness'],
+      });
+    }
+  }
+};
+
+export const createLeadSchema = baseLeadSchema.superRefine(leadRefinements);
+
 /**
  * Update Lead Validation Schema (all fields optional)
  */
-export const updateLeadSchema = createLeadSchema.partial();
+export const updateLeadSchema = baseLeadSchema.partial().superRefine(leadRefinements);
 
 export type CreateLeadFormData = z.infer<typeof createLeadSchema>;
 export type UpdateLeadFormData = z.infer<typeof updateLeadSchema>;

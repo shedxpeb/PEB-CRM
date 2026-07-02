@@ -130,7 +130,6 @@ export function useEstimates(params?: {
       setError(null);
     } catch (err) {
       setError('Failed to load estimates');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -274,7 +273,6 @@ export function useEstimate(id: string) {
       setError(null);
     } catch (err) {
       setError('Failed to load estimate');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -306,7 +304,6 @@ export function useEstimateStats() {
       setError(null);
     } catch (err) {
       setError('Failed to load stats');
-      console.error(err);
     } finally {
       setLoading(false);
     }

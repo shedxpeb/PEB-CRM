@@ -178,7 +178,7 @@ export function ProposalsPage() {
         await deleteProposal(prop.id);
         refetch();
       } catch (err) {
-        console.error('Failed to delete proposal:', err);
+        // Failed to delete proposal
       }
     }
   };
@@ -202,7 +202,7 @@ export function ProposalsPage() {
       await createProposal(duplicateData);
       refetch();
     } catch (err) {
-      console.error('Failed to duplicate proposal:', err);
+      // Failed to duplicate proposal
     }
   };
 
@@ -218,7 +218,7 @@ export function ProposalsPage() {
       setSelectedEstimate(null);
       refetch();
     } catch (err) {
-      console.error('Failed to save proposal:', err);
+      // Failed to save proposal
     }
   };
 

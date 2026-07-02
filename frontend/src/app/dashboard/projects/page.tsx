@@ -106,12 +106,47 @@ export default function ProjectsPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isViewDrawerOpen, setIsViewDrawerOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
+  const [createInitialData, setCreateInitialData] = useState<any>(undefined);
 
   useEffect(() => {
     if (shouldCreate && customerId) {
       setIsCreateDialogOpen(true);
     }
   }, [shouldCreate, customerId]);
+
+  useEffect(() => {
+    const leadDataStr = sessionStorage.getItem('convertFromLead');
+    if (leadDataStr) {
+      try {
+        const lead = JSON.parse(leadDataStr);
+        const initial = {
+          leadId: lead.id,
+          customerId: lead.customerId,
+          projectName: lead.projectTitle || '',
+          projectType: lead.projectType || 'Industrial Shed',
+          structureType: lead.structureType || 'PEB Building',
+          width: lead.width,
+          length: lead.length,
+          height: lead.height,
+          baySpacing: lead.baySpacing,
+          roofType: lead.roofType || 'Standing Seam',
+          craneSystem: lead.craneRequired ? (lead.craneCapacity ? `${lead.craneCapacity} tons` : 'Single Girder') : 'None',
+          mezzanine: lead.mezzanine || false,
+          wallType: lead.wallType || 'Single Skin',
+          insulation: lead.insulationRequired || false,
+          location: lead.siteAddress || lead.address || '',
+          city: lead.city || '',
+          state: lead.state || '',
+          pincode: lead.pincode || '',
+        };
+        setCreateInitialData(initial);
+        setIsCreateDialogOpen(true);
+        sessionStorage.removeItem('convertFromLead');
+      } catch (err) {
+        // Failed to parse lead data
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const quotationData = sessionStorage.getItem('convertFromQuotation');
@@ -121,7 +156,7 @@ export default function ProjectsPage() {
         setIsCreateDialogOpen(true);
         sessionStorage.removeItem('convertFromQuotation');
       } catch (err) {
-        console.error('Failed to parse quotation data:', err);
+        // Failed to parse quotation data
       }
     }
   }, []);
@@ -626,16 +661,23 @@ export default function ProjectsPage() {
         activities={viewedActivities ?? []}
       />
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+        setIsCreateDialogOpen(open);
+        if (!open) setCreateInitialData(undefined);
+      }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Project</DialogTitle>
           </DialogHeader>
           <ProjectForm
             onSubmit={handleCreate}
-            onCancel={() => setIsCreateDialogOpen(false)}
+            onCancel={() => {
+              setIsCreateDialogOpen(false);
+              setCreateInitialData(undefined);
+            }}
             isLoading={createMutation.isPending}
             prefillCustomerId={customerId || undefined}
+            initialData={createInitialData}
           />
         </DialogContent>
       </Dialog>

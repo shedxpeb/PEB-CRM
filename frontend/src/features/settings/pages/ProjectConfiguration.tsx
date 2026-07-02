@@ -18,7 +18,7 @@ export function ProjectConfiguration() {
     e.preventDefault();
   };
 
-  const handleChange = (field: keyof ProjectConfiguration, value: any) => {
+  const handleChange = (field: keyof ProjectConfiguration, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 

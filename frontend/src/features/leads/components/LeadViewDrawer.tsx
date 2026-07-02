@@ -192,9 +192,23 @@ export const LeadViewDrawer = memo(function LeadViewDrawer({
                 <EntityViewField label="Roof Type" value={lead.roofType} />
                 <EntityViewField label="Wall Type" value={lead.wallType} />
                 <EntityViewField label="Crane Required" value={formatDrawerBool(lead.craneRequired)} />
-                <EntityViewField label="Crane Capacity (tons)" value={lead.craneCapacity} />
+                {lead.craneRequired && (
+                  <EntityViewField label="Crane Capacity (tons)" value={lead.craneCapacity} />
+                )}
                 <EntityViewField label="Mezzanine" value={formatDrawerBool(lead.mezzanine)} />
+                {lead.mezzanine && (
+                  <>
+                    <EntityViewField label="Mezzanine Area (sqm)" value={lead.mezzanineArea} />
+                    <EntityViewField label="Mezzanine Load (kg/sqm)" value={lead.mezzanineLoad} />
+                  </>
+                )}
                 <EntityViewField label="Insulation Required" value={formatDrawerBool(lead.insulationRequired)} />
+                {lead.insulationRequired && (
+                  <>
+                    <EntityViewField label="Insulation Type" value={lead.insulationType} />
+                    <EntityViewField label="Insulation Thickness (mm)" value={lead.insulationThickness} />
+                  </>
+                )}
                 <EntityViewField label="Material Preference" value={lead.materialPreference} />
               </EntityViewFieldGrid>
             </EntityViewSection>

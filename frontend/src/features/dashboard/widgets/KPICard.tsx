@@ -98,8 +98,6 @@ export const KPICard = memo(function KPICard({
 
     if (navigateTo && VALID_ROUTES.includes(navigateTo)) {
       router.push(navigateTo);
-    } else if (navigateTo) {
-      console.error(`Invalid route: ${navigateTo}`);
     }
   };
 

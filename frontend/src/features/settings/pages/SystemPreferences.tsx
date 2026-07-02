@@ -20,7 +20,7 @@ export function SystemPreferences() {
     e.preventDefault();
   };
 
-  const handleChange = (field: keyof SystemPreferences, value: any) => {
+  const handleChange = (field: keyof SystemPreferences, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 

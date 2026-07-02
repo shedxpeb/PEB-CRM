@@ -191,8 +191,8 @@ export const inventoryApi = {
     }
   },
 
-  createWarehouse: (data: any) => api.post<Warehouse>('/api/inventory/warehouses', data),
-  updateWarehouse: (id: string, data: any) => api.patch<Warehouse>(`/api/inventory/warehouses/${id}`, data),
+  createWarehouse: (data: Omit<Warehouse, 'id'>) => api.post<Warehouse>('/api/inventory/warehouses', data),
+  updateWarehouse: (id: string, data: Partial<Warehouse>) => api.patch<Warehouse>(`/api/inventory/warehouses/${id}`, data),
 
   // ─── Suppliers ───────────────────────────────────────────────────────────
 
@@ -239,7 +239,7 @@ export const inventoryApi = {
     }
   },
 
-  createMovement: (data: any) => api.post<StockMovement>('/api/inventory/movements', data),
+  createMovement: (data: Omit<StockMovement, 'id'>) => api.post<StockMovement>('/api/inventory/movements', data),
 
   getMovementHistory: async (itemId: string): Promise<StockMovement[]> => {
     try {

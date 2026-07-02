@@ -60,12 +60,12 @@ const chartConfig = [
   },
 ];
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { dataKey: string; value: number; color: string }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-sa-card-solid border border-sa-border-solid rounded-lg px-3 py-2 shadow-xl">
       <p className="text-xs text-sa-text-secondary mb-1">{label}</p>
-      {payload.map((entry: any, index: number) => (
+      {payload.map((entry, index: number) => (
         <p key={`${entry.dataKey}-${index}`} className="text-xs font-medium" style={{ color: entry.color }}>
           {entry.dataKey}: {entry.value}
         </p>

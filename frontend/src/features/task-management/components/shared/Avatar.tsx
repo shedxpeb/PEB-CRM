@@ -42,7 +42,7 @@ export function Avatar({ user, name, size = 'sm', className }: AvatarProps) {
       )}
     >
       {imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
+        // Using img tag intentionally for avatar component - Next.js Image component not suitable for dynamic avatar URLs
         <img src={imageUrl} alt={label} className="h-full w-full object-cover" />
       ) : (
         <span aria-hidden="true">{getInitials(displayName)}</span>

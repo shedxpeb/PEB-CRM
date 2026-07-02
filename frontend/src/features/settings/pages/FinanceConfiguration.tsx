@@ -19,7 +19,7 @@ export function FinanceConfiguration() {
     e.preventDefault();
   };
 
-  const handleChange = (field: keyof FinanceConfiguration, value: any) => {
+  const handleChange = (field: keyof FinanceConfiguration, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 

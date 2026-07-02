@@ -288,7 +288,6 @@ export default function DashboardPage() {
         },
       ];
     } catch (err) {
-      console.error('Error creating KPI cards:', err);
       return [];
     }
   }, [dashboardData, formatCurrency, formatChange, getTrend]);
@@ -450,7 +449,6 @@ export default function DashboardPage() {
       setExportState({ isGenerating: false, status: 'ready', progress: 100, message: 'Download Ready' });
     } catch (error) {
       setExportState({ isGenerating: false, status: 'error', progress: 0, message: 'Export Failed' });
-      console.error('PDF Export Error:', error);
     }
   };
 

@@ -1125,6 +1125,7 @@ function TaskForm({
     description: task?.description || '',
     assignedUserId: task?.assignedUserId || '',
     dueDate: task?.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
+    startDate: task?.startDate ? new Date(task.startDate).toISOString().split('T')[0] : '',
     priority: task?.priority || 'Medium' as TaskPriority,
     linkedModule: task?.linkedModule || 'General' as LinkedModule,
     linkedRecordId: task?.linkedRecordId || '',
@@ -1134,14 +1135,28 @@ function TaskForm({
     notes: task?.notes || '',
   });
 
+  const modules: LinkedModule[] = ['Leads', 'Customers', 'Projects', 'Inventory', 'Finance', 'Documents', 'General'];
+  const priorities: TaskPriority[] = ['Low', 'Medium', 'High', 'Critical'];
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validation: Start date must be before due date
+    if (formData.startDate && formData.dueDate) {
+      const start = new Date(formData.startDate);
+      const due = new Date(formData.dueDate);
+      if (start > due) {
+        alert('Start date must be before due date');
+        return;
+      }
+    }
 
     const dto: CreateTaskDto = {
       title: formData.title,
       description: formData.description,
       assignedUserId: formData.assignedUserId,
       dueDate: new Date(formData.dueDate),
+      startDate: formData.startDate ? new Date(formData.startDate) : undefined,
       priority: formData.priority,
       linkedModule: formData.linkedModule,
       linkedRecordId: formData.linkedRecordId || undefined,
@@ -1155,9 +1170,6 @@ function TaskForm({
     // In production: createMutation.mutate(dto);
     onSubmit(dto);
   };
-
-  const modules: LinkedModule[] = ['Leads', 'Customers', 'Projects', 'Inventory', 'Finance', 'Documents', 'General'];
-  const priorities: TaskPriority[] = ['Low', 'Medium', 'High', 'Critical'];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -1187,6 +1199,15 @@ function TaskForm({
             value={formData.assignedUserId}
             onChange={(e) => setFormData({ ...formData, assignedUserId: e.target.value })}
             required
+          />
+        </div>
+        <div>
+          <Label htmlFor="startDate">Start Date</Label>
+          <Input
+            id="startDate"
+            type="date"
+            value={formData.startDate || ''}
+            onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
           />
         </div>
         <div>

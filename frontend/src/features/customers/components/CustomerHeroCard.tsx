@@ -39,7 +39,6 @@ export const CustomerHeroCard = memo(function CustomerHeroCard({
 }: CustomerHeroCardProps) {
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
-    console.log(`${label} copied to clipboard`);
   };
 
   if (compact) {

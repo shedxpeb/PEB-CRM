@@ -31,7 +31,9 @@ export interface Lead {
   customerName: string;
   companyName: string;
   mobile: string;
+  alternateMobile?: string;
   email: string;
+  gstNumber?: string;
   address?: string;
   city: string;
   state: string;
@@ -43,6 +45,16 @@ export interface Lead {
   length?: number;
   height?: number;
   area?: number;
+  craneRequired?: boolean;
+  craneCapacity?: number;
+  mezzanine?: boolean;
+  mezzanineArea?: number;
+  mezzanineLoad?: number;
+  wallType?: string;
+  insulationRequired?: boolean;
+  insulationType?: string;
+  insulationThickness?: number;
+  materialPreference?: string;
   source: LeadSource;
   priority: LeadPriority;
   assignedEmployee?: string;

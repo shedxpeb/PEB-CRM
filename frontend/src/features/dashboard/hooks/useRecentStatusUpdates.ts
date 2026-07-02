@@ -76,7 +76,6 @@ export function useRecentStatusUpdates(limit: number = 10) {
             projectName: project.projectName,
           }));
         } catch (error) {
-          console.error(`Failed to fetch activities for project ${project.id}:`, error);
           return [];
         }
       });

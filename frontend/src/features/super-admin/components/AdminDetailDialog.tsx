@@ -23,7 +23,7 @@ import { Search } from 'lucide-react';
 export interface DetailColumn {
   key: string;
   label: string;
-  render?: (value: any, row: Record<string, any>) => React.ReactNode;
+  render?: (value: unknown, row: Record<string, unknown>) => React.ReactNode;
 }
 
 export interface AdminDetailDialogProps {
@@ -32,7 +32,7 @@ export interface AdminDetailDialogProps {
   title: string;
   description?: string;
   columns: DetailColumn[];
-  data: Record<string, any>[];
+  data: Record<string, unknown>[];
 }
 
 export function AdminDetailDialog({
@@ -106,7 +106,7 @@ export function AdminDetailDialog({
                     >
                       {columns.map((col) => (
                         <TableCell key={col.key} className="text-sa-text-secondary text-sm">
-                          {col.render ? col.render(row[col.key], row) : row[col.key]}
+                          {col.render ? col.render(row[col.key], row) : (row[col.key] as React.ReactNode)}
                         </TableCell>
                       ))}
                     </TableRow>

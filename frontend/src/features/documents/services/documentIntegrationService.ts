@@ -136,7 +136,6 @@ export async function reserveStockForQuotation(
   quotation: Quotation,
   inventoryItems: PEBInventoryItem[]
 ): Promise<StockReservation[]> {
-  console.warn('DEPRECATED: Stock reservation should happen at project creation, not quotation acceptance');
   const reservations: StockReservation[] = [];
 
   for (const materialSelection of quotation.materialSelections) {
@@ -145,7 +144,6 @@ export async function reserveStockForQuotation(
     );
 
     if (!inventoryItem) {
-      console.warn(`Inventory item not found for ${materialSelection.itemCode}`);
       continue;
     }
 
@@ -154,9 +152,6 @@ export async function reserveStockForQuotation(
 
     // Check if enough stock is available
     if (inventoryItem.availableStock < quantity) {
-      console.warn(
-        `Insufficient stock for ${materialSelection.itemCode}. Available: ${inventoryItem.availableStock}, Required: ${quantity}`
-      );
       continue;
     }
 
@@ -321,7 +316,6 @@ export async function generateInvoiceFromQuotation(
   quotation: Quotation,
   projectId: string
 ): Promise<Partial<Invoice>> {
-  console.warn('DEPRECATED: Invoice generation should happen in Finance module, not from Documents');
   const invoice: Partial<Invoice> = {
     customerId: quotation.customerId,
     customerName: quotation.customerName,

@@ -22,11 +22,11 @@ import {
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Loader2, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export interface AdminTableColumn<T = Record<string, any>> {
+export interface AdminTableColumn<T = Record<string, unknown>> {
   key: string;
   label: string;
   sortable?: boolean;
-  render?: (value: any, row: T) => React.ReactNode;
+  render?: (value: unknown, row: T) => React.ReactNode;
 }
 
 export interface AdminTableFilter {

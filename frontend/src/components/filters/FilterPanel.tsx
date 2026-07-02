@@ -42,7 +42,7 @@ export function FilterPanel({ filters, onFilterChange, onReset, persistKey }: Fi
           onFilterChange(parsed);
         }
       } catch (error) {
-        console.error('Error loading persisted filters:', error);
+        // Error loading persisted filters
       }
     }
   }, [persistKey, onFilterChange]);
@@ -53,7 +53,7 @@ export function FilterPanel({ filters, onFilterChange, onReset, persistKey }: Fi
       try {
         localStorage.setItem(`filters_${persistKey}`, JSON.stringify(activeFilters));
       } catch (error) {
-        console.error('Error persisting filters:', error);
+        // Error persisting filters
       }
     }
   }, [activeFilters, persistKey]);

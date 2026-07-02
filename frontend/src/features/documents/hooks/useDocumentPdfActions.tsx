@@ -71,7 +71,6 @@ export function useDocumentPdfActions() {
         previewUrlRef.current = url;
         setPreviewUrl(url);
       } catch (error) {
-        console.error('Failed to generate PDF preview:', error);
         setPreviewUrl(null);
       } finally {
         setLoading(false);
@@ -86,7 +85,7 @@ export function useDocumentPdfActions() {
       try {
         await downloadDocumentPdf(document, companyPdfProps);
       } catch (error) {
-        console.error('Failed to download PDF:', error);
+        // Failed to download PDF
       } finally {
         setDownloading(false);
       }
@@ -107,7 +106,7 @@ export function useDocumentPdfActions() {
         await downloadDocumentPdf(previewDocument, companyPdfProps);
       }
     } catch (error) {
-      console.error('Failed to download PDF:', error);
+      // Failed to download PDF
     } finally {
       setDownloading(false);
     }

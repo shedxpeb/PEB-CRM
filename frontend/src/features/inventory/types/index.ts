@@ -308,11 +308,14 @@ export interface UpdateInventoryItemDto {
 }
 
 export interface CreateWarehouseDto {
+  warehouseCode: string;
   name: string;
   location: string;
   manager: string;
   contactNumber: string;
   capacity: number;
+  currentOccupancy: number;
+  status: 'Active' | 'Inactive';
 }
 
 export interface CreateSupplierDto {
@@ -333,11 +336,16 @@ export interface CreateCategoryDto {
 }
 
 export interface CreateStockMovementDto {
+  movementNumber: string;
+  itemName: string;
   itemId: string;
   type: MovementType;
   quantity: number;
   warehouseId: string;
+  warehouse: string;
   referenceNumber?: string;
   referenceType?: string;
   remarks?: string;
+  performedBy: string;
+  date: Date;
 }

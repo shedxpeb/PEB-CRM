@@ -22,7 +22,7 @@ export function DocumentEngineSettings() {
     updateDocSettings.mutate(formData);
   };
 
-  const handleChange = (field: keyof DocumentSettings, value: any) => {
+  const handleChange = (field: keyof DocumentSettings, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 

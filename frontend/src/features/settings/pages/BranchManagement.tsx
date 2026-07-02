@@ -84,7 +84,7 @@ export function BranchManagement() {
     setIsDialogOpen(false);
   };
 
-  const handleChange = (field: keyof Branch, value: any) => {
+  const handleChange = (field: keyof Branch, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 

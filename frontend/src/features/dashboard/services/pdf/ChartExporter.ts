@@ -41,7 +41,6 @@ export class ChartExporter {
       try {
         // Validate chart element exists
         if (!chart.element || !document.body.contains(chart.element)) {
-          console.warn(`Chart element not found for: ${chart.title}`);
           this.addChartPlaceholder(chart.title, 'Chart element not available');
           chartsOnCurrentPage++;
           continue;
@@ -52,7 +51,6 @@ export class ChartExporter {
         
         // Validate chart is rendered (has content)
         if (!this.isChartRendered(chart.element)) {
-          console.warn(`Chart not fully rendered: ${chart.title}`);
           this.addChartPlaceholder(chart.title, 'Chart still loading');
           chartsOnCurrentPage++;
           continue;
@@ -60,7 +58,6 @@ export class ChartExporter {
         
         // Validate chart has meaningful data
         if (!this.hasMeaningfulData(chart.element)) {
-          console.warn(`Chart has no meaningful data: ${chart.title}`);
           this.addChartPlaceholder(chart.title, 'No data available');
           chartsOnCurrentPage++;
           continue;
@@ -71,7 +68,7 @@ export class ChartExporter {
         try {
           imgData = await this.convertChartToSVG(chart.element);
         } catch (svgError) {
-          console.warn(`SVG export failed for ${chart.title}, falling back to PNG:`, svgError);
+          // SVG export failed, will fallback to PNG
         }
         
         // Fallback to PNG if SVG fails
@@ -81,7 +78,6 @@ export class ChartExporter {
         
         // Validate image data
         if (!imgData || imgData.length < 1000) {
-          console.warn(`Invalid image data for chart: ${chart.title}`);
           this.addChartPlaceholder(chart.title, 'Failed to capture chart');
           chartsOnCurrentPage++;
           continue;
@@ -99,7 +95,6 @@ export class ChartExporter {
           chartsOnCurrentPage = 0;
         }
       } catch (error) {
-        console.error(`Failed to render chart: ${chart.title}`, error);
         this.addChartPlaceholder(chart.title, 'Chart rendering failed');
         chartsOnCurrentPage++;
       }
@@ -197,7 +192,6 @@ export class ChartExporter {
         img.src = url;
       });
     } catch (error) {
-      console.error('SVG export failed:', error);
       return null;
     }
   }

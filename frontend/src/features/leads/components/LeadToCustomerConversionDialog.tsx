@@ -57,8 +57,8 @@ export function LeadToCustomerConversionDialog({
       setCreatedCustomer(customerResult);
       setStep('complete');
       onCustomerCreated?.(customerResult);
-    } catch (err: any) {
-      setError(err.message || 'Failed to convert lead to customer. Please try again.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to convert lead to customer. Please try again.');
     }
   };
 
@@ -150,7 +150,9 @@ export function LeadToCustomerConversionDialog({
                 customerName: lead.customerName,
                 companyName: lead.companyName,
                 mobile: lead.mobile,
+                alternateMobile: lead.alternateMobile,
                 email: lead.email,
+                gstNumber: lead.gstNumber,
                 address: lead.address,
                 city: lead.city,
                 state: lead.state,

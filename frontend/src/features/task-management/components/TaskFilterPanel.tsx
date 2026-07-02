@@ -61,7 +61,7 @@ export const TaskFilterPanel: React.FC<TaskFilterPanelProps> = ({
   const [filters, setFilters] = useState<TaskFilters>(currentFilters);
   const [activeFilterCount, setActiveFilterCount] = useState(0);
 
-  const updateFilter = (key: keyof TaskFilters, value: any) => {
+  const updateFilter = (key: keyof TaskFilters, value: unknown) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 

@@ -86,8 +86,12 @@ export interface Lead {
   craneRequired?: boolean;
   craneCapacity?: number;
   mezzanine?: boolean;
+  mezzanineArea?: number;
+  mezzanineLoad?: number;
   wallType?: WallType;
   insulationRequired?: boolean;
+  insulationType?: string;
+  insulationThickness?: number;
   materialPreference?: MaterialPreference;
   
   // Site Details

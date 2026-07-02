@@ -18,6 +18,7 @@ import { X, AlertCircle, Info } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
 import { useLeads } from '@/features/leads/hooks/useLeads';
 import { Lead } from '@/features/leads/types';
+import { smartPrefill } from '@/lib/smartPrefill';
 import { useCustomerConfiguration } from '@/features/customers/hooks/useCustomers';
 import { CustomerCustomFields } from '@/features/customers/components/CustomerCustomFields';
 
@@ -41,6 +42,7 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
 
   const [selectedLeadId, setSelectedLeadId] = useState<string>(initialData?.leadId || '');
   const [showAutoFillNotice, setShowAutoFillNotice] = useState<boolean>(false);
+  const [editedFields, setEditedFields] = useState<Set<string>>(new Set());
 
   // Customer owns its data — lead link is reference-only (snapshot rule)
   const leadReferenceId = isEditMode ? initialData?.leadId : undefined;
@@ -100,7 +102,9 @@ export const CustomerForm = memo(function CustomerForm({ initialData, onSubmit, 
         customerName: selectedLead.customerName || prev.customerName,
         companyName: selectedLead.companyName || prev.companyName,
         mobile: selectedLead.mobile || prev.mobile,
+        alternateMobile: selectedLead.alternateMobile || prev.alternateMobile,
         email: selectedLead.email || prev.email,
+        gstNumber: selectedLead.gstNumber || prev.gstNumber,
         address: selectedLead.address || prev.address,
         city: selectedLead.city || prev.city,
         state: selectedLead.state || prev.state,

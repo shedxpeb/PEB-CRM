@@ -56,13 +56,11 @@ apiClient.interceptors.response.use(
     
     // Handle 403 - Forbidden
     if (error.response?.status === 403) {
-      console.error('Permission denied:', error.config?.url);
       // Could show toast notification here
     }
     
     // Handle 500 - Server Error
     if (error.response?.status === 500) {
-      console.error('Server error:', error.message);
       // Could log to error tracking service
     }
     

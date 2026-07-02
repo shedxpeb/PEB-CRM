@@ -90,7 +90,6 @@ export function StatusDropdown({
       setNote('');
       setSelectedStatus(null);
     } catch (error) {
-      console.error('Failed to change status:', error);
       alert('Failed to change status. Please try again.');
     } finally {
       setLoading(false);

@@ -330,7 +330,7 @@ export const useUpdateSecuritySettings = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (data: any) => settingsApi.updateSecuritySettings(data),
+    mutationFn: (data: Partial<SecuritySettings>) => settingsApi.updateSecuritySettings(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings', 'security-config'] });
     },

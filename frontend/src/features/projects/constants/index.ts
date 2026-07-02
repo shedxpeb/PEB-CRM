@@ -190,18 +190,18 @@ export function calculateOverallHealth(
 /**
  * Get stage progress percentage
  */
-export function getStageProgress(stage: string, project: any): number {
+export function getStageProgress(stage: string, project: Record<string, unknown>): number {
   switch (stage) {
     case 'Design':
-      return project.designProgress || 0;
+      return (project.designProgress as number) || 0;
     case 'BOQ':
-      return project.designProgress || 0;
+      return (project.designProgress as number) || 0;
     case 'Procurement':
-      return project.procurementProgress || 0;
+      return (project.procurementProgress as number) || 0;
     case 'Fabrication':
-      return project.fabricationProgress || 0;
+      return (project.fabricationProgress as number) || 0;
     case 'Installation':
-      return project.installationProgress || 0;
+      return (project.installationProgress as number) || 0;
     default:
       return 0;
   }

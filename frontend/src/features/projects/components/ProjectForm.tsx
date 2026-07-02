@@ -11,6 +11,9 @@ import { Combobox } from '@/components/ui/combobox';
 import { Badge } from '@/components/ui/badge';
 import { createProjectSchema, CreateProjectInput } from '@/features/projects/validations';
 import { useCustomers } from '@/features/customers/hooks/useCustomers';
+import { useLeads } from '@/features/leads/hooks/useLeads';
+import { Lead } from '@/features/leads/types';
+import { smartPrefill } from '@/lib/smartPrefill';
 import { useProjectConfiguration } from '@/features/projects/hooks/useProjects';
 import { ProjectCustomFields } from '@/features/projects/components/ProjectCustomFields';
 import { ProjectCustomFieldValues } from '@/features/projects/types';
@@ -34,11 +37,14 @@ export const ProjectForm = memo(function ProjectForm({
   isEditMode = false,
 }: ProjectFormProps) {
   const { data: customers } = useCustomers({ page: 1, pageSize: 1000 });
+  const { data: leads } = useLeads({ page: 1, pageSize: 1000 });
   const projectConfig = useProjectConfiguration();
   const [showAutoFillNotice, setShowAutoFillNotice] = useState(false);
   const [customFields, setCustomFields] = useState<ProjectCustomFieldValues>(
     initialData?.customFields ?? {}
   );
+  const [selectedLeadId, setSelectedLeadId] = useState<string>('');
+  const [editedFields, setEditedFields] = useState<Set<string>>(new Set());
   const customerReferenceId = isEditMode ? initialData?.customerId : undefined;
 
   const {
@@ -119,6 +125,41 @@ export const ProjectForm = memo(function ProjectForm({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+            {/* Lead Selection */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Lead *</label>
+              <Combobox
+                options={leads?.data?.map((lead: Lead) => ({
+                  value: lead.id,
+                  label: `${lead.customerName} - ${lead.companyName} (${lead.city})`,
+                })) || []}
+                value={selectedLeadId}
+                onValueChange={(value) => {
+                  if (editedFields.size > 0) {
+                    const confirmChange = window.confirm('Changing the Lead will replace values you have manually edited. Continue?');
+                    if (!confirmChange) return;
+                  }
+                  setSelectedLeadId(value);
+                  const selectedLead = leads?.data?.find((lead: Lead) => lead.id === value);
+                  if (selectedLead) {
+                    const mapping: Record<string, string> = {
+                      address: 'location',
+                      city: 'city',
+                      state: 'state',
+                      pincode: 'pincode',
+                    };
+                    const newData = smartPrefill(watch(), selectedLead, mapping, editedFields);
+                    Object.entries(newData).forEach(([key, value]) => {
+                      setValue(key as any, value);
+                    });
+                    setShowAutoFillNotice(true);
+                  }
+                }}
+                placeholder="Select lead"
+                searchPlaceholder="Search leads..."
+                emptyMessage="No leads found"
+              />
+            </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Project Name *</label>

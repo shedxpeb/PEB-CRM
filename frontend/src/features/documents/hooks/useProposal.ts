@@ -173,7 +173,6 @@ export function useProposals(params?: {
       setError(null);
     } catch (err) {
       setError('Failed to load proposals');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -342,7 +341,6 @@ export function useProposal(id: string) {
       setError(null);
     } catch (err) {
       setError('Failed to load proposal');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -374,7 +372,6 @@ export function useProposalStats() {
       setError(null);
     } catch (err) {
       setError('Failed to load stats');
-      console.error(err);
     } finally {
       setLoading(false);
     }

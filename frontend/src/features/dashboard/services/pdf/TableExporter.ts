@@ -32,12 +32,10 @@ export class TableExporter {
       
       // Validate table data
       if (!table.headers || table.headers.length === 0) {
-        console.warn(`Table has no headers: ${table.title}`);
         continue;
       }
       
       if (!table.rows || table.rows.length === 0) {
-        console.warn(`Table has no data: ${table.title}`);
         this.addEmptyTablePlaceholder(table.title);
         continue;
       }

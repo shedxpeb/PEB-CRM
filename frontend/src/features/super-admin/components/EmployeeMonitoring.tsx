@@ -23,27 +23,27 @@ const columns: AdminTableColumn<EmployeeRecord>[] = [
   { key: 'name', label: 'Employee', sortable: true },
   { key: 'company', label: 'Company', sortable: true },
   { key: 'role', label: 'Role', sortable: true, render: (v) => (
-    <Badge variant="secondary" className={componentTextSizes.badge}>{v}</Badge>
+    <Badge variant="secondary" className={componentTextSizes.badge}>{String(v)}</Badge>
   )},
   { key: 'lastLogin', label: 'Last Login', sortable: true },
   { key: 'todayActivityCount', label: 'Today Activity', sortable: true, render: (v) => (
-    <span className="text-xs text-sa-text-secondary">{v}</span>
+    <span className="text-xs text-sa-text-secondary">{String(v)}</span>
   )},
   { key: 'assignedTasks', label: 'Assigned', sortable: true, render: (v) => (
-    <span className="text-xs text-blue-400">{v}</span>
+    <span className="text-xs text-blue-400">{String(v)}</span>
   )},
   { key: 'completedTasks', label: 'Completed', sortable: true, render: (v, row) => {
-    const pct = row.assignedTasks > 0 ? Math.round((v / row.assignedTasks) * 100) : 0;
+    const pct = row.assignedTasks > 0 ? Math.round((Number(v) / Number(row.assignedTasks)) * 100) : 0;
     return (
       <div className="flex items-center gap-1.5">
-        <span className="text-xs text-green-400">{v}</span>
+        <span className="text-xs text-green-400">{String(v)}</span>
         <span className={cn(componentTextSizes.badge, 'text-sa-text-muted')}>({pct}%)</span>
       </div>
     );
   }},
   { key: 'status', label: 'Status', sortable: true, render: (v) => (
     <Badge variant={v === 'Online' ? 'success' : v === 'Away' ? 'warning' : 'secondary'} className={componentTextSizes.badge}>
-      {v}
+      {String(v)}
     </Badge>
   )},
 ];

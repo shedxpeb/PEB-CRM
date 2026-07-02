@@ -131,7 +131,6 @@ export const settingsApi = {
       // return response.data;
       return mockCompany;
     } catch (error) {
-      console.warn('API Error: getCompany, using mock data');
       return mockCompany;
     }
   },
@@ -142,7 +141,6 @@ export const settingsApi = {
       // return response.data;
       return { ...mockCompany, ...data };
     } catch (error) {
-      console.warn('API Error: updateCompany, using mock data');
       return { ...mockCompany, ...data };
     }
   },
@@ -154,7 +152,6 @@ export const settingsApi = {
       // return response.data;
       return mockBranches;
     } catch (error) {
-      console.warn('API Error: getBranches, using mock data');
       return mockBranches;
     }
   },
@@ -165,7 +162,6 @@ export const settingsApi = {
       // return response.data;
       return { ...data, id: Date.now().toString(), createdAt: new Date(), updatedAt: new Date() };
     } catch (error) {
-      console.warn('API Error: createBranch, using mock data');
       return { ...data, id: Date.now().toString(), createdAt: new Date(), updatedAt: new Date() };
     }
   },
@@ -176,7 +172,6 @@ export const settingsApi = {
       // return response.data;
       return { ...mockBranches[0], ...data, id, updatedAt: new Date() };
     } catch (error) {
-      console.warn('API Error: updateBranch, using mock data');
       return { ...mockBranches[0], ...data, id, updatedAt: new Date() };
     }
   },
@@ -185,7 +180,7 @@ export const settingsApi = {
     try {
       // await api.delete(`/settings/branches/${id}`);
     } catch (error) {
-      console.warn('API Error: deleteBranch, mock delete');
+      // Mock delete
     }
   },
 
@@ -196,7 +191,6 @@ export const settingsApi = {
       // return response.data;
       return mockUsers;
     } catch (error) {
-      console.warn('API Error: getUsers, using mock data');
       return mockUsers;
     }
   },
@@ -207,7 +201,6 @@ export const settingsApi = {
       // return response.data;
       return { ...data, id: Date.now().toString(), createdAt: new Date(), updatedAt: new Date(), loginHistory: [] };
     } catch (error) {
-      console.warn('API Error: createUser, using mock data');
       return { ...data, id: Date.now().toString(), createdAt: new Date(), updatedAt: new Date(), loginHistory: [] };
     }
   },
@@ -218,7 +211,6 @@ export const settingsApi = {
       // return response.data;
       return { ...mockUsers[0], ...data, id, updatedAt: new Date() };
     } catch (error) {
-      console.warn('API Error: updateUser, using mock data');
       return { ...mockUsers[0], ...data, id, updatedAt: new Date() };
     }
   },
@@ -227,7 +219,7 @@ export const settingsApi = {
     try {
       // await api.delete(`/settings/users/${id}`);
     } catch (error) {
-      console.warn('API Error: deleteUser, mock delete');
+      // Mock delete
     }
   },
 
@@ -238,7 +230,6 @@ export const settingsApi = {
       // return response.data;
       return [];
     } catch (error) {
-      console.warn('API Error: getRoles, using mock data');
       return [];
     }
   },
@@ -249,7 +240,6 @@ export const settingsApi = {
       // return response.data;
       return { ...data, id: Date.now().toString(), createdAt: new Date(), updatedAt: new Date() };
     } catch (error) {
-      console.warn('API Error: createRole, using mock data');
       return { ...data, id: Date.now().toString(), createdAt: new Date(), updatedAt: new Date() };
     }
   },
@@ -260,7 +250,6 @@ export const settingsApi = {
       // return response.data;
       return { id, ...data, updatedAt: new Date() } as Role;
     } catch (error) {
-      console.warn('API Error: updateRole, using mock data');
       return { id, ...data, updatedAt: new Date() } as Role;
     }
   },
@@ -269,7 +258,7 @@ export const settingsApi = {
     try {
       // await api.delete(`/settings/roles/${id}`);
     } catch (error) {
-      console.warn('API Error: deleteRole, mock delete');
+      // Mock delete
     }
   },
 
@@ -280,7 +269,6 @@ export const settingsApi = {
       // return response.data;
       return moduleStore;
     } catch (error) {
-      console.warn('API Error: getModules, using mock data');
       return moduleStore;
     }
   },
@@ -298,7 +286,6 @@ export const settingsApi = {
       }
       return updated;
     } catch (error) {
-      console.warn('API Error: updateModule, using mock data');
       moduleStore = moduleStore.map((module) =>
         module.id === id ? { ...module, ...data, id, updatedAt: new Date() } : module
       );
@@ -323,7 +310,6 @@ export const settingsApi = {
         defaultTheme: 'light',
       };
     } catch (error) {
-      console.warn('API Error: getSystemPreferences, using mock data');
       return {
         timezone: 'Asia/Kolkata',
         language: 'en',
@@ -353,7 +339,6 @@ export const settingsApi = {
         ...data,
       };
     } catch (error) {
-      console.warn('API Error: updateSystemPreferences, using mock data');
       return {
         timezone: 'Asia/Kolkata',
         language: 'en',
@@ -399,7 +384,6 @@ export const settingsApi = {
       }
       return { id: moduleId, name: '', settings: {} };
     } catch (error) {
-      console.warn('API Error: getModuleConfiguration, using mock data');
       if (moduleId === 'leads') {
         return { id: 'leads', name: 'Leads', settings: mockLeadModuleSettings };
       }
@@ -435,7 +419,6 @@ export const settingsApi = {
       // return response.data;
       return mockSettingsStats;
     } catch (error) {
-      console.warn('API Error: getSettingsStats, using mock data');
       return mockSettingsStats;
     }
   },
@@ -486,7 +469,6 @@ export const settingsApi = {
         },
       };
     } catch (error) {
-      console.warn('API Error: getDocumentSettings, using mock data');
       return {
         estimateNumbering: {
           prefix: 'EST',
@@ -530,13 +512,12 @@ export const settingsApi = {
     }
   },
 
-  async updateDocumentSettings(data: any): Promise<any> {
+  async updateDocumentSettings(data: Record<string, unknown>): Promise<Record<string, unknown>> {
     try {
       // const response = await api.put('/settings/document-settings', data);
       // return response.data;
       return data;
     } catch (error) {
-      console.warn('API Error: updateDocumentSettings, using mock data');
       return data;
     }
   },
@@ -556,7 +537,6 @@ export const settingsApi = {
         ...mockFinanceModuleSettings,
       };
     } catch (error) {
-      console.warn('API Error: getFinanceConfiguration, using mock data');
       return {
         currency: 'INR',
         taxRate: 18,
@@ -569,13 +549,12 @@ export const settingsApi = {
     }
   },
 
-  async updateFinanceConfiguration(data: any): Promise<any> {
+  async updateFinanceConfiguration(data: Record<string, unknown>): Promise<Record<string, unknown>> {
     try {
       // const response = await api.put('/settings/finance-config', data);
       // return response.data;
       return data;
     } catch (error) {
-      console.warn('API Error: updateFinanceConfiguration, using mock data');
       return data;
     }
   },
@@ -593,7 +572,6 @@ export const settingsApi = {
         milestoneTemplate: 'Standard',
       };
     } catch (error) {
-      console.warn('API Error: getProjectConfiguration, using mock data');
       return {
         defaultProjectType: 'Industrial Shed',
         defaultPriority: 'Medium',
@@ -604,13 +582,12 @@ export const settingsApi = {
     }
   },
 
-  async updateProjectConfiguration(data: any): Promise<any> {
+  async updateProjectConfiguration(data: Record<string, unknown>): Promise<Record<string, unknown>> {
     try {
       // const response = await api.put('/settings/project-config', data);
       // return response.data;
       return data;
     } catch (error) {
-      console.warn('API Error: updateProjectConfiguration, using mock data');
       return data;
     }
   },
@@ -636,7 +613,6 @@ export const settingsApi = {
         twoFactorEnabled: false,
       };
     } catch (error) {
-      console.warn('API Error: getSecuritySettings, using mock data');
       return {
         passwordPolicy: {
           minLength: 8,
@@ -676,7 +652,6 @@ export const settingsApi = {
         ...data,
       };
     } catch (error) {
-      console.warn('API Error: updateSecuritySettings, using mock data');
       return {
         passwordPolicy: {
           minLength: 8,

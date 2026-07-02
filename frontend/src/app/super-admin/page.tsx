@@ -148,7 +148,7 @@ const companyColumns: DetailColumn[] = [
   { key: 'name', label: 'Company' },
   { key: 'owner', label: 'Owner' },
   { key: 'plan', label: 'Plan' },
-  { key: 'status', label: 'Status', render: (v) => <Badge variant={v === 'Active' ? 'success' : v === 'Trial' ? 'warning' : 'destructive'} className="text-[10px]">{v}</Badge> },
+  { key: 'status', label: 'Status', render: (v) => <Badge variant={v === 'Active' ? 'success' : v === 'Trial' ? 'warning' : 'destructive'} className="text-[10px]">{String(v)}</Badge> },
   { key: 'employees', label: 'Employees' },
 ];
 
@@ -157,7 +157,7 @@ const ownerColumns: DetailColumn[] = [
   { key: 'name', label: 'Name' },
   { key: 'email', label: 'Email' },
   { key: 'company', label: 'Company' },
-  { key: 'status', label: 'Status', render: (v) => <Badge variant={v === 'Active' ? 'success' : 'destructive'} className="text-[10px]">{v}</Badge> },
+  { key: 'status', label: 'Status', render: (v) => <Badge variant={v === 'Active' ? 'success' : 'destructive'} className="text-[10px]">{String(v)}</Badge> },
   { key: 'lastLogin', label: 'Last Login' },
 ];
 
@@ -166,7 +166,7 @@ const leadColumns: DetailColumn[] = [
   { key: 'lead', label: 'Lead' },
   { key: 'company', label: 'Company' },
   { key: 'value', label: 'Value' },
-  { key: 'status', label: 'Status', render: (v) => <Badge variant={v === 'Qualified' ? 'success' : v === 'New' ? 'info' : 'warning'} className="text-[10px]">{v}</Badge> },
+  { key: 'status', label: 'Status', render: (v) => <Badge variant={v === 'Qualified' ? 'success' : v === 'New' ? 'info' : 'warning'} className="text-[10px]">{String(v)}</Badge> },
   { key: 'assignedTo', label: 'Assigned To' },
 ];
 
@@ -174,7 +174,7 @@ const projectColumns: DetailColumn[] = [
   { key: 'id', label: 'ID' },
   { key: 'name', label: 'Project' },
   { key: 'company', label: 'Company' },
-  { key: 'status', label: 'Status', render: (v) => <Badge variant={v === 'Completed' ? 'success' : v === 'In Progress' ? 'warning' : 'secondary'} className="text-[10px]">{v}</Badge> },
+  { key: 'status', label: 'Status', render: (v) => <Badge variant={v === 'Completed' ? 'success' : v === 'In Progress' ? 'warning' : 'secondary'} className="text-[10px]">{String(v)}</Badge> },
   { key: 'progress', label: 'Progress' },
   { key: 'deadline', label: 'Deadline' },
 ];
@@ -184,7 +184,7 @@ const quotationColumns: DetailColumn[] = [
   { key: 'quotation', label: 'Quotation' },
   { key: 'company', label: 'Company' },
   { key: 'value', label: 'Value' },
-  { key: 'status', label: 'Status', render: (v) => <Badge variant={v === 'Approved' ? 'success' : v === 'Pending' ? 'warning' : 'destructive'} className="text-[10px]">{v}</Badge> },
+  { key: 'status', label: 'Status', render: (v) => <Badge variant={v === 'Approved' ? 'success' : v === 'Pending' ? 'warning' : 'destructive'} className="text-[10px]">{String(v)}</Badge> },
   { key: 'validUntil', label: 'Valid Until' },
 ];
 
@@ -194,7 +194,7 @@ const inventoryColumns: DetailColumn[] = [
   { key: 'warehouse', label: 'Warehouse' },
   { key: 'stock', label: 'Stock' },
   { key: 'minStock', label: 'Min Stock' },
-  { key: 'status', label: 'Status', render: (v) => <Badge variant={v === 'Critical' ? 'destructive' : v === 'Low' ? 'warning' : 'success'} className="text-[10px]">{v}</Badge> },
+  { key: 'status', label: 'Status', render: (v) => <Badge variant={v === 'Critical' ? 'destructive' : v === 'Low' ? 'warning' : 'success'} className="text-[10px]">{String(v)}</Badge> },
 ];
 
 // ─── Dialog Config ────────────────────────────────────────────

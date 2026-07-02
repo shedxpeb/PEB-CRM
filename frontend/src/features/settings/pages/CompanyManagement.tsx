@@ -21,7 +21,7 @@ export function CompanyManagement() {
     updateCompany.mutate(formData);
   };
 
-  const handleChange = (field: keyof Company, value: any) => {
+  const handleChange = (field: keyof Company, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 

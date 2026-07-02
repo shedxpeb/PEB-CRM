@@ -514,7 +514,16 @@ export default function LeadDetailsPage() {
             onAddFollowUp={() => {}}
             onSendEstimate={() => {}}
             onSendProposal={() => {}}
-            onConvertToProject={() => {}}
+            onConvertToProject={() => {
+              if (lead) {
+                if (!lead.customerId) {
+                  alert('This lead has not been converted to a customer yet. Please convert the lead to a customer first.');
+                  return;
+                }
+                sessionStorage.setItem('convertFromLead', JSON.stringify(lead));
+                router.push(`/dashboard/projects?create=true&customerId=${lead.customerId}`);
+              }
+            }}
           />
         }
         className="gap-4"

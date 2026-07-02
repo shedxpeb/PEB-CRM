@@ -1,8 +1,12 @@
 /**
  * Task Management API Service
  * API calls for Task Management, Employee Performance, and Salary Adjustments
+ *
+ * Mock fallback: When backend is unavailable, returns mock data.
+ * Remove mock fallbacks once backend is connected.
  */
 
+import { api } from '@/core/api';
 import {
   Task,
   EmployeePerformanceStats,
@@ -41,6 +45,16 @@ function createActivity(
     timestamp: new Date(),
     metadata,
   };
+}
+
+/** Check if error is a connection failure (no backend) */
+function isConnectionError(error: unknown): boolean {
+  if (error && typeof error === 'object') {
+    const err = error as any;
+    if (err.code === 'ERR_NETWORK' || err.code === 'ECONNREFUSED' || err.code === 'ERR_CONNECTION_REFUSED') return true;
+    if (!err.response && err.message && err.message.toLowerCase().includes('network')) return true;
+  }
+  return false;
 }
 
 // Mock data for development (replace with actual API calls)
@@ -450,479 +464,626 @@ const mockDashboardKPIs: DashboardTaskKPIs = {
 export const taskManagementApi = {
   // Task CRUD
   async getAll(query?: TaskQuery): Promise<Task[]> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    let tasks = [...mockTasks];
-    
-    // Apply filters
-    if (query?.filter) {
-      const { status, priority, assignedUserId, linkedModule, search } = query.filter;
-      
-      if (status) {
-        tasks = tasks.filter(task => task.status === status);
+    try {
+      return await api.get<Task[]>('/api/tasks', { params: query });
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        let tasks = [...mockTasks];
+        
+        // Apply filters
+        if (query?.filter) {
+          const { status, priority, assignedUserId, linkedModule, search } = query.filter;
+          
+          if (status) {
+            tasks = tasks.filter(task => task.status === status);
+          }
+          
+          if (priority) {
+            tasks = tasks.filter(task => task.priority === priority);
+          }
+          
+          if (assignedUserId) {
+            tasks = tasks.filter(task => task.assignedUserId === assignedUserId);
+          }
+          
+          if (linkedModule) {
+            tasks = tasks.filter(task => task.linkedModule === linkedModule);
+          }
+          
+          if (search) {
+            const searchLower = search.toLowerCase();
+            tasks = tasks.filter(task =>
+              task.title.toLowerCase().includes(searchLower) ||
+              task.taskId.toLowerCase().includes(searchLower) ||
+              task.description?.toLowerCase().includes(searchLower)
+            );
+          }
+        }
+        
+        // Apply pagination
+        if (query?.page && query?.pageSize) {
+          const start = (query.page - 1) * query.pageSize;
+          const end = start + query.pageSize;
+          tasks = tasks.slice(start, end);
+        }
+        
+        return tasks;
       }
-      
-      if (priority) {
-        tasks = tasks.filter(task => task.priority === priority);
-      }
-      
-      if (assignedUserId) {
-        tasks = tasks.filter(task => task.assignedUserId === assignedUserId);
-      }
-      
-      if (linkedModule) {
-        tasks = tasks.filter(task => task.linkedModule === linkedModule);
-      }
-      
-      if (search) {
-        const searchLower = search.toLowerCase();
-        tasks = tasks.filter(task =>
-          task.title.toLowerCase().includes(searchLower) ||
-          task.taskId.toLowerCase().includes(searchLower) ||
-          task.description?.toLowerCase().includes(searchLower)
-        );
-      }
+      throw error;
     }
-    
-    // Apply pagination
-    if (query?.page && query?.pageSize) {
-      const start = (query.page - 1) * query.pageSize;
-      const end = start + query.pageSize;
-      tasks = tasks.slice(start, end);
-    }
-    
-    return tasks;
   },
 
   async getById(id: string): Promise<Task> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const task = mockTasks.find(t => t.id === id);
-    if (!task) throw new Error('Task not found');
-    return task;
+    try {
+      return await api.get<Task>(`/api/tasks/${id}`);
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const task = mockTasks.find(t => t.id === id);
+        if (!task) throw new Error('Task not found');
+        return task;
+      }
+      throw error;
+    }
   },
 
   async create(data: CreateTaskDto): Promise<Task> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    // Note: File[] cannot be stored in mock data (browser-specific objects)
-    // In production, these would be uploaded to S3 and stored as URLs
-    // For frontend mock, we store empty arrays
-    const newTask: Task = {
-      id: (mockTasks.length + 1).toString(),
-      taskId: `TSK-${String(mockTasks.length + 1).padStart(3, '0')}`,
-      ...data,
-      // Convert File[] to empty arrays for mock storage (File objects can't be serialized)
-      completionProof: data.beforeImages ? {
-        beforeImages: data.beforeImages,
-        afterImages: [],
-      } : undefined,
-      // Convert checklist DTO to full ChecklistItem
-      checklist: data.checklist?.map((item, index) => ({
-        id: `checklist-${Date.now()}-${index}`,
-        text: item.text,
-        order: item.order,
-        completed: false,
-        completedAt: undefined,
-        completedBy: undefined,
-      })),
-      assignedUserName: 'Unknown', // Should come from user service
-      createdBy: 'system',
-      createdByName: 'System',
-      status: 'Pending',
-      progress: 0,
-      isPaymentEditable: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      activityHistory: [
-        createActivity(
-          `TSK-${String(mockTasks.length + 1).padStart(3, '0')}`,
-          'Created',
-          'Task created',
-          'system',
-          'System'
-        ),
-        createActivity(
-          `TSK-${String(mockTasks.length + 1).padStart(3, '0')}`,
-          'Assigned',
-          `Assigned to Unknown`,
-          'system',
-          'System'
-        ),
-      ],
-    };
-    mockTasks.push(newTask);
-    return newTask;
+    try {
+      return await api.post<Task>('/api/tasks', data);
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Note: File[] cannot be stored in mock data (browser-specific objects)
+        // In production, these would be uploaded to S3 and stored as URLs
+        // For frontend mock, we store empty arrays
+        const newTask: Task = {
+          id: (mockTasks.length + 1).toString(),
+          taskId: `TSK-${String(mockTasks.length + 1).padStart(3, '0')}`,
+          ...data,
+          // Convert File[] to empty arrays for mock storage (File objects can't be serialized)
+          completionProof: data.beforeImages ? {
+            beforeImages: data.beforeImages,
+            afterImages: [],
+          } : undefined,
+          // Convert checklist DTO to full ChecklistItem
+          checklist: data.checklist?.map((item, index) => ({
+            id: `checklist-${Date.now()}-${index}`,
+            text: item.text,
+            order: item.order,
+            completed: false,
+            completedAt: undefined,
+            completedBy: undefined,
+          })),
+          assignedUserName: 'Unknown', // Should come from user service
+          createdBy: 'system',
+          createdByName: 'System',
+          status: 'Pending',
+          progress: 0,
+          isPaymentEditable: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          activityHistory: [
+            createActivity(
+              `TSK-${String(mockTasks.length + 1).padStart(3, '0')}`,
+              'Created',
+              'Task created',
+              'system',
+              'System'
+            ),
+            createActivity(
+              `TSK-${String(mockTasks.length + 1).padStart(3, '0')}`,
+              'Assigned',
+              `Assigned to Unknown`,
+              'system',
+              'System'
+            ),
+          ],
+        };
+        mockTasks.push(newTask);
+        return newTask;
+      }
+      throw error;
+    }
   },
 
   async update(id: string, data: UpdateTaskDto): Promise<Task> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const index = mockTasks.findIndex(t => t.id === id);
-    if (index === -1) throw new Error('Task not found');
-    
-    mockTasks[index] = {
-      ...mockTasks[index],
-      ...data,
-      updatedAt: new Date(),
-    };
-    
-    return mockTasks[index];
+    try {
+      return await api.patch<Task>(`/api/tasks/${id}`, data);
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const index = mockTasks.findIndex(t => t.id === id);
+        if (index === -1) throw new Error('Task not found');
+        
+        mockTasks[index] = {
+          ...mockTasks[index],
+          ...data,
+          updatedAt: new Date(),
+        };
+        
+        return mockTasks[index];
+      }
+      throw error;
+    }
   },
 
   async delete(id: string): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const index = mockTasks.findIndex(t => t.id === id);
-    if (index === -1) throw new Error('Task not found');
-    mockTasks.splice(index, 1);
+    try {
+      return await api.delete<void>(`/api/tasks/${id}`);
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const index = mockTasks.findIndex(t => t.id === id);
+        if (index === -1) throw new Error('Task not found');
+        mockTasks.splice(index, 1);
+      }
+      throw error;
+    }
   },
 
   // Task Completion with Photo Proof
   async complete(id: string, data: CompleteTaskDto): Promise<Task> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const index = mockTasks.findIndex(t => t.id === id);
-    if (index === -1) throw new Error('Task not found');
-    
-    // Validate after photo proof is provided (mandatory)
-    if (!data.completionProof.afterImages || data.completionProof.afterImages.length === 0) {
-      throw new Error('After photo proof is mandatory for task completion');
+    try {
+      return await api.post<Task>(`/api/tasks/${id}/complete`, data);
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const index = mockTasks.findIndex(t => t.id === id);
+        if (index === -1) throw new Error('Task not found');
+        
+        // Validate after photo proof is provided (mandatory)
+        if (!data.completionProof.afterImages || data.completionProof.afterImages.length === 0) {
+          throw new Error('After photo proof is mandatory for task completion');
+        }
+        
+        const task = mockTasks[index];
+        const newActivity = createActivity(
+          task.taskId,
+          'Photos Uploaded',
+          `Uploaded ${data.completionProof.beforeImages.length} before and ${data.completionProof.afterImages.length} after photos`,
+          task.assignedUserId,
+          task.assignedUserName
+        );
+        
+        const completeActivity = createActivity(
+          task.taskId,
+          'Completed',
+          'Task marked as complete',
+          task.assignedUserId,
+          task.assignedUserName
+        );
+        
+        mockTasks[index] = {
+          ...mockTasks[index],
+          status: 'Completed',
+          progress: 100,
+          completionProof: {
+            ...data.completionProof,
+            uploadedAt: new Date(),
+          },
+          completedAt: data.completedAt,
+          updatedAt: new Date(),
+          activityHistory: [
+            ...(task.activityHistory || []),
+            newActivity,
+            completeActivity,
+          ],
+        };
+        
+        return mockTasks[index];
+      }
+      throw error;
     }
-    
-    const task = mockTasks[index];
-    const newActivity = createActivity(
-      task.taskId,
-      'Photos Uploaded',
-      `Uploaded ${data.completionProof.beforeImages.length} before and ${data.completionProof.afterImages.length} after photos`,
-      task.assignedUserId,
-      task.assignedUserName
-    );
-    
-    const completeActivity = createActivity(
-      task.taskId,
-      'Completed',
-      'Task marked as complete',
-      task.assignedUserId,
-      task.assignedUserName
-    );
-    
-    mockTasks[index] = {
-      ...mockTasks[index],
-      status: 'Completed',
-      progress: 100,
-      completionProof: {
-        ...data.completionProof,
-        uploadedAt: new Date(),
-      },
-      completedAt: data.completedAt,
-      updatedAt: new Date(),
-      activityHistory: [
-        ...(task.activityHistory || []),
-        newActivity,
-        completeActivity,
-      ],
-    };
-    
-    return mockTasks[index];
   },
 
   // Task Verification
   async verify(id: string, data: VerifyTaskDto, verifiedBy: string, verifiedByName: string): Promise<Task> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const index = mockTasks.findIndex(t => t.id === id);
-    if (index === -1) throw new Error('Task not found');
-    
-    // Payment and performance only count after verification
-    // If rejected, status goes back to 'In Progress' for re-completion
-    const newStatus = data.status === 'Verified' ? 'Completed' : 'In Progress';
-    
-    const task = mockTasks[index];
-    const activityType = data.status === 'Verified' ? 'Verified' : 'Rejected';
-    const description = data.status === 'Verified' 
-      ? `Task verified by ${verifiedByName}`
-      : `Task rejected by ${verifiedByName}: ${data.verificationNotes || 'No reason provided'}`;
-    
-    const newActivity = createActivity(
-      task.taskId,
-      activityType,
-      description,
-      verifiedBy,
-      verifiedByName
-    );
-    
-    mockTasks[index] = {
-      ...mockTasks[index],
-      status: newStatus,
-      verifiedBy,
-      verifiedByName,
-      verificationNotes: data.verificationNotes,
-      verifiedAt: data.verifiedAt,
-      updatedAt: new Date(),
-      activityHistory: [
-        ...(task.activityHistory || []),
-        newActivity,
-      ],
-    };
-    
-    return mockTasks[index];
+    try {
+      return await api.post<Task>(`/api/tasks/${id}/verify`, { ...data, verifiedBy, verifiedByName });
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const index = mockTasks.findIndex(t => t.id === id);
+        if (index === -1) throw new Error('Task not found');
+        
+        // Payment and performance only count after verification
+        // If rejected, status goes back to 'In Progress' for re-completion
+        const newStatus = data.status === 'Verified' ? 'Completed' : 'In Progress';
+        
+        const task = mockTasks[index];
+        const activityType = data.status === 'Verified' ? 'Verified' : 'Rejected';
+        const description = data.status === 'Verified' 
+          ? `Task verified by ${verifiedByName}`
+          : `Task rejected by ${verifiedByName}: ${data.verificationNotes || 'No reason provided'}`;
+        
+        const newActivity = createActivity(
+          task.taskId,
+          activityType,
+          description,
+          verifiedBy,
+          verifiedByName
+        );
+        
+        mockTasks[index] = {
+          ...mockTasks[index],
+          status: newStatus,
+          verifiedBy,
+          verifiedByName,
+          verificationNotes: data.verificationNotes,
+          verifiedAt: data.verifiedAt,
+          updatedAt: new Date(),
+          activityHistory: [
+            ...(task.activityHistory || []),
+            newActivity,
+          ],
+        };
+        
+        return mockTasks[index];
+      }
+      throw error;
+    }
   },
 
   // Stats
   async getStats(): Promise<TaskStats> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return mockTaskStats;
+    try {
+      return await api.get<TaskStats>('/api/tasks/stats');
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 200));
+        return mockTaskStats;
+      }
+      throw error;
+    }
   },
 
   async getDashboardKPIs(): Promise<DashboardTaskKPIs> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return mockDashboardKPIs;
+    try {
+      return await api.get<DashboardTaskKPIs>('/api/tasks/dashboard-kpis');
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 200));
+        return mockDashboardKPIs;
+      }
+      throw error;
+    }
   },
 
   // Employee Performance
   async getEmployeePerformance(employeeId?: string): Promise<EmployeePerformanceStats[]> {
-    await new Promise(resolve => setTimeout(resolve, 200));
+    try {
+      const params = employeeId ? { employeeId } : undefined;
+      return await api.get<EmployeePerformanceStats[]>('/api/tasks/employee-performance', { params });
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Calculate performance stats dynamically from tasks
+        // Payment only counts after verification
+        const employeeIds = employeeId ? [employeeId] : [...new Set(mockTasks.map(t => t.assignedUserId))];
     
-    // Calculate performance stats dynamically from tasks
-    // Payment only counts after verification
-    const employeeIds = employeeId ? [employeeId] : [...new Set(mockTasks.map(t => t.assignedUserId))];
-    
-    const performanceStats: EmployeePerformanceStats[] = employeeIds.map(empId => {
-      const employeeTasks = mockTasks.filter(t => t.assignedUserId === empId);
-      const verifiedTasks = employeeTasks.filter(t => t.verifiedBy && t.verifiedAt); // Tasks that have been verified
-      const rejectedTasks = employeeTasks.filter(t => t.status === 'In Progress' && t.verificationNotes); // Tasks that were rejected
-      
-      const tasksAssigned = employeeTasks.length;
-      const tasksCompleted = employeeTasks.filter(t => t.status === 'Completed').length;
-      const tasksPending = employeeTasks.filter(t => t.status === 'Pending' || t.status === 'In Progress' || t.status === 'Blocked' || t.status === 'Review').length;
-      const tasksOverdue = employeeTasks.filter(t => 
-        t.status !== 'Completed' && 
-        t.dueDate < new Date()
-      ).length;
-      const tasksVerified = verifiedTasks.length;
-      
-      // Calculate earnings only from verified tasks
-      const verifiedTaskIncentives = verifiedTasks.reduce((sum, t) => sum + t.incentiveValue, 0);
-      
-      // Get base salary from mock data (in production, this would come from employee record)
-      const baseSalary = mockEmployeePerformance.find(e => e.employeeId === empId)?.baseSalary || 25000;
-      
-      // Get bonuses, advances, penalties from salary adjustments
-      const employeeAdjustments = mockSalaryAdjustments.filter(adj => adj.employeeId === empId);
-      const bonuses = employeeAdjustments
-        .filter(adj => adj.type === 'Bonus' && adj.status === 'Processed')
-        .reduce((sum, adj) => sum + adj.amount, 0);
-      const advances = employeeAdjustments
-        .filter(adj => adj.type === 'Advance' && adj.status === 'Processed')
-        .reduce((sum, adj) => sum + adj.amount, 0);
-      const penalties = employeeAdjustments
-        .filter(adj => adj.type === 'Penalty' && adj.status === 'Processed')
-        .reduce((sum, adj) => sum + adj.amount, 0);
-      
-      const finalPayable = baseSalary + verifiedTaskIncentives + bonuses - advances - penalties;
-      
-      const completionRate = tasksAssigned > 0 ? Math.round((tasksVerified / tasksAssigned) * 100) : 0;
-      
-      // Calculate average completion time (in days)
-      const completedTasksWithTime = verifiedTasks.filter(t => t.completedAt && t.createdAt);
-      const avgCompletionTime = completedTasksWithTime.length > 0
-        ? completedTasksWithTime.reduce((sum, t) => {
-            const days = Math.floor((t.completedAt!.getTime() - t.createdAt.getTime()) / (1000 * 60 * 60 * 24));
-            return sum + days;
-          }, 0) / completedTasksWithTime.length
-        : 0;
-      
-      // Calculate on-time completion rate
-      const onTimeCompletions = verifiedTasks.filter(t => t.completedAt && t.completedAt <= t.dueDate).length;
-      const onTimeCompletionRate = tasksVerified > 0 ? Math.round((onTimeCompletions / tasksVerified) * 100) : 0;
-      
-      // Calculate performance score (based on completion rate, timeliness, and quality)
-      const performanceScore = Math.round(
-        (completionRate * 0.4) + 
-        (onTimeCompletionRate * 0.3) + 
-        (tasksVerified > 0 ? 30 : 0) // Bonus for having verified tasks
-      );
-      
-      return {
-        employeeId: empId,
-        employeeName: mockTasks.find(t => t.assignedUserId === empId)?.assignedUserName || 'Unknown',
-        tasksAssigned,
-        tasksCompleted,
-        tasksPending,
-        tasksOverdue,
-        tasksVerified,
-        tasksRejected: rejectedTasks.length,
-        completionRate,
-        onTimeCompletionRate,
-        averageCompletionTime: Math.round(avgCompletionTime),
-        baseSalary,
-        verifiedTaskIncentives,
-        bonuses,
-        advances,
-        penalties,
-        finalPayable,
-        totalPaymentPending: finalPayable,
-        totalPaymentReceived: 0, // In production, this would track actual payments
-        totalPerformanceScore: performanceScore,
-      };
-    });
-    
-    // Sort by performance score
-    performanceStats.sort((a, b) => b.totalPerformanceScore - a.totalPerformanceScore);
-    
-    // Add rankings
-    performanceStats.forEach((emp, index) => {
-      emp.rank = index + 1;
-      emp.percentile = Math.round(((performanceStats.length - index) / performanceStats.length) * 100);
-    });
-    
-    if (employeeId) {
-      return performanceStats.filter(emp => emp.employeeId === employeeId);
+        const performanceStats: EmployeePerformanceStats[] = employeeIds.map(empId => {
+          const employeeTasks = mockTasks.filter(t => t.assignedUserId === empId);
+          const verifiedTasks = employeeTasks.filter(t => t.verifiedBy && t.verifiedAt); // Tasks that have been verified
+          const rejectedTasks = employeeTasks.filter(t => t.status === 'In Progress' && t.verificationNotes); // Tasks that were rejected
+          
+          const tasksAssigned = employeeTasks.length;
+          const tasksCompleted = employeeTasks.filter(t => t.status === 'Completed').length;
+          const tasksPending = employeeTasks.filter(t => t.status === 'Pending' || t.status === 'In Progress' || t.status === 'Blocked' || t.status === 'Review').length;
+          const tasksOverdue = employeeTasks.filter(t => 
+            t.status !== 'Completed' && 
+            t.dueDate < new Date()
+          ).length;
+          const tasksVerified = verifiedTasks.length;
+          
+          // Calculate earnings only from verified tasks
+          const verifiedTaskIncentives = verifiedTasks.reduce((sum, t) => sum + t.incentiveValue, 0);
+          
+          // Get base salary from mock data (in production, this would come from employee record)
+          const baseSalary = mockEmployeePerformance.find(e => e.employeeId === empId)?.baseSalary || 25000;
+          
+          // Get bonuses, advances, penalties from salary adjustments
+          const employeeAdjustments = mockSalaryAdjustments.filter(adj => adj.employeeId === empId);
+          const bonuses = employeeAdjustments
+            .filter(adj => adj.type === 'Bonus' && adj.status === 'Processed')
+            .reduce((sum, adj) => sum + adj.amount, 0);
+          const advances = employeeAdjustments
+            .filter(adj => adj.type === 'Advance' && adj.status === 'Processed')
+            .reduce((sum, adj) => sum + adj.amount, 0);
+          const penalties = employeeAdjustments
+            .filter(adj => adj.type === 'Penalty' && adj.status === 'Processed')
+            .reduce((sum, adj) => sum + adj.amount, 0);
+          
+          const finalPayable = baseSalary + verifiedTaskIncentives + bonuses - advances - penalties;
+          
+          const completionRate = tasksAssigned > 0 ? Math.round((tasksVerified / tasksAssigned) * 100) : 0;
+          
+          // Calculate average completion time (in days)
+          const completedTasksWithTime = verifiedTasks.filter(t => t.completedAt && t.createdAt);
+          const avgCompletionTime = completedTasksWithTime.length > 0
+            ? completedTasksWithTime.reduce((sum, t) => {
+                const days = Math.floor((t.completedAt!.getTime() - t.createdAt.getTime()) / (1000 * 60 * 60 * 24));
+                return sum + days;
+              }, 0) / completedTasksWithTime.length
+            : 0;
+          
+          // Calculate on-time completion rate
+          const onTimeCompletions = verifiedTasks.filter(t => t.completedAt && t.completedAt <= t.dueDate).length;
+          const onTimeCompletionRate = tasksVerified > 0 ? Math.round((onTimeCompletions / tasksVerified) * 100) : 0;
+          
+          // Calculate performance score (based on completion rate, timeliness, and quality)
+          const performanceScore = Math.round(
+            (completionRate * 0.4) + 
+            (onTimeCompletionRate * 0.3) + 
+            (tasksVerified > 0 ? 30 : 0) // Bonus for having verified tasks
+          );
+          
+          return {
+            employeeId: empId,
+            employeeName: mockTasks.find(t => t.assignedUserId === empId)?.assignedUserName || 'Unknown',
+            tasksAssigned,
+            tasksCompleted,
+            tasksPending,
+            tasksOverdue,
+            tasksVerified,
+            tasksRejected: rejectedTasks.length,
+            completionRate,
+            onTimeCompletionRate,
+            averageCompletionTime: Math.round(avgCompletionTime),
+            baseSalary,
+            verifiedTaskIncentives,
+            bonuses,
+            advances,
+            penalties,
+            finalPayable,
+            totalPaymentPending: finalPayable,
+            totalPaymentReceived: 0, // In production, this would track actual payments
+            totalPerformanceScore: performanceScore,
+          };
+        });
+        
+        // Sort by performance score
+        performanceStats.sort((a, b) => b.totalPerformanceScore - a.totalPerformanceScore);
+        
+        // Add rankings
+        performanceStats.forEach((emp, index) => {
+          emp.rank = index + 1;
+          emp.percentile = Math.round(((performanceStats.length - index) / performanceStats.length) * 100);
+        });
+        
+        if (employeeId) {
+          return performanceStats.filter(emp => emp.employeeId === employeeId);
+        }
+        
+        return performanceStats;
+      }
+      throw error;
     }
-    
-    return performanceStats;
   },
 
   async getEmployeeSalaryLedger(employeeId: string, periodStart: Date, periodEnd: Date): Promise<EmployeeSalaryLedger> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
-    const employee = mockEmployeePerformance.find(emp => emp.employeeId === employeeId);
-    if (!employee) throw new Error('Employee not found');
-    
-    const employeeAdjustments = mockSalaryAdjustments.filter(
-      adj => adj.employeeId === employeeId &&
-      adj.createdAt >= periodStart &&
-      adj.createdAt <= periodEnd
-    );
-    
-    const bonuses = employeeAdjustments
-      .filter(adj => adj.type === 'Bonus' && adj.status === 'Processed')
-      .reduce((sum, adj) => sum + adj.amount, 0);
-    
-    const advances = employeeAdjustments
-      .filter(adj => adj.type === 'Advance' && adj.status === 'Processed')
-      .reduce((sum, adj) => sum + adj.amount, 0);
-    
-    const penalties = employeeAdjustments
-      .filter(adj => adj.type === 'Penalty' && adj.status === 'Processed')
-      .reduce((sum, adj) => sum + adj.amount, 0);
-    
-    return {
-      employeeId,
-      employeeName: employee.employeeName,
-      openingBalance: 0,
-      taskEarnings: employee.verifiedTaskIncentives,
-      bonuses,
-      otherCredits: 0,
-      advances,
-      penalties,
-      otherDeductions: 0,
-      currentPayable: employee.verifiedTaskIncentives + bonuses - advances - penalties,
-      totalPaid: employee.totalPaymentReceived,
-      lastPaymentDate: new Date(),
-      adjustments: employeeAdjustments,
-      periodStart,
-      periodEnd,
-    };
+    try {
+      return await api.get<EmployeeSalaryLedger>(`/api/tasks/employee-salary-ledger/${employeeId}`, {
+        params: { periodStart: periodStart.toISOString(), periodEnd: periodEnd.toISOString() }
+      });
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        const employee = mockEmployeePerformance.find(emp => emp.employeeId === employeeId);
+        if (!employee) throw new Error('Employee not found');
+        
+        const employeeAdjustments = mockSalaryAdjustments.filter(
+          adj => adj.employeeId === employeeId &&
+          adj.createdAt >= periodStart &&
+          adj.createdAt <= periodEnd
+        );
+        
+        const bonuses = employeeAdjustments
+          .filter(adj => adj.type === 'Bonus' && adj.status === 'Processed')
+          .reduce((sum, adj) => sum + adj.amount, 0);
+        
+        const advances = employeeAdjustments
+          .filter(adj => adj.type === 'Advance' && adj.status === 'Processed')
+          .reduce((sum, adj) => sum + adj.amount, 0);
+        
+        const penalties = employeeAdjustments
+          .filter(adj => adj.type === 'Penalty' && adj.status === 'Processed')
+          .reduce((sum, adj) => sum + adj.amount, 0);
+        
+        return {
+          employeeId,
+          employeeName: employee.employeeName,
+          openingBalance: 0,
+          taskEarnings: employee.verifiedTaskIncentives,
+          bonuses,
+          otherCredits: 0,
+          advances,
+          penalties,
+          otherDeductions: 0,
+          currentPayable: employee.verifiedTaskIncentives + bonuses - advances - penalties,
+          totalPaid: employee.totalPaymentReceived,
+          lastPaymentDate: new Date(),
+          adjustments: employeeAdjustments,
+          periodStart,
+          periodEnd,
+        };
+      }
+      throw error;
+    }
   },
 
   // Salary Adjustments CRUD
   async getSalaryAdjustments(query?: SalaryAdjustmentQuery): Promise<SalaryAdjustment[]> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    let adjustments = [...mockSalaryAdjustments];
-    
-    // Apply filters
-    if (query?.filter) {
-      const { employeeId, type, status } = query.filter;
-      
-      if (employeeId) {
-        adjustments = adjustments.filter(adj => adj.employeeId === employeeId);
+    try {
+      return await api.get<SalaryAdjustment[]>('/api/tasks/salary-adjustments', { params: query });
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        let adjustments = [...mockSalaryAdjustments];
+        
+        // Apply filters
+        if (query?.filter) {
+          const { employeeId, type, status } = query.filter;
+          
+          if (employeeId) {
+            adjustments = adjustments.filter(adj => adj.employeeId === employeeId);
+          }
+          
+          if (type) {
+            adjustments = adjustments.filter(adj => adj.type === type);
+          }
+          
+          if (status) {
+            adjustments = adjustments.filter(adj => adj.status === status);
+          }
+        }
+        
+        // Apply pagination
+        if (query?.page && query?.pageSize) {
+          const start = (query.page - 1) * query.pageSize;
+          const end = start + query.pageSize;
+          adjustments = adjustments.slice(start, end);
+        }
+        
+        return adjustments;
       }
-      
-      if (type) {
-        adjustments = adjustments.filter(adj => adj.type === type);
-      }
-      
-      if (status) {
-        adjustments = adjustments.filter(adj => adj.status === status);
-      }
+      throw error;
     }
-    
-    // Apply pagination
-    if (query?.page && query?.pageSize) {
-      const start = (query.page - 1) * query.pageSize;
-      const end = start + query.pageSize;
-      adjustments = adjustments.slice(start, end);
-    }
-    
-    return adjustments;
   },
 
   async getSalaryAdjustmentById(id: string): Promise<SalaryAdjustment> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const adjustment = mockSalaryAdjustments.find(a => a.id === id);
-    if (!adjustment) throw new Error('Salary adjustment not found');
-    return adjustment;
+    try {
+      return await api.get<SalaryAdjustment>(`/api/tasks/salary-adjustments/${id}`);
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const adjustment = mockSalaryAdjustments.find(a => a.id === id);
+        if (!adjustment) throw new Error('Salary adjustment not found');
+        return adjustment;
+      }
+      throw error;
+    }
   },
 
   async createSalaryAdjustment(data: CreateSalaryAdjustmentDto): Promise<SalaryAdjustment> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const newAdjustment: SalaryAdjustment = {
-      id: `adj-${mockSalaryAdjustments.length + 1}`,
-      ...data,
-      status: 'Pending',
-      createdAt: new Date(),
-      createdBy: 'admin-1', // Should come from auth context
-    };
-    mockSalaryAdjustments.push(newAdjustment);
-    return newAdjustment;
+    try {
+      return await api.post<SalaryAdjustment>('/api/tasks/salary-adjustments', data);
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const newAdjustment: SalaryAdjustment = {
+          id: `adj-${mockSalaryAdjustments.length + 1}`,
+          ...data,
+          status: 'Pending',
+          createdAt: new Date(),
+          createdBy: 'admin-1', // Should come from auth context
+        };
+        mockSalaryAdjustments.push(newAdjustment);
+        return newAdjustment;
+      }
+      throw error;
+    }
   },
 
   async updateSalaryAdjustment(id: string, data: UpdateSalaryAdjustmentDto): Promise<SalaryAdjustment> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const index = mockSalaryAdjustments.findIndex(a => a.id === id);
-    if (index === -1) throw new Error('Salary adjustment not found');
-    
-    mockSalaryAdjustments[index] = {
-      ...mockSalaryAdjustments[index],
-      ...data,
-    };
-    
-    return mockSalaryAdjustments[index];
+    try {
+      return await api.patch<SalaryAdjustment>(`/api/tasks/salary-adjustments/${id}`, data);
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const index = mockSalaryAdjustments.findIndex(a => a.id === id);
+        if (index === -1) throw new Error('Salary adjustment not found');
+        
+        mockSalaryAdjustments[index] = {
+          ...mockSalaryAdjustments[index],
+          ...data,
+        };
+        
+        return mockSalaryAdjustments[index];
+      }
+      throw error;
+    }
   },
 
   async deleteSalaryAdjustment(id: string): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    const index = mockSalaryAdjustments.findIndex(a => a.id === id);
-    if (index === -1) throw new Error('Salary adjustment not found');
-    mockSalaryAdjustments.splice(index, 1);
+    try {
+      return await api.delete<void>(`/api/tasks/salary-adjustments/${id}`);
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const index = mockSalaryAdjustments.findIndex(a => a.id === id);
+        if (index === -1) throw new Error('Salary adjustment not found');
+        mockSalaryAdjustments.splice(index, 1);
+      }
+      throw error;
+    }
   },
 
   async approveSalaryAdjustment(id: string, approvedBy: string, approvedByName: string): Promise<SalaryAdjustment> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const index = mockSalaryAdjustments.findIndex(a => a.id === id);
-    if (index === -1) throw new Error('Salary adjustment not found');
-    
-    mockSalaryAdjustments[index] = {
-      ...mockSalaryAdjustments[index],
-      status: 'Approved',
-      approvedBy,
-      approvedByName,
-      approvedAt: new Date(),
-    };
-    
-    return mockSalaryAdjustments[index];
+    try {
+      return await api.post<SalaryAdjustment>(`/api/tasks/salary-adjustments/${id}/approve`, { approvedBy, approvedByName });
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const index = mockSalaryAdjustments.findIndex(a => a.id === id);
+        if (index === -1) throw new Error('Salary adjustment not found');
+        
+        mockSalaryAdjustments[index] = {
+          ...mockSalaryAdjustments[index],
+          status: 'Approved',
+          approvedBy,
+          approvedByName,
+          approvedAt: new Date(),
+        };
+        
+        return mockSalaryAdjustments[index];
+      }
+      throw error;
+    }
   },
 
   async processSalaryAdjustment(id: string, processedBy: string): Promise<SalaryAdjustment> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const index = mockSalaryAdjustments.findIndex(a => a.id === id);
-    if (index === -1) throw new Error('Salary adjustment not found');
-    
-    mockSalaryAdjustments[index] = {
-      ...mockSalaryAdjustments[index],
-      status: 'Processed',
-      processedBy,
-      processedAt: new Date(),
-    };
-    
-    return mockSalaryAdjustments[index];
+    try {
+      return await api.post<SalaryAdjustment>(`/api/tasks/salary-adjustments/${id}/process`, { processedBy });
+    } catch (error) {
+      if (isConnectionError(error)) {
+        // Mock fallback
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const index = mockSalaryAdjustments.findIndex(a => a.id === id);
+        if (index === -1) throw new Error('Salary adjustment not found');
+        
+        mockSalaryAdjustments[index] = {
+          ...mockSalaryAdjustments[index],
+          status: 'Processed',
+          processedBy,
+          processedAt: new Date(),
+        };
+        
+        return mockSalaryAdjustments[index];
+      }
+      throw error;
+    }
   },
 };

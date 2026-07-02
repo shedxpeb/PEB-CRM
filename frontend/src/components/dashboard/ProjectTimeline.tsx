@@ -65,8 +65,7 @@ export const ProjectTimeline = memo(function ProjectTimeline({ statusFilter, sel
     if (!filtered.some((p) => p.id === activeId)) {
       setActiveId(filtered[0]?.id ?? projects[0].id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  }, [filter, activeId, projects]);
 
   const p = projects.find((x) => x.id === activeId) ?? projects[0];
 

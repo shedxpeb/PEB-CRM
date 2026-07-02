@@ -20,7 +20,7 @@ export function SecuritySettings() {
     e.preventDefault();
   };
 
-  const handleChange = (field: keyof SecuritySettings, value: any) => {
+  const handleChange = (field: keyof SecuritySettings, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 

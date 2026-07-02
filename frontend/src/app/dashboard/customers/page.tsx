@@ -312,7 +312,6 @@ export default function CustomersPage() {
             },
             {
               onError: (error: any) => {
-                console.error('Failed to update lead status:', error);
                 // Don't block customer creation if lead update fails
               },
             }
@@ -387,7 +386,6 @@ export default function CustomersPage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error('Error exporting customers:', error);
       alert('Failed to export customers. Please try again.');
     }
   }, []);

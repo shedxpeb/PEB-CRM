@@ -175,7 +175,7 @@ export function EstimatesPage() {
         await deleteEstimate(est.id);
         refetch();
       } catch (err) {
-        console.error('Failed to delete estimate:', err);
+        // Failed to delete estimate
       }
     }
   };
@@ -205,7 +205,7 @@ export function EstimatesPage() {
       await createEstimate(duplicateData);
       refetch();
     } catch (err) {
-      console.error('Failed to duplicate estimate:', err);
+      // Failed to duplicate estimate
     }
   };
 
@@ -220,7 +220,7 @@ export function EstimatesPage() {
       setEditingEstimate(null);
       refetch();
     } catch (err) {
-      console.error('Failed to save estimate:', err);
+      // Failed to save estimate
     }
   };
 

@@ -225,15 +225,12 @@ export class SalesPipelineGenerator {
           // Sales funnel chart rendered successfully
           return y + 105;
         } else {
-          console.warn('Sales funnel chart image data invalid, using placeholder');
           return this.addChartPlaceholder(y, 'sales-funnel');
         }
       } catch (error) {
-        console.error('Failed to render sales funnel chart:', error);
         return this.addChartPlaceholder(y, 'sales-funnel', 'Chart rendering failed');
       }
     } else {
-      console.warn('Sales funnel chart element not found, using placeholder');
       return this.addChartPlaceholder(y, 'sales-funnel', 'Chart not available');
     }
   }
@@ -258,7 +255,6 @@ export class SalesPipelineGenerator {
     const message = reason ? `[${reason}]` : 'Chart will be rendered from dashboard component';
     this.doc.text(message, 105, y + 62, { align: 'center' });
     
-    console.warn(`Chart placeholder used for ${chartId}: ${reason || 'No reason'}`);
     return y + 105;
   }
 }

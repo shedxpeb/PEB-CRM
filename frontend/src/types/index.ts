@@ -21,7 +21,7 @@ export interface KPICard {
 
 export interface KPIDetail {
   title: string;
-  data: any[];
+  data: Record<string, unknown>[];
   columns: {
     key: string;
     label: string;
@@ -52,7 +52,7 @@ export interface TableConfig {
     sortable?: boolean;
     filterable?: boolean;
   }[];
-  data: any[];
+  data: Record<string, unknown>[];
   pagination?: {
     page: number;
     pageSize: number;

@@ -23,10 +23,10 @@ const columns: AdminTableColumn<CompanyRecord>[] = [
   { key: 'name', label: 'Company', sortable: true },
   { key: 'owner', label: 'Owner', sortable: true },
   { key: 'employees', label: 'Employees', sortable: true, render: (v) => (
-    <span className="text-xs text-sa-text-secondary">{v}</span>
+    <span className="text-xs text-sa-text-secondary">{String(v)}</span>
   )},
   { key: 'activeProjects', label: 'Active Projects', sortable: true, render: (v) => (
-    <Badge variant="secondary" className={componentTextSizes.badge}>{v}</Badge>
+    <Badge variant="secondary" className={componentTextSizes.badge}>{String(v)}</Badge>
   )},
   { key: 'storageUsage', label: 'Storage', sortable: true, render: (v, row) => (
     <div className="flex items-center gap-2">
@@ -39,16 +39,16 @@ const columns: AdminTableColumn<CompanyRecord>[] = [
           style={{ width: `${row.storagePct}%` }}
         />
       </div>
-      <span className={cn(componentTextSizes.badge, 'text-sa-text-muted')}>{v}</span>
+      <span className={cn(componentTextSizes.badge, 'text-sa-text-muted')}>{String(v)}</span>
     </div>
   )},
   { key: 'subscription', label: 'Plan', sortable: true, render: (v) => (
     <Badge variant={v === 'Enterprise' ? 'success' : v === 'Professional' ? 'secondary' : 'warning'} className={componentTextSizes.badge}>
-      {v}
+      {String(v)}
     </Badge>
   )},
   { key: 'lastActivity', label: 'Last Activity', sortable: true, render: (v) => (
-    <span className="text-xs text-sa-text-muted">{v}</span>
+    <span className="text-xs text-sa-text-muted">{String(v)}</span>
   )},
 ];
 

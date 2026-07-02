@@ -163,7 +163,6 @@ export function EstimateBuilder({
 
       onSave(estimateDto);
     } catch (err) {
-      console.error('Error saving estimate:', err);
       setError('Failed to save estimate. Please try again.');
     }
   };

@@ -193,7 +193,7 @@ export function QuotationsPage() {
         await deleteQuotation(quot.id);
         refetch();
       } catch (err) {
-        console.error('Failed to delete quotation:', err);
+        // Failed to delete quotation
       }
     }
   };
@@ -221,7 +221,7 @@ export function QuotationsPage() {
       await createQuotation(duplicateData);
       refetch();
     } catch (err) {
-      console.error('Failed to duplicate quotation:', err);
+      // Failed to duplicate quotation
     }
   };
 
@@ -237,7 +237,7 @@ export function QuotationsPage() {
       setSelectedProposal(null);
       refetch();
     } catch (err) {
-      console.error('Failed to save quotation:', err);
+      // Failed to save quotation
     }
   };
 

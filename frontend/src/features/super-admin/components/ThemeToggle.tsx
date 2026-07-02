@@ -4,7 +4,7 @@ import { useSAThemeStore, SATheme } from '@/store/useSAThemeStore';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const themes: { value: SATheme; label: string; icon: any }[] = [
+const themes: { value: SATheme; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { value: 'light', label: 'Light', icon: Sun },
   { value: 'sky', label: 'Sky Blue', icon: Monitor },
   { value: 'dark', label: 'Dark', icon: Moon },

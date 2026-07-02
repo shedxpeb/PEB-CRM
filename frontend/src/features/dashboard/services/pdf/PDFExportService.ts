@@ -92,7 +92,6 @@ export class PDFExportService {
 
       return pdfBlob;
     } catch (error) {
-      console.error('PDF Export Error:', error);
       this.progress.update('error', 'Export Failed', 0);
       throw error;
     }
@@ -282,9 +281,7 @@ export class PDFExportService {
       validationErrors.push('KPI data is missing');
     }
     
-    // Log validation results
     if (validationErrors.length > 0) {
-      console.error('PDF Validation Failed:', validationErrors);
       throw new Error(`PDF validation failed: ${validationErrors.join(', ')}`);
     } else {
       // PDF Validation Passed

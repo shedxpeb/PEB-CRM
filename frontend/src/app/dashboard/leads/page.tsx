@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { MainLayout } from '@/layouts/MainLayout';
 import { DataTable } from '@/components/data-table/DataTable';
@@ -228,6 +229,7 @@ const baseColumns = [
 ];
 
 export default function LeadsPage() {
+  const router = useRouter();
   const leadConfig = useLeadConfiguration();
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -794,8 +796,13 @@ export default function LeadsPage() {
   }, []);
 
   const handleConvertLead = useCallback((lead: Lead) => {
-    // Convert to project
-  }, []);
+    if (!lead.customerId) {
+      alert('This lead has not been converted to a customer yet. Please convert the lead to a customer first.');
+      return;
+    }
+    sessionStorage.setItem('convertFromLead', JSON.stringify(lead));
+    router.push(`/dashboard/projects?create=true&customerId=${lead.customerId}`);
+  }, [router]);
 
   const handleConvertToCustomer = useCallback((lead: Lead) => {
     // Duplicate prevention: Check if lead already has customerId

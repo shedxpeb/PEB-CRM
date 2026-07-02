@@ -269,7 +269,6 @@ export class InventoryAnalyticsGenerator {
     const message = reason ? `[${reason}]` : 'Chart will be rendered from dashboard component';
     this.doc.text(message, 105, y + 62, { align: 'center' });
     
-    console.warn(`Chart placeholder used for ${chartId}: ${reason || 'No reason'}`);
     return y + 105;
   }
 }

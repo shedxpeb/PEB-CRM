@@ -148,7 +148,6 @@ export default function CustomerDetailPage() {
         await documentsApi.deleteDocument(docId);
         setDocuments(prev => prev.filter(doc => doc.id !== docId));
       } catch (error) {
-        console.error('Failed to delete document:', error);
         alert('Failed to delete document. Please try again.');
       }
     }
@@ -180,7 +179,6 @@ export default function CustomerDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
       queryClient.invalidateQueries({ queryKey: ['customer', customerId, 'activities'] });
     } catch (error) {
-      console.error('Failed to create estimate:', error);
       alert('Failed to create estimate. Please try again.');
     }
   }, [createEstimate, customerId, queryClient]);
@@ -192,7 +190,6 @@ export default function CustomerDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
       queryClient.invalidateQueries({ queryKey: ['customer', customerId, 'activities'] });
     } catch (error) {
-      console.error('Failed to create proposal:', error);
       alert('Failed to create proposal. Please try again.');
     }
   }, [createProposal, customerId, queryClient]);
@@ -204,7 +201,6 @@ export default function CustomerDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['customer', customerId] });
       queryClient.invalidateQueries({ queryKey: ['customer', customerId, 'activities'] });
     } catch (error) {
-      console.error('Failed to create quotation:', error);
       alert('Failed to create quotation. Please try again.');
     }
   }, [createQuotation, customerId, queryClient]);
